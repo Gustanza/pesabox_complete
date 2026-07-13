@@ -119,7 +119,7 @@ func ToDataMap(input interface{}) datatype.DataMap {
 				value = value.Elem()
 			}
 		} else {
-			console.Error("input must be a map")
+			console.Error("input must be a map => input:", input)
 		}
 	}
 
@@ -2274,4 +2274,28 @@ func ToBase64Image(filePath string) string {
 	dataURL := fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data)
 
 	return dataURL
+}
+
+func Matches(text string, pattern string) bool {
+	return MatchPattern(text, pattern)
+}
+
+func MatchPattern(text string, pattern string) bool {
+	re := regexp.MustCompile(pattern)
+	matches := re.FindStringSubmatch(text)
+
+	if matches == nil {
+		return false
+	}
+
+	return true
+}
+
+func MatchPath(route string, pattern string) bool {
+	matched, err := path.Match(pattern, route)
+	if err == nil && matched {
+		return true
+	}
+
+	return false
 }

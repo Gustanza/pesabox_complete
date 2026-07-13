@@ -79,6 +79,7 @@ type YekongaData struct {
 	logger                 *log.Logger
 	cronjob                *Cronjob
 	mut                    sync.RWMutex
+	publicRoutes           []string
 
 	Config   *config.YekongaConfig
 	RootPath string
@@ -124,6 +125,7 @@ func ServerConfig(configFile string, databaseFile string) *YekongaData {
 		graphqlActionFunctions: make(map[string]map[string]map[string]ActionCloudFunction),
 		triggerFunctions:       make(map[string]map[TriggerAction]map[string]TriggerFunction),
 		authTriggerFunctions:   make(map[TriggerAction]TriggerFunction),
+		publicRoutes:           make([]string, 0),
 		logger:                 &log.Logger{},
 	}
 
@@ -559,6 +561,10 @@ func (y *YekongaData) RegisterCronjobAt(name string, frequency JobFrequency, tim
 
 func (y *YekongaData) RegisterCronjobOn(name string, frequency JobFrequency, time time.Time, callback func(app *YekongaData, time time.Time)) {
 	y.cronjob.registerJobAt(name, frequency, time, callback)
+}
+
+func (y *YekongaData) SetPublicRoute(route string) {
+	y.publicRoutes = append(y.publicRoutes, route)
 }
 
 // ServeHTTP implements the http.Handler interface

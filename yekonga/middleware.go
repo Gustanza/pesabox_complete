@@ -180,10 +180,19 @@ func TokenMiddleware(req *Request, res *Response) (int, error) {
 		app.AppendBaseUrl(config.Graphql.ApiAuthRoute),
 	}
 	mandatoryValidToken := (!helper.Contains(ignorePaths, currentPath) &&
-		!strings.HasPrefix(currentPath, app.AppendBaseUrl("me/")) &&
-		!strings.HasPrefix(currentPath, app.AppendBaseUrl("refresh/")) &&
-		!strings.HasPrefix(currentPath, app.AppendBaseUrl("download/")) &&
-		!strings.HasPrefix(currentPath, app.AppendBaseUrl("translations/")))
+		!helper.MatchPath(currentPath, app.AppendBaseUrl("me/*")) &&
+		!helper.MatchPath(currentPath, app.AppendBaseUrl("refresh/*")) &&
+		!helper.MatchPath(currentPath, app.AppendBaseUrl("download/*")) &&
+		!helper.MatchPath(currentPath, app.AppendBaseUrl("translations/*")) &&
+		!helper.MatchPath(currentPath, app.AppendBaseUrl("image/*")))
+
+	for _, v := range req.App.publicRoutes {
+		test := helper.MatchPath(currentPath, app.AppendBaseUrl(v))
+		if test {
+			mandatoryValidToken = !test
+			break
+		}
+	}
 
 	var isValid bool
 	var accessToken string

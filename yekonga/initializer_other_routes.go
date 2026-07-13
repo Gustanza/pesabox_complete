@@ -277,6 +277,7 @@ func (y *YekongaData) initializerOtherRoutes() {
 	y.Get("/tenant-config", func(req *Request, res *Response) {
 		tenantConfig := y.GetTenantConfig(req)
 		// console.Error("tenantConfig", tenantConfig)
+
 		if helper.IsNotEmpty(tenantConfig) {
 			res.Json(helper.ToMap[interface{}](tenantConfig))
 			return
@@ -356,7 +357,7 @@ func (y *YekongaData) initializerOtherRoutes() {
 				"apiRoute": apiRoute,
 				"baseUrl":  baseUrl,
 			}
-			console.Log("data", y.Config.BaseUrl, data)
+			// console.Log("data", y.Config.BaseUrl, data)
 			html = helper.TextTemplate(html, data, nil)
 
 			res.Html(html)
