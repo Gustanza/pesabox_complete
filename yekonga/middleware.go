@@ -241,7 +241,7 @@ func TokenMiddleware(req *Request, res *Response) (int, error) {
 		if tokenPayload.ExpiresAt.Before(helper.GetTimestamp(nil)) {
 			if mandatoryValidToken {
 				if !isJson {
-					return http.StatusTemporaryRedirect, errors.New(helper.GetBaseUrl("refresh", domain))
+					return http.StatusTemporaryRedirect, errors.New(helper.GetBaseUrl("refresh", domain) + "?" + "redirect=" + currentPath)
 				}
 
 				return http.StatusUnauthorized, errors.New("Token expired")

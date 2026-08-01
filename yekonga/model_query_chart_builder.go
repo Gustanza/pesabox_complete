@@ -128,8 +128,8 @@ func (cb *ChartBuilder) BuildGraph(filter map[string]FilterValue, isAdmin bool) 
 		yAxis = cb.getColumn(cb.getStringParam(context.Params, "metric", cb.getStringParam(context.Params, "yAxis", "")))
 	}
 
-	// Initialize chart data
-	data := &ChartData{
+	// Initialize chart chartData
+	chartData := &ChartData{
 		Type: ChartType(chartType),
 	}
 
@@ -249,17 +249,18 @@ func (cb *ChartBuilder) BuildGraph(filter map[string]FilterValue, isAdmin bool) 
 
 	// Format data based on chart type
 	var err error
-	if data.Type == ChartTypePie {
-		data, err = cb.getPieChartFormat(dataList, context.Params, startDate, endDate, isAdmin, xAxis, TotalType(totalType), Periodicity(periodicity))
+	if chartData.Type == ChartTypePie {
+		chartData, err = cb.getPieChartFormat(dataList, context.Params, startDate, endDate, isAdmin, xAxis, TotalType(totalType), Periodicity(periodicity))
 	} else {
-		data, err = cb.getLinearChartFormat(dataList, context.Params, startDate, endDate, isAdmin, xAxis, yAxis, TotalType(totalType), Periodicity(periodicity), groupBy)
+		chartData, err = cb.getLinearChartFormat(dataList, context.Params, startDate, endDate, isAdmin, xAxis, yAxis, TotalType(totalType), Periodicity(periodicity), groupBy)
 	}
+	// console.Log("chartData", chartData)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return data, nil
+	return chartData, nil
 }
 
 // configureGrouping configures the data model grouping

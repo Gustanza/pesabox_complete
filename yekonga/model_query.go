@@ -409,6 +409,53 @@ func (m *DataModelQuery) Update(data datatype.DataMap, where interface{}) interf
 	return result
 }
 
+func (m *DataModelQuery) UpdateMany(data datatype.DataMap, where interface{}) interface{} {
+	m.WhereAll(where)
+	m.addTenantId()
+
+	if !m.skipBeforeCommit {
+		triggerBefore := m.runTriggerAction(BeforeUpdateTriggerAllAction, data)
+		if v, ok := triggerBefore.(bool); ok && !v {
+			return nil
+		} else if helper.IsMap(triggerBefore) {
+			data = helper.ToDataMap(triggerBefore)
+		}
+
+		triggerBefore = m.runTriggerAction(BeforeUpdateTriggerAction, data)
+		if v, ok := triggerBefore.(bool); ok && !v {
+			return nil
+		} else if helper.IsMap(triggerBefore) {
+			data = helper.ToDataMap(triggerBefore)
+		}
+	}
+
+	result, err := m.collection().updateMany(*(m.formatInputData(data, UpdateInputAction)))
+
+	if err != nil {
+		console.Log(err.Error())
+		return err
+	}
+
+	triggerAfter := m.runTriggerAction(AfterUpdateTriggerAllAction, result)
+	if helper.IsArray(triggerAfter) {
+		v := helper.ToDataMapList(triggerAfter)
+		result = &v
+	}
+
+	triggerAfter = m.runTriggerAction(AfterUpdateTriggerAction, result)
+	if helper.IsArray(triggerAfter) {
+		v := helper.ToDataMapList(triggerAfter)
+		result = &v
+	}
+
+	m.Model.App.socketServer.Of("/").Emit("database", datatype.DataMap{
+		"action": "update",
+		"model":  m.Model.Name,
+	}, nil)
+
+	return result
+}
+
 func (m *DataModelQuery) Import(data []interface{}, uniqueKeys []string) interface{} {
 	if !m.skipTenant {
 		if m.Model.HasTenant && m.RequestContext != nil && (m.Model.App.Config.HasTenant || m.Model.App.Config.HasTenantCatch) {
@@ -1056,18 +1103,19 @@ func (m *DataModelQuery) Graph(where interface{}, p *graphql.ResolveParams) inte
 	chart := NewChartBuilder(m)
 
 	chartData, err := chart.BuildGraph(whereFilter, false)
+
 	if err != nil {
 		return err
 	}
 
-	return helper.ToDataMap(chartData)
+	return helper.ToMap[any](chartData)
 }
 
 func (m *DataModelQuery) Download(where interface{}, fileType string) interface{} {
 	result := make(map[string]interface{})
 	data := m.Find(where)
 
-	result["data"], _ = helper.ConvertJSONArrayToCSV(data, []string{}, "")
+	result["data"], _ = helper.ConvertJSONArrayToCSV(data, []string{}, "", []string{})
 
 	return result
 }

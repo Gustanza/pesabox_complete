@@ -293,7 +293,7 @@ func (y *YekongaData) initializerOtherRoutes() {
 		filename := req.Param("filename")
 		ext := req.Param("ext")
 		title := req.Query("title")
-		// console.Log(filename, ext, title)
+		console.Log(filename, ext, title)
 
 		publicDir, _ := helper.GetPublicPath()
 		file := path.Join(publicDir, "tmp", filename+"."+ext)

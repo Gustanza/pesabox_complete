@@ -464,16 +464,19 @@ func (g *GraphqlAutoBuild) getQueryDownloadField(collection string, foreignKey s
 			"route": &graphql.ArgumentConfig{
 				Type: graphql.String,
 			},
+			"flatKeys": &graphql.ArgumentConfig{
+				Type: graphql.NewList(graphql.String),
+			},
 		},
 		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 			ctx, _ := p.Context.Value(RequestContextKey).(*RequestContext)
 			data := make(map[string]interface{})
-			data["size"] = 0
+
+			flatKeys := helper.ToList[string](helper.GetValueOf(p.Args, "flatKeys"))
 			orientation := helper.GetValueOfString(p.Args, "orientation")
 			downloadType := helper.GetValueOfString(p.Args, "downloadType")
 			downloadQuery := helper.GetValueOfString(p.Args, "download.query")
 			downloadVariables := helper.GetValueOf(p.Args, "download.variables")
-			// console.Info("download", orientation, downloadType, downloadQuery, downloadVariables)
 
 			if helper.IsNotEmpty(downloadQuery) {
 				result := helper.ToMap[interface{}](g.yekonga.GraphQL(downloadQuery, map[string]interface{}{}, ctx.Request, ctx.Response))
@@ -485,23 +488,26 @@ func (g *GraphqlAutoBuild) getQueryDownloadField(collection string, foreignKey s
 					listData = helper.GetMapValue(result, "data.list")
 				}
 
-				// console.Success("download", listData)
+				// keysOrder := []string{}
+				keysOrder, _ := helper.ExtractKeysInOrder(downloadQuery)
+				// console.Success("keysOrder", keysOrder)
 
 				if listData != nil {
 					filename := ""
 					if downloadType == "EXCEL" {
 						filename = "tmp/" + helper.GetHexString(24) + ".xlsx"
 
-						helper.ConvertJSONArrayToExcel(listData, []string{}, filename)
+						helper.ConvertJSONArrayToExcel(listData, keysOrder, filename, flatKeys)
 					} else {
 						filename = "tmp/" + helper.GetHexString(24) + ".csv"
 
-						helper.ConvertJSONArrayToCSV(listData, []string{}, filename)
+						helper.ConvertJSONArrayToCSV(listData, keysOrder, filename, flatKeys)
 					}
 
 					data["filename"] = path.Base(filename)
 					data["url"] = helper.GetBaseUrl("download/"+path.Base(filename), ctx.Client.OriginDomain())
 					data["type"] = downloadType
+					data["size"] = 0
 				}
 			} else {
 				console.Info("download", orientation, downloadType, downloadQuery, downloadVariables)

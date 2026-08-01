@@ -48,7 +48,7 @@ func GetSortedUniqueKeys(records []datatype.DataMap) []string {
 
 // ConvertJSONArrayToCSV takes a byte slice of JSON data (an array of objects)
 // and a list of desired column names. It converts this data into a CSV string.
-func ConvertJSONArrayToDataArray(jsonData interface{}, headingColumns []string) ([][]string, error) {
+func ConvertJSONArrayToDataArray(jsonData interface{}, headingColumns []string, flatKeys []string) ([][]string, error) {
 	var records []datatype.DataMap
 	jsonInput := []byte(ToJson(jsonData))
 
@@ -58,22 +58,59 @@ func ConvertJSONArrayToDataArray(jsonData interface{}, headingColumns []string) 
 		return nil, fmt.Errorf("failed to unmarshal JSON data: %w", err)
 	}
 
+	if !Contains(flatKeys, "customFormValues") {
+		flatKeys = append(flatKeys, "customFormValues")
+	}
+
 	dataSize := len(records)
 	headingColumnsNames := []string{}
 	result := make([][]string, 0, dataSize)
+	flatRecords := make([]datatype.DataMap, 0, dataSize)
+
+	// --- 4. Write Data Rows ---
+	for _, record := range records {
+		// Flatten customFormValues (if present) into label -> value pairs
+		// so they can be looked up like any other column key.
+		flatRecords = append(flatRecords, FlattenSpecialKeys(record, false, flatKeys))
+	}
 
 	if len(headingColumns) == 0 {
 		// Automatically determine the column names and sort them alphabetically
-		headingColumns = GetSortedUniqueKeys(records)
+		headingColumns = GetSortedUniqueKeys(flatRecords)
+	} else {
+		extraRecordsOnly := make([]datatype.DataMap, 0, dataSize)
+
+		// --- Write Data Rows ---
+		for _, record := range records {
+			// Flatten customFormValues (if present) into label -> value pairs
+			// so they can be looked up like any other column key.
+			extraRecordsOnly = append(extraRecordsOnly, FlattenSpecialKeys(record, true, flatKeys))
+		}
+
+		headingExtractColumns := GetSortedUniqueKeys(extraRecordsOnly)
+
+		for _, k := range headingExtractColumns {
+			if !Contains(headingColumns, k) {
+				headingColumns = append(headingColumns, k)
+			}
+		}
 	}
 
 	for _, col := range headingColumns {
-		colName := strings.ReplaceAll(col, ".", " ")
-		headingColumnsNames = append(headingColumnsNames, ToTitle(colName))
+		cols := strings.Split(col, ".")
+		groupName := ""
+		colName := cols[0]
+		if len(cols) > 1 {
+			groupName = strings.ToUpper(ToTitle(cols[0])) + ": "
+			colName = strings.Join(cols[1:], ".")
+		}
+		colName = strings.ReplaceAll(colName, ".", " ")
+
+		headingColumnsNames = append(headingColumnsNames, groupName+ToTitle(colName))
 	}
 
 	result = append(result, headingColumnsNames)
-	dataList := ConvertJSONArrayToListDataArray(records, headingColumns)
+	dataList := ConvertJSONArrayToListDataArray(flatRecords, headingColumns)
 
 	for _, v := range dataList {
 		result = append(result, v)
@@ -82,109 +119,16 @@ func ConvertJSONArrayToDataArray(jsonData interface{}, headingColumns []string) 
 	return result, nil
 }
 
-func ConvertJSONArrayToListDataArray(records []datatype.DataMap, headingColumns []string) [][]string {
-	result := make([][]string, 0, len(records))
-
-	// --- 4. Write Data Rows ---
-	for _, record := range records {
-		var csvRow []string
-		// Iterate through the specified columns to maintain order
-		for _, key := range headingColumns {
-			// Get the value from the record map using dot-notation path
-			var value interface{}
-			var exists bool
-
-			if v, ok := record[key]; ok {
-				value = v
-				exists = true
-			} else if strings.Contains(key, ".") {
-				// Traverse nested objects
-				var current interface{} = record
-				parts := strings.Split(key, ".")
-				exists = true
-
-				for _, part := range parts {
-					if m, ok := current.(datatype.DataMap); ok {
-						if v, ok2 := m[part]; ok2 {
-							current = v
-						} else {
-							exists = false
-							break
-						}
-					} else if m, ok := current.(map[string]interface{}); ok {
-						if v, ok2 := m[part]; ok2 {
-							current = v
-						} else {
-							exists = false
-							break
-						}
-					} else {
-						exists = false
-						break
-					}
-				}
-				if exists {
-					value = current
-				}
-			}
-
-			if !exists {
-				// If the key is not present in the record, add an empty string
-				csvRow = append(csvRow, "")
-				continue
-			}
-
-			// Convert the value to a string based on its underlying type
-			var valueStr string
-			switch v := value.(type) {
-			case string:
-				valueStr = v
-			case float64:
-				// JSON numbers are typically unmarshalled as float64
-				// Format as a regular string representation
-				valueStr = fmt.Sprintf("%v", v)
-			case bool:
-				valueStr = fmt.Sprintf("%v", v)
-			case []interface{}:
-				// This handles the JavaScript logic of joining arrays with " / "
-				strElements := make([]string, len(v))
-				for i, elem := range v {
-					// Recursively convert array elements to string
-					strElements[i] = fmt.Sprintf("%v", elem)
-				}
-				valueStr = strings.Join(strElements, " / ")
-			case map[string]interface{}:
-				// Handle explicitly selected map-type columns by printing as JSON to maintain 1-to-1 column mapping
-				jsonBytes, err := json.Marshal(v)
-				if err == nil {
-					valueStr = string(jsonBytes)
-				} else {
-					valueStr = fmt.Sprintf("%v", v)
-				}
-			default:
-				// Catch-all for other types (e.g., nested objects, null)
-				if value != nil {
-					valueStr = fmt.Sprintf("%v", value)
-				} else {
-					valueStr = ""
-				}
-			}
-
-			// Note: The csv.Writer handles complex escaping/quoting (like for strings
-			// containing commas or quotes) automatically.
-			csvRow = append(csvRow, valueStr)
-		}
-
-		result = append(result, csvRow)
-	}
-
-	return result
-}
-
 // ConvertJSONArrayToCSV takes a byte slice of JSON data (an array of objects)
 // and a list of desired column names. It converts this data into a CSV string.
-func ConvertJSONArrayToCSV(jsonData interface{}, headingColumns []string, filename string) (string, error) {
-	records, _ := ConvertJSONArrayToDataArray(jsonData, headingColumns)
+func ConvertJSONArrayToCSV(jsonData interface{}, headingColumns []string, filename string, flatKeys []string) (string, error) {
+	var records [][]string
+
+	if list, ok := jsonData.([][]string); ok {
+		records = list
+	} else {
+		records, _ = ConvertJSONArrayToDataArray(jsonData, headingColumns, flatKeys)
+	}
 	// console.Log("ConvertJSONArrayToCSV", records)
 
 	// 2. Prepare the CSV writer
@@ -219,8 +163,14 @@ func ConvertJSONArrayToCSV(jsonData interface{}, headingColumns []string, filena
 
 // ConvertJSONArrayToCSV takes a byte slice of JSON data (an array of objects)
 // and a list of desired column names. It converts this data into a CSV string.
-func ConvertJSONArrayToExcel(jsonData interface{}, headingColumns []string, filename string) (string, error) {
-	records, _ := ConvertJSONArrayToDataArray(jsonData, headingColumns)
+func ConvertJSONArrayToExcel(jsonData interface{}, headingColumns []string, filename string, flatKeys []string) (string, error) {
+	var records [][]string
+
+	if list, ok := jsonData.([][]string); ok {
+		records = list
+	} else {
+		records, _ = ConvertJSONArrayToDataArray(jsonData, headingColumns, flatKeys)
+	}
 
 	if IsEmpty(filename) {
 		filename = "tmp/" + GetHexString(24) + ".xlsx"
@@ -231,8 +181,6 @@ func ConvertJSONArrayToExcel(jsonData interface{}, headingColumns []string, file
 	fileSaved := path.Join(publicDir, filename)
 
 	CreateDirectory(filepath.Dir(fileSaved))
-	// console.Info("Saving Excel file to:", fileSaved)
-	// console.Info("Saving Excel file to:", records)
 
 	f := excelize.NewFile()
 
@@ -277,55 +225,6 @@ func ConvertJSONArrayToExcel(jsonData interface{}, headingColumns []string, file
 
 	return fileSaved, nil
 }
-
-// ConvertExcelToCSV converts an Excel file to CSV
-// func ConvertExcelToCSV(excelPath string) (string, error) {
-// 	// Open Excel file
-// 	f, err := excelize.OpenFile(excelPath)
-// 	if err != nil {
-// 		return "", err
-// 	}
-// 	defer f.Close()
-
-// 	// Get first sheet
-// 	sheets := f.GetSheetList()
-// 	if len(sheets) == 0 {
-// 		return "", fmt.Errorf("no sheets found")
-// 	}
-
-// 	sheetName := sheets[0]
-
-// 	// Read rows
-// 	rows, err := f.GetRows(sheetName)
-// 	if err != nil {
-// 		return "", err
-// 	}
-
-// 	// Output CSV path
-// 	csvPath := filepath.Join(
-// 		filepath.Dir(excelPath),
-// 		filepath.Base(excelPath[:len(excelPath)-len(filepath.Ext(excelPath))])+".csv",
-// 	)
-
-// 	// Create CSV file
-// 	csvFile, err := os.Create(csvPath)
-// 	if err != nil {
-// 		return "", err
-// 	}
-// 	defer csvFile.Close()
-
-// 	writer := csv.NewWriter(csvFile)
-// 	defer writer.Flush()
-
-// 	// Write rows
-// 	for _, row := range rows {
-// 		if err := writer.Write(row); err != nil {
-// 			return "", err
-// 		}
-// 	}
-
-// 	return csvPath, nil
-// }
 
 func ConvertExcelToCSV(excelPath string) (string, error) {
 	f, err := excelize.OpenFile(excelPath)

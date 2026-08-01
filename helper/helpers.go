@@ -123,8 +123,10 @@ func ToDataMap(input interface{}) datatype.DataMap {
 		}
 	}
 
-	for _, key := range value.MapKeys() {
-		result[fmt.Sprintf("%v", key.Interface())] = value.MapIndex(key).Interface()
+	if value.Kind() == reflect.Map {
+		for _, key := range value.MapKeys() {
+			result[fmt.Sprintf("%v", key.Interface())] = value.MapIndex(key).Interface()
+		}
 	}
 
 	return result
@@ -1620,7 +1622,6 @@ func GetValueOfDate(data interface{}, key string) time.Time {
 
 func GetMapDate(data interface{}, key string) time.Time {
 	value := GetMapValue(data, key)
-	// console.Log("value", GetType(value), value)
 
 	return GetTimestamp(value)
 }
@@ -1643,16 +1644,13 @@ func GetValueOf(data interface{}, key string) interface{} {
 	return GetMapValue(data, key)
 }
 
-// func getMapValueItem() {
-// 	if vi, oki := v[first]; oki {
-// 		if len(keys[1:]) == 0 {
-// 			return vi
-// 		} else {
-// 			last := strings.Join(keys[1:], ".")
-// 			return GetMapValue(vi, last)
-// 		}
-// 	}
-// }
+func GetValueOfList(data interface{}, key string) []interface{} {
+	if value, ok := GetMapValue(data, key).([]interface{}); ok {
+		return value
+	}
+
+	return []interface{}{}
+}
 
 func GetMapValue(data interface{}, key string) interface{} {
 	if str, ok := data.(string); ok {
