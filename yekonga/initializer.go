@@ -458,7 +458,7 @@ func (y *YekongaData) refreshTokenProcess(req *Request, res *Response, refreshTo
 	return result, status
 }
 
-func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseStructureType {
+func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseStructure {
 	if !helper.FileExists(file) {
 		file = helper.GetPath(file)
 	}
@@ -469,7 +469,7 @@ func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseSt
 	var databaseTenantCatchStructure = DefaultTenantCatchDatabaseStructure
 	var databaseStructure = DefaultExtraDatabaseStructure
 
-	var extraDatabaseStructure map[string]map[string]map[string]interface{}
+	var extraDatabaseStructure map[string]map[string]DatabaseCollectionFieldConfig
 	data, err := helper.LoadJSONFile(file)
 
 	if err != nil {

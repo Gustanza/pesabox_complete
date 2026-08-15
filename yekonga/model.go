@@ -92,7 +92,7 @@ type DataModel struct {
 	DatabaseType   config.DatabaseType
 }
 
-func NewSystemModels(config *config.YekongaConfig, database *DatabaseStructureType) map[string]*DataModel {
+func NewSystemModels(config *config.YekongaConfig, database *DatabaseStructure) map[string]*DataModel {
 	var models map[string]*DataModel = map[string]*DataModel{}
 
 	for k, v := range *database {
@@ -180,7 +180,7 @@ func SetDataGroups(models map[string]*DataModel) map[string]ResolverChartGroupDa
 	return values
 }
 
-func newDataModel(config *config.YekongaConfig, collection string, fields map[string]map[string]interface{}) *DataModel {
+func newDataModel(config *config.YekongaConfig, collection string, fields map[string]DatabaseCollectionFieldConfig) *DataModel {
 	model := DataModel{
 		Config:       config,
 		DatabaseType: config.Database.Kind,
@@ -191,7 +191,7 @@ func newDataModel(config *config.YekongaConfig, collection string, fields map[st
 	return &model
 }
 
-func (m *DataModel) initialize(collection string, fields map[string]map[string]interface{}) {
+func (m *DataModel) initialize(collection string, fields map[string]DatabaseCollectionFieldConfig) {
 	count := len(fields)
 
 	m.Name = helper.ToCamelCase(helper.Singularize(collection))
@@ -281,7 +281,7 @@ func (m *DataModel) initialize(collection string, fields map[string]map[string]i
 
 	if !helper.Contains(m.ValidFields, "id") {
 		k := "id"
-		field := *m.getDataModelField(k, map[string]interface{}{"type": "ID", "default": nil, "required": false})
+		field := *m.getDataModelField(k, DatabaseCollectionFieldConfig{"type": "ID", "default": nil, "required": false})
 
 		m.Fields[k] = field
 		m.ValidFields = append(m.ValidFields, k)
@@ -290,7 +290,7 @@ func (m *DataModel) initialize(collection string, fields map[string]map[string]i
 	sort.Strings(m.ValidFields)
 }
 
-func (m *DataModel) getDataModelField(name string, field map[string]interface{}) *DataModelField {
+func (m *DataModel) getDataModelField(name string, field DatabaseCollectionFieldConfig) *DataModelField {
 	return getDataModelField(name, field)
 }
 
@@ -303,7 +303,7 @@ func (m *DataModel) Query() *DataModelQuery {
 	}
 }
 
-func getDataModelField(name string, field map[string]interface{}) *DataModelField {
+func getDataModelField(name string, field DatabaseCollectionFieldConfig) *DataModelField {
 	var primaryKey bool
 	var kind DataModelFieldType = DataModelString
 	var required bool

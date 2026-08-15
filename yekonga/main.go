@@ -71,7 +71,7 @@ type YekongaData struct {
 	whenReady              []func()
 	models                 map[string]*DataModel
 	resolverChartGroupData map[string]ResolverChartGroupData
-	databaseStructure      *DatabaseStructureType
+	databaseStructure      *DatabaseStructure
 	graphqlBuild           *GraphqlAutoBuild
 	socketServer           *SocketServer
 	dbConnect              *DatabaseConnections

@@ -27,7 +27,7 @@ func runDefaultCloudFunctions() {
 
 }
 
-func _protectSensitiveDataModel(structureType DatabaseStructureType) {
+func _protectSensitiveDataModel(structureType DatabaseStructure) {
 	for k, _ := range structureType {
 		k = helper.ToCamelCase(helper.Singularize(k))
 
