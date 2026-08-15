@@ -256,7 +256,7 @@ func (g *GraphqlAutoBuild) setCustomQuery(fields *graphql.Fields, kind GraphqlQu
 
 			for k, o := range v.Output {
 				obj := helper.ToMap[interface{}](o)
-				output[k] = g.getQueryField(k, getDataModelField(k, obj))
+				output[k] = g.getQueryField(k, getDataModelField(k, databaseCollectionFieldConfigFromMap(obj)))
 			}
 
 			queryKind := graphql.NewObject(graphql.ObjectConfig{

@@ -481,10 +481,8 @@ func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseSt
 	if config.IsAuthorizationServer {
 		for k, v := range databaseAuthStructure {
 			k = helper.ToCamelCase(helper.Pluralize(k))
-			if _, ok := databaseStructure[k]; ok {
-				for kn, vn := range extraDatabaseStructure[k] {
-					databaseStructure[k][kn] = vn
-				}
+			if existing, ok := databaseStructure[k]; ok {
+				mergeExtraCollectionFields(existing, extraDatabaseStructure[k])
 			} else {
 				databaseStructure[k] = v
 			}
@@ -494,10 +492,8 @@ func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseSt
 	if config.HasTenantCatch {
 		for k, v := range databaseTenantCatchStructure {
 			k = helper.ToCamelCase(helper.Pluralize(k))
-			if _, ok := databaseStructure[k]; ok {
-				for kn, vn := range extraDatabaseStructure[k] {
-					databaseStructure[k][kn] = vn
-				}
+			if existing, ok := databaseStructure[k]; ok {
+				mergeExtraCollectionFields(existing, extraDatabaseStructure[k])
 			} else {
 				databaseStructure[k] = v
 			}
@@ -507,10 +503,8 @@ func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseSt
 	if config.HasTenant {
 		for k, v := range databaseTenantStructure {
 			k = helper.ToCamelCase(helper.Pluralize(k))
-			if _, ok := databaseStructure[k]; ok {
-				for kn, vn := range extraDatabaseStructure[k] {
-					databaseStructure[k][kn] = vn
-				}
+			if existing, ok := databaseStructure[k]; ok {
+				mergeExtraCollectionFields(existing, extraDatabaseStructure[k])
 			} else {
 				databaseStructure[k] = v
 			}
@@ -519,10 +513,8 @@ func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseSt
 		if config.HasTenantBilling {
 			for k, v := range databaseBillingStructure {
 				k = helper.ToCamelCase(helper.Pluralize(k))
-				if _, ok := databaseStructure[k]; ok {
-					for kn, vn := range extraDatabaseStructure[k] {
-						databaseStructure[k][kn] = vn
-					}
+				if existing, ok := databaseStructure[k]; ok {
+					mergeExtraCollectionFields(existing, extraDatabaseStructure[k])
 				} else {
 					databaseStructure[k] = v
 				}
@@ -532,17 +524,33 @@ func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseSt
 
 	for k, v := range extraDatabaseStructure {
 		k = helper.ToCamelCase(helper.Pluralize(k))
-		if _, ok := databaseStructure[k]; ok {
-			for kn, vn := range extraDatabaseStructure[k] {
-				databaseStructure[k][kn] = vn
-			}
+		if existing, ok := databaseStructure[k]; ok {
+			mergeExtraCollectionFields(existing, v)
 		} else {
-			databaseStructure[k] = v
+			databaseStructure[k] = CollectionStructure{Fields: databaseCollectionFieldConfigsFromMap(v)}
 		}
 	}
 
 	return &databaseStructure
 
+}
+
+// mergeExtraCollectionFields merges field definitions loaded from the external
+// database structure JSON file into an existing typed CollectionStructure.
+func mergeExtraCollectionFields(existing CollectionStructure, extraFields map[string]map[string]interface{}) {
+	for kn, vn := range extraFields {
+		existing.Fields[kn] = databaseCollectionFieldConfigFromMap(vn)
+	}
+}
+
+func databaseCollectionFieldConfigsFromMap(fields map[string]map[string]interface{}) map[string]DatabaseCollectionFieldConfig {
+	result := make(map[string]DatabaseCollectionFieldConfig, len(fields))
+
+	for kn, vn := range fields {
+		result[kn] = databaseCollectionFieldConfigFromMap(vn)
+	}
+
+	return result
 }
 
 // isIntrospectionQuery checks if the query is an introspection query
