@@ -96,7 +96,7 @@ func NewSystemModels(config *config.YekongaConfig, database *DatabaseStructure) 
 	var models map[string]*DataModel = map[string]*DataModel{}
 
 	for k, v := range *database {
-		model := newDataModel(config, k, v.Fields)
+		model := newDataModel(config, k, v)
 		models[model.Name] = model
 	}
 

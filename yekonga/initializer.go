@@ -482,7 +482,7 @@ func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseSt
 		for k, v := range databaseAuthStructure {
 			k = helper.ToCamelCase(helper.Pluralize(k))
 			if existing, ok := databaseStructure[k]; ok {
-				mergeExtraCollectionFields(existing, extraDatabaseStructure[k].Fields)
+				mergeExtraCollectionFields(existing, extraDatabaseStructure[k])
 			} else {
 				databaseStructure[k] = v
 			}
@@ -527,7 +527,7 @@ func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseSt
 		if existing, ok := databaseStructure[k]; ok {
 			mergeExtraCollectionFields(existing, v)
 		} else {
-			databaseStructure[k] = CollectionStructure{Fields: databaseCollectionFieldConfigsFromMap(v)}
+			databaseStructure[k] = databaseCollectionFieldConfigsFromMap(v)
 		}
 	}
 
@@ -537,13 +537,13 @@ func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseSt
 
 // mergeExtraCollectionFields merges field definitions loaded from the external
 // database structure JSON file into an existing typed CollectionStructure.
-func mergeExtraCollectionFields(existing CollectionStructure, extraFields map[string]map[string]interface{}) {
+func mergeExtraCollectionFields(existing map[string]CollectionFieldConfig, extraFields map[string]CollectionFieldConfig) {
 	for kn, vn := range extraFields {
-		existing.Fields[kn] = databaseCollectionFieldConfigFromMap(vn)
+		existing[kn] = databaseCollectionFieldConfigFromMap(vn)
 	}
 }
 
-func databaseCollectionFieldConfigsFromMap(fields map[string]map[string]interface{}) map[string]CollectionFieldConfig {
+func databaseCollectionFieldConfigsFromMap(fields map[string]CollectionFieldConfig) map[string]CollectionFieldConfig {
 	result := make(map[string]CollectionFieldConfig, len(fields))
 
 	for kn, vn := range fields {

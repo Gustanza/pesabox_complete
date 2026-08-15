@@ -6,12 +6,7 @@ import (
 	"github.com/robertkonga/yekonga-server-go/helper"
 )
 
-type DatabaseStructure = map[string]CollectionStructure
-
-type CollectionStructure struct {
-	Name   string
-	Fields map[string]CollectionFieldConfig
-}
+type DatabaseStructure = map[string]map[string]CollectionFieldConfig
 
 type CollectionFieldConfig struct {
 	PrimaryKey   bool
@@ -32,7 +27,15 @@ type CollectionFieldConfigForeignKey struct {
 // databaseCollectionFieldConfigFromMap builds a DatabaseCollectionFieldConfig from the raw
 // map[string]interface{} shape used by the external database structure JSON file
 // (e.g. {"type": "String", "default": nil, "required": false, "foreignKey": "Tenant.id"}).
-func databaseCollectionFieldConfigFromMap(field map[string]interface{}) CollectionFieldConfig {
+func databaseCollectionFieldConfigFromMap(fieldData interface{}) CollectionFieldConfig {
+	field := map[string]interface{}{}
+
+	if v, ok := fieldData.(CollectionFieldConfig); ok {
+		return v
+	} else if helper.IsMap(fieldData) {
+		field = helper.ToMap[interface{}](fieldData)
+	}
+
 	result := CollectionFieldConfig{}
 
 	if v, ok := field["type"]; ok {
