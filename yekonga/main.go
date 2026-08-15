@@ -87,13 +87,11 @@ type YekongaData struct {
 }
 
 // NewYekonga creates a new instance of Yekonga server
-func ServerConfig(configFile string, databaseFile string) *YekongaData {
+func ServerConfig(config config.YekongaConfig, databaseStructure DatabaseStructure) *YekongaData {
 	logger.Logo()
 
-	config := config.NewYekongaConfig(configFile)
-	databaseStructure := NewDatabaseStructure(databaseFile, config)
-	systemModels := NewSystemModels(config, databaseStructure)
-	dbConnect := NewDatabaseConnections(config)
+	systemModels := NewSystemModels(&config, &databaseStructure)
+	dbConnect := NewDatabaseConnections(&config)
 	resolverChartGroupData := SetDataGroups(systemModels)
 	exPath := "./"
 
@@ -104,14 +102,14 @@ func ServerConfig(configFile string, databaseFile string) *YekongaData {
 	}
 
 	Server = &YekongaData{
-		Config:   config,
+		Config:   &config,
 		RootPath: exPath,
 		IsDev:    IsDev,
 
 		dbConnect:              dbConnect,
 		models:                 systemModels,
 		resolverChartGroupData: resolverChartGroupData,
-		databaseStructure:      databaseStructure,
+		databaseStructure:      &databaseStructure,
 		routes:                 make(map[string][]Route),
 		middlewares:            make([]Middleware, 0, 5),
 		initMiddlewares:        make([]Middleware, 0, 5),
@@ -144,7 +142,14 @@ func ServerConfig(configFile string, databaseFile string) *YekongaData {
 }
 
 func ServerLoad(configFile string, databaseFile string) {
-	ServerConfig(configFile, databaseFile)
+	config := config.NewYekongaConfig(configFile)
+	databaseStructure := NewDatabaseStructure(databaseFile, config)
+
+	ServerConfig(*config, *databaseStructure)
+}
+
+func ServerConfigJson(configFile string, databaseFile string) {
+	ServerLoad(configFile, databaseFile)
 }
 
 func (y *YekongaData) Model(name string) *DataModel {

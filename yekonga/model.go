@@ -96,7 +96,7 @@ func NewSystemModels(config *config.YekongaConfig, database *DatabaseStructure) 
 	var models map[string]*DataModel = map[string]*DataModel{}
 
 	for k, v := range *database {
-		model := newDataModel(config, k, v)
+		model := newDataModel(config, k, v.Fields)
 		models[model.Name] = model
 	}
 
@@ -154,25 +154,17 @@ func SetDataGroups(models map[string]*DataModel) map[string]ResolverChartGroupDa
 		collection := v.Collection
 		className := v.Name
 		primaryKey := helper.ToVariable(helper.Singularize(collection) + "_id")
-		primaryName := ""
-		fields := []string{}
+		fields := make([]string, 0, len(v.Fields))
 
 		for k := range v.Fields {
 			fields = append(fields, k)
-
-			if helper.IsEmpty(primaryName) {
-				primaryName = k
-			} else if k == "title" || k == "name" || k == "label" {
-				primaryName = k
-				break
-			}
 		}
 
 		values[primaryKey] = ResolverChartGroupData{
 			Collection:  collection,
 			ClassName:   className,
 			PrimaryKey:  primaryKey,
-			PrimaryName: primaryName,
+			PrimaryName: v.PrimaryName,
 			Fields:      fields,
 		}
 	}
@@ -180,7 +172,7 @@ func SetDataGroups(models map[string]*DataModel) map[string]ResolverChartGroupDa
 	return values
 }
 
-func newDataModel(config *config.YekongaConfig, collection string, fields map[string]DatabaseCollectionFieldConfig) *DataModel {
+func newDataModel(config *config.YekongaConfig, collection string, fields map[string]CollectionFieldConfig) *DataModel {
 	model := DataModel{
 		Config:       config,
 		DatabaseType: config.Database.Kind,
@@ -191,7 +183,7 @@ func newDataModel(config *config.YekongaConfig, collection string, fields map[st
 	return &model
 }
 
-func (m *DataModel) initialize(collection string, fields map[string]DatabaseCollectionFieldConfig) {
+func (m *DataModel) initialize(collection string, fields map[string]CollectionFieldConfig) {
 	count := len(fields)
 
 	m.Name = helper.ToCamelCase(helper.Singularize(collection))
@@ -232,10 +224,11 @@ func (m *DataModel) initialize(collection string, fields map[string]DatabaseColl
 		if helper.Contains(keyNames, field.Name) {
 			m.PrimaryName = field.Name
 			hasPrimaryName = true
-		} else if hasPrimaryName &&
-			strings.Contains(helper.ToUnderscore(field.Name), "name") &&
-			strings.Contains(helper.ToUnderscore(field.Name), "title") {
+		} else if !hasPrimaryName &&
+			(strings.Contains(helper.ToUnderscore(field.Name), "name") ||
+				strings.Contains(helper.ToUnderscore(field.Name), "title")) {
 			m.PrimaryName = field.Name
+			hasPrimaryName = true
 		} else if helper.IsEmpty(m.PrimaryName) && field.Name != "_id" {
 			m.PrimaryName = field.Name
 		}
@@ -281,7 +274,7 @@ func (m *DataModel) initialize(collection string, fields map[string]DatabaseColl
 
 	if !helper.Contains(m.ValidFields, "id") {
 		k := "id"
-		field := *m.getDataModelField(k, DatabaseCollectionFieldConfig{"type": "ID", "default": nil, "required": false})
+		field := *m.getDataModelField(k, CollectionFieldConfig{Kind: "ID", DefaultValue: nil, Required: false})
 
 		m.Fields[k] = field
 		m.ValidFields = append(m.ValidFields, k)
@@ -290,7 +283,7 @@ func (m *DataModel) initialize(collection string, fields map[string]DatabaseColl
 	sort.Strings(m.ValidFields)
 }
 
-func (m *DataModel) getDataModelField(name string, field DatabaseCollectionFieldConfig) *DataModelField {
+func (m *DataModel) getDataModelField(name string, field CollectionFieldConfig) *DataModelField {
 	return getDataModelField(name, field)
 }
 
@@ -303,167 +296,91 @@ func (m *DataModel) Query() *DataModelQuery {
 	}
 }
 
-func getDataModelField(name string, field DatabaseCollectionFieldConfig) *DataModelField {
-	var primaryKey bool
+func getDataModelField(name string, field CollectionFieldConfig) *DataModelField {
 	var kind DataModelFieldType = DataModelString
-	var required bool
-	var protected bool
 	var isArray bool = false
-	var defaultValue interface{}
+	var defaultValue interface{} = field.DefaultValue
 	var foreignKey DataModelFieldForeignKey
-	var options = make([]DataModelFieldOptions, 0, 4)
+	var options = make([]DataModelFieldOptions, 0, len(field.Options))
 
-	if v, ok := field["type"]; ok {
-		if vi, oki := v.(string); oki {
-			vi = strings.ToLower(strings.TrimSpace(vi))
-			// logger.Error("vi", name, "->", vi)
-			if strings.Contains(vi, "[") && strings.Contains(vi, "]") {
-				defaultValue = []interface{}{}
-				isArray = true
-				vi = strings.ReplaceAll(vi, "[", "")
-				vi = strings.ReplaceAll(vi, "]", "")
-				vi = strings.TrimSpace(vi)
-			}
+	vi := strings.ToLower(strings.TrimSpace(field.Kind))
+	// logger.Error("vi", name, "->", vi)
+	if strings.Contains(vi, "[") && strings.Contains(vi, "]") {
+		isArray = true
+		vi = strings.ReplaceAll(vi, "[", "")
+		vi = strings.ReplaceAll(vi, "]", "")
+		vi = strings.TrimSpace(vi)
+	}
 
-			switch vi {
-			case "id":
-				kind = DataModelID
-			case "date", "time", "datetime", "timestamp":
-				kind = DataModelDate
-			case "bool", "boolean":
-				defaultValue = false
-				kind = DataModelBool
-			case "float", "double", "decimal":
-				defaultValue = 0
-				kind = DataModelFloat
-			case "int", "number", "integer", "digit":
-				defaultValue = 0
-				kind = DataModelNumber
-			case "text", "string":
-				kind = DataModelString
-			case "array":
-				isArray = true
-				defaultValue = []interface{}{}
-				kind = DataModelArray
-			case "any":
-				kind = DataModelAny
-			case "object":
-				kind = DataModelObject
-			case "url":
-				kind = DataModelFile
-			case "file":
-				kind = DataModelFile
-			}
+	switch vi {
+	case "id":
+		kind = DataModelID
+	case "date", "time", "datetime", "timestamp":
+		kind = DataModelDate
+	case "bool", "boolean":
+		kind = DataModelBool
+	case "float", "double", "decimal":
+		kind = DataModelFloat
+	case "int", "number", "integer", "digit":
+		kind = DataModelNumber
+	case "text", "string":
+		kind = DataModelString
+	case "array":
+		isArray = true
+		kind = DataModelArray
+	case "any":
+		kind = DataModelAny
+	case "object":
+		kind = DataModelObject
+	case "url":
+		kind = DataModelFile
+	case "file":
+		kind = DataModelFile
+	}
+
+	if isArray {
+		if helper.IsArray(defaultValue) {
+			defaultValue = helper.ToList[interface{}](defaultValue)
+		} else {
+			defaultValue = []interface{}{}
 		}
 	}
 
-	if v, ok := field["required"]; ok {
-		if vi, oki := v.(bool); oki {
-			required = vi
+	if len(field.Options) > 0 {
+		for _, opt := range field.Options {
+			options = append(options, DataModelFieldOptions{
+				Value: opt,
+				Label: helper.ToTitle(opt),
+			})
 		}
 	}
 
-	if v, ok := field["protected"]; ok {
-		if vi, oki := v.(bool); oki {
-			protected = vi
+	if helper.IsNotEmpty(field.ForeignKey.Model) {
+		parentCollection := helper.Singularize(field.ForeignKey.Model)
+		parentKey := field.ForeignKey.Key
+
+		if helper.IsEmpty(parentKey) {
+			parentKey = "_id"
 		}
-	}
-
-	if v, ok := field["primaryKey"]; ok {
-		if vi, oki := v.(bool); oki {
-			primaryKey = vi
+		if parentKey == "id" {
+			parentKey = "_id"
 		}
-	}
 
-	hasDefault := false
-	if v, ok := field["default"]; ok {
-		hasDefault = true
-		defaultValue = v
-	}
-
-	if v, ok := field["defaultValue"]; ok && !hasDefault {
-		hasDefault = true
-		defaultValue = v
-	}
-
-	if hasDefault {
-		if isArray {
-			if helper.IsArray(defaultValue) {
-				defaultValue = helper.ToList[interface{}](defaultValue)
-			} else {
-				defaultValue = []interface{}{}
-			}
-		}
-	}
-
-	if v, ok := field["options"]; ok {
-		if helper.IsArray(v) {
-			vi := helper.ToList[interface{}](v)
-
-			if len(vi) > 0 {
-				for _, vii := range vi {
-					options = append(options, DataModelFieldOptions{
-						Value: helper.ToString(vii),
-						Label: helper.ToTitle(helper.ToString(vii)),
-					})
-				}
-			}
-		} else if vi, oki := v.(map[string]string); oki {
-			if len(vi) > 0 {
-				for kii, vii := range vi {
-					options = append(options, DataModelFieldOptions{
-						Value: kii,
-						Label: vii,
-					})
-				}
-			}
-		}
-	}
-
-	rv, rok := field["foreignKey"]
-	if !rok {
-		rv, rok = field["relation"]
-	}
-	if !rok {
-		rv, rok = field["source"]
-	}
-
-	if rok {
-		if vi, oki := rv.(string); oki && helper.IsNotEmpty(vi) {
-			ks := strings.Split(vi, ".")
-			size := len(ks)
-
-			parentCollection := ""
-			parentKey := "_id"
-
-			switch size {
-			case 2:
-				parentCollection = helper.Singularize(ks[0])
-				parentKey = ks[1]
-			case 1:
-				parentCollection = helper.Singularize(ks[0])
-			}
-
-			if parentKey == "id" {
-				parentKey = "_id"
-			}
-
-			if helper.IsNotEmpty(parentCollection) {
-				foreignKey = DataModelFieldForeignKey{
-					ModelName:  helper.ToCamelCase(parentCollection),
-					PrimaryKey: parentKey,
-					ForeignKey: name,
-				}
+		if helper.IsNotEmpty(parentCollection) {
+			foreignKey = DataModelFieldForeignKey{
+				ModelName:  helper.ToCamelCase(parentCollection),
+				PrimaryKey: parentKey,
+				ForeignKey: name,
 			}
 		}
 	}
 
 	return &DataModelField{
-		PrimaryKey:   primaryKey,
+		PrimaryKey:   field.PrimaryKey,
 		Name:         name,
 		Kind:         kind,
-		Required:     required,
-		Protected:    protected,
+		Required:     field.Required,
+		Protected:    field.Protected,
 		DefaultValue: defaultValue,
 		ForeignKey:   foreignKey,
 		Options:      options,
