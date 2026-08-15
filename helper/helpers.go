@@ -1678,6 +1678,11 @@ func GetMapValue(data interface{}, key string) interface{} {
 		}
 	}
 
+	if key == "data.clients" {
+		console.Error(TypeOf(localData))
+		console.Info("GetMapValue", IsMap(localData), first, keys, localData)
+	}
+
 	if IsMap(localData) {
 		v := ToDataMap(localData)
 

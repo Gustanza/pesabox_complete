@@ -258,6 +258,7 @@ func (y *YekongaData) initialize() {
 		// helper.TrackTime(&start, "Json encode")
 	})
 
+	y.initializeRestApi()
 	y.initializerOtherRoutes()
 
 }

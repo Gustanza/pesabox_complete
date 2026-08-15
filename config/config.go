@@ -59,19 +59,20 @@ type Branding struct { // Branding configuration for the application
 }
 
 type YekongaConfig struct {
-	AppName                 string        `json:"appName"`                 // Name of the application
-	Version                 string        `json:"version"`                 // Version of the application
-	Description             string        `json:"description"`             // Description of the application
-	AppKey                  string        `json:"appKey"`                  // Key for the application
-	MasterKey               string        `json:"masterKey"`               // Master key for the application
-	EnableAppKey            bool          `json:"enableAppKey"`            // Enable or disable app key usage
-	ConnectionID            string        `json:"connectionID"`            // Connection ID
-	UserIdentifiers         []string      `json:"userIdentifiers"`         // List of user identifiers
-	Domain                  string        `json:"domain"`                  // Application domain
-	Protocol                string        `json:"protocol"`                // Protocol (e.g., http, https)
-	DomainAlias             []string      `json:"domainAlias"`             // List of domain aliases
-	Address                 string        `json:"address"`                 // Application address
-	BaseUrl                 string        `json:"baseURL"`                 // Base URL of the application
+	AppName                 string        `json:"appName"`         // Name of the application
+	Version                 string        `json:"version"`         // Version of the application
+	Description             string        `json:"description"`     // Description of the application
+	AppKey                  string        `json:"appKey"`          // Key for the application
+	MasterKey               string        `json:"masterKey"`       // Master key for the application
+	EnableAppKey            bool          `json:"enableAppKey"`    // Enable or disable app key usage
+	ConnectionID            string        `json:"connectionID"`    // Connection ID
+	UserIdentifiers         []string      `json:"userIdentifiers"` // List of user identifiers
+	Domain                  string        `json:"domain"`          // Application domain
+	Protocol                string        `json:"protocol"`        // Protocol (e.g., http, https)
+	DomainAlias             []string      `json:"domainAlias"`     // List of domain aliases
+	Address                 string        `json:"address"`         // Application address
+	BaseUrl                 string        `json:"baseURL"`
+	RestApiEnabled          bool          `json:"restApiEnabled"`          // Base URL of the application
 	RestApi                 string        `json:"restAPI"`                 // REST API endpoint
 	RestAuthApi             string        `json:"restAuthAPI"`             // REST authentication API endpoint
 	TokenKey                string        `json:"tokenKey"`                // Key for generating tokens
@@ -118,6 +119,7 @@ type YekongaConfig struct {
 		GuestActions []string `json:"guestActions"` // List of actions accessible to guests
 	}
 	Graphql struct { // GraphQL configuration
+		Active              bool        `json:"active"`              // Enable or disable GraphQL
 		ApiRoute            string      `json:"apiRoute"`            // GraphQL API route
 		ApiAuthRoute        string      `json:"apiAuthRoute"`        // GraphQL authentication API route
 		CustomTypes         string      `json:"customTypes"`         // Path to custom GraphQL types

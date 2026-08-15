@@ -805,7 +805,7 @@ func (y *YekongaData) SetUserPermission(tenantId interface{}, userId string, mod
 	}
 }
 
-func (y *YekongaData) GraphQL(query string, variables map[string]interface{}, req *Request, res *Response) interface{} {
+func (y *YekongaData) GraphQL(query string, variables map[string]interface{}, req *Request, res *Response) *graphql.Result {
 	requestString := query
 	variableValues := variables
 	operationName := ""

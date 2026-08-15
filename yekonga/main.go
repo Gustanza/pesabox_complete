@@ -17,7 +17,6 @@ import (
 	"github.com/robertkonga/yekonga-server-go/datatype"
 	"github.com/robertkonga/yekonga-server-go/gateway/setting"
 	"github.com/robertkonga/yekonga-server-go/helper"
-	"github.com/robertkonga/yekonga-server-go/helper/console"
 	"github.com/robertkonga/yekonga-server-go/helper/logger"
 )
 
@@ -261,16 +260,20 @@ func parseSegment(part string) (parsedSegment, error) {
 		var captureGroup string
 		if boundary == "" {
 			// captureGroup = "([^/]+)"
-			captureGroup = "([a-zA-Z0-9_]+)"
+			captureGroup = "([a-zA-Z0-9_-]+)"
 		} else {
 			// captureGroup = "([^/" + regexp.QuoteMeta(boundary) + "]+)"
-			captureGroup = "([a-zA-Z0-9_]+)"
+			captureGroup = "([a-zA-Z0-9_-]+)"
 		}
 
 		if optional {
-			patternBuf.WriteString("(?:" + regexp.QuoteMeta(leadingLiteral) + captureGroup + ")?")
+			patternBuf.WriteString("(?:")
+			patternBuf.WriteString(regexp.QuoteMeta(leadingLiteral))
+			patternBuf.WriteString(captureGroup)
+			patternBuf.WriteString(")?")
 		} else {
-			patternBuf.WriteString(regexp.QuoteMeta(leadingLiteral) + captureGroup)
+			patternBuf.WriteString(regexp.QuoteMeta(leadingLiteral))
+			patternBuf.WriteString(captureGroup)
 		}
 	}
 
@@ -331,11 +334,11 @@ func (y *YekongaData) addRoute(method, pattern string, handler Handler) {
 	pattern = y.AppendBaseUrl(pattern)
 	paramNames, normalized := parseRoute(pattern)
 
-	if strings.Contains(pattern, "/nome") {
-		console.Info("pattern", pattern)
-		console.Info("normalized", normalized)
-		console.Info("paramNames", paramNames)
-	}
+	// if strings.Contains(pattern, "/nome") {
+	// 	console.Info("pattern", pattern)
+	// 	console.Info("normalized", normalized)
+	// 	console.Info("paramNames", paramNames)
+	// }
 
 	y.routes[method] = append(y.routes[method], Route{
 		pattern:    normalized,
