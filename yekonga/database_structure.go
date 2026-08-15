@@ -6,14 +6,14 @@ import (
 	"github.com/robertkonga/yekonga-server-go/helper"
 )
 
-type DatabaseStructureType = map[string]CollectionStructure
+type DatabaseStructure = map[string]CollectionStructure
 
 type CollectionStructure struct {
 	Name   string
-	Fields map[string]DatabaseCollectionFieldConfig
+	Fields map[string]CollectionFieldConfig
 }
 
-type DatabaseCollectionFieldConfig struct {
+type CollectionFieldConfig struct {
 	PrimaryKey   bool
 	Name         string
 	Kind         string
@@ -21,10 +21,10 @@ type DatabaseCollectionFieldConfig struct {
 	Required     bool
 	Protected    bool
 	Options      []string
-	ForeignKey   DatabaseCollectionFieldConfigForeignKey
+	ForeignKey   CollectionFieldConfigForeignKey
 }
 
-type DatabaseCollectionFieldConfigForeignKey struct {
+type CollectionFieldConfigForeignKey struct {
 	Model string
 	Key   string
 }
@@ -32,8 +32,8 @@ type DatabaseCollectionFieldConfigForeignKey struct {
 // databaseCollectionFieldConfigFromMap builds a DatabaseCollectionFieldConfig from the raw
 // map[string]interface{} shape used by the external database structure JSON file
 // (e.g. {"type": "String", "default": nil, "required": false, "foreignKey": "Tenant.id"}).
-func databaseCollectionFieldConfigFromMap(field map[string]interface{}) DatabaseCollectionFieldConfig {
-	result := DatabaseCollectionFieldConfig{}
+func databaseCollectionFieldConfigFromMap(field map[string]interface{}) CollectionFieldConfig {
+	result := CollectionFieldConfig{}
 
 	if v, ok := field["type"]; ok {
 		if vi, oki := v.(string); oki {
@@ -80,7 +80,7 @@ func databaseCollectionFieldConfigFromMap(field map[string]interface{}) Database
 	if rok {
 		if vi, oki := rv.(string); oki && helper.IsNotEmpty(vi) {
 			ks := strings.SplitN(vi, ".", 2)
-			foreignKey := DatabaseCollectionFieldConfigForeignKey{Model: ks[0]}
+			foreignKey := CollectionFieldConfigForeignKey{Model: ks[0]}
 
 			if len(ks) == 2 {
 				foreignKey.Key = ks[1]

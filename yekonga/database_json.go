@@ -1,10 +1,10 @@
 package yekonga
 
-var DefaultTenantDatabaseStructure DatabaseStructureType = DatabaseStructureType{
+var DefaultTenantDatabaseStructure DatabaseStructure = DatabaseStructure{
 	"Tenants": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":              {Kind: "ID", DefaultValue: nil, Required: false},
-			"userId":          {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
+			"userId":          {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
 			"name":            {Kind: "String", DefaultValue: nil, Required: false},
 			"description":     {Kind: "String", DefaultValue: nil, Required: false},
 			"logoUrl":         {Kind: "URL", DefaultValue: nil, Required: false},
@@ -25,9 +25,9 @@ var DefaultTenantDatabaseStructure DatabaseStructureType = DatabaseStructureType
 		},
 	},
 	"TenantConfigs": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":                {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":          {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"tenantId":          {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
 			"lightTheme":        {Kind: "Any", DefaultValue: nil, Required: false},
 			"darkTheme":         {Kind: "Any", DefaultValue: nil, Required: false},
 			"defaultTheme":      {Kind: "String", DefaultValue: "lightTheme", Required: false},
@@ -41,19 +41,19 @@ var DefaultTenantDatabaseStructure DatabaseStructureType = DatabaseStructureType
 		},
 	},
 	"TenantFeatures": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":          {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"tenantId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
 			"moduleName":  {Kind: "String", DefaultValue: nil, Required: false},
 			"featureCode": {Kind: "String", DefaultValue: nil, Required: false},
 			"enabled":     {Kind: "Boolean", DefaultValue: true, Required: false},
 		},
 	},
 	"TenantUsers": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":        {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"userId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
+			"tenantId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"userId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
 			"role":      {Kind: "String", DefaultValue: "public", Required: false, Options: []string{"admin", "public"}},
 			"status":    {Kind: "String", DefaultValue: "active", Required: false, Options: []string{"active", "inactive"}},
 			"createdAt": {Kind: "Date", DefaultValue: "now", Required: false},
@@ -61,9 +61,9 @@ var DefaultTenantDatabaseStructure DatabaseStructureType = DatabaseStructureType
 	},
 }
 
-var DefaultTenantCatchDatabaseStructure DatabaseStructureType = DatabaseStructureType{
+var DefaultTenantCatchDatabaseStructure DatabaseStructure = DatabaseStructure{
 	"TenantCatches": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":       {Kind: "ID", DefaultValue: nil, Required: false},
 			"tenantId": {Kind: "ID", DefaultValue: nil, Required: false},
 			"domain":   {Kind: "String", DefaultValue: nil, Required: false},
@@ -71,9 +71,9 @@ var DefaultTenantCatchDatabaseStructure DatabaseStructureType = DatabaseStructur
 	},
 }
 
-var DefaultAuthDatabaseStructure DatabaseStructureType = DatabaseStructureType{
+var DefaultAuthDatabaseStructure DatabaseStructure = DatabaseStructure{
 	"Users": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":                 {Kind: "ID", DefaultValue: nil, Required: false},
 			"firstName":          {Kind: "String", DefaultValue: nil, Required: false},
 			"secondName":         {Kind: "String", DefaultValue: nil, Required: false},
@@ -114,10 +114,10 @@ var DefaultAuthDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 		},
 	},
 	"UserVerifications": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":            {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":      {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"userId":        {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
+			"tenantId":      {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"userId":        {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
 			"username":      {Kind: "String", DefaultValue: nil, Required: false, Protected: true},
 			"usernameType":  {Kind: "String", DefaultValue: nil, Required: false, Options: []string{"name", "email", "phone", "whatsapp"}},
 			"target":        {Kind: "String", DefaultValue: nil, Required: false, Protected: true},
@@ -130,10 +130,10 @@ var DefaultAuthDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 		},
 	},
 	"Profiles": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":          {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"userId":      {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
+			"tenantId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"userId":      {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
 			"name":        {Kind: "String", DefaultValue: nil, Required: false},
 			"description": {Kind: "String", DefaultValue: nil, Required: false},
 			"profileUrl":  {Kind: "URL", DefaultValue: nil, Required: false},
@@ -152,24 +152,24 @@ var DefaultAuthDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 		},
 	},
 	"ProfileUsers": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":        {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"profileId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
-			"userId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
+			"tenantId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"profileId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
+			"userId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
 			"role":      {Kind: "String", DefaultValue: nil, Required: false, Options: []string{"manager", "user"}},
 			"status":    {Kind: "String", DefaultValue: "active", Required: false, Options: []string{"active", "inactive"}},
 			"createdAt": {Kind: "Date", DefaultValue: "now", Required: false},
 		},
 	},
 	"RefreshTokens": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":        {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"tenantId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
 			"domain":    {Kind: "String", DefaultValue: nil, Required: false},
-			"profileId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
-			"userId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
-			"adminId":   {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
+			"profileId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
+			"userId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
+			"adminId":   {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
 			"tokenHash": {Kind: "String", DefaultValue: nil, Required: false, Protected: true},
 			"userAgent": {Kind: "String", DefaultValue: nil, Required: false},
 			"ipAddress": {Kind: "String", DefaultValue: nil, Required: false},
@@ -178,22 +178,22 @@ var DefaultAuthDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 		},
 	},
 	"LoginAttempts": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":        {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"tenantId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
 			"domain":    {Kind: "String", DefaultValue: nil, Required: false},
-			"profileId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
-			"userId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
+			"profileId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
+			"userId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
 			"username":  {Kind: "String", DefaultValue: "active", Required: false, Options: []string{"success", "fail"}},
 			"status":    {Kind: "String", DefaultValue: "active", Required: false, Options: []string{"success", "fail"}},
 			"timestamp": {Kind: "Date", DefaultValue: "now", Required: false},
 		},
 	},
 	"UserDevices": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":         {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":   {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"userId":     {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
+			"tenantId":   {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"userId":     {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
 			"deviceUuid": {Kind: "String", DefaultValue: nil, Required: false},
 			"type":       {Kind: "Any", DefaultValue: nil, Required: false},
 			"info":       {Kind: "Any", DefaultValue: nil, Required: false},
@@ -202,10 +202,10 @@ var DefaultAuthDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 		},
 	},
 	"UserDeviceCommands": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":           {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":     {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"userDeviceId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "UserDevice", Key: "id"}},
+			"tenantId":     {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"userDeviceId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "UserDevice", Key: "id"}},
 			"deviceUuid":   {Kind: "String", DefaultValue: nil, Required: false},
 			"action":       {Kind: "String", DefaultValue: nil, Required: false},
 			"type":         {Kind: "String", DefaultValue: "command", Required: false, Options: []string{"command", "notification", "chat"}},
@@ -215,7 +215,7 @@ var DefaultAuthDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 		},
 	},
 	"AuthPermissions": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":          {Kind: "ID", DefaultValue: nil, Required: false},
 			"moduleName":  {Kind: "String", DefaultValue: nil, Required: false},
 			"group":       {Kind: "String", DefaultValue: nil, Required: false},
@@ -226,36 +226,36 @@ var DefaultAuthDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 		},
 	},
 	"AuthGroups": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":          {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"profileId":   {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
+			"tenantId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"profileId":   {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
 			"moduleName":  {Kind: "String", DefaultValue: nil, Required: false},
 			"name":        {Kind: "String", DefaultValue: nil, Required: false},
 			"description": {Kind: "String", DefaultValue: nil, Required: false},
 		},
 	},
 	"AuthGroupPermissions": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":               {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":         {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"authGroupId":      {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "AuthGroup", Key: "id"}},
-			"authPermissionId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "AuthPermission", Key: "id"}},
+			"tenantId":         {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"authGroupId":      {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "AuthGroup", Key: "id"}},
+			"authPermissionId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "AuthPermission", Key: "id"}},
 		},
 	},
 	"AuthUserPermissions": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":          {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"profileId":   {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
-			"userId":      {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
-			"authGroupId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "AuthGroup", Key: "id"}},
+			"tenantId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"profileId":   {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
+			"userId":      {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
+			"authGroupId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "AuthGroup", Key: "id"}},
 			"moduleName":  {Kind: "String", DefaultValue: nil, Required: false},
-			"code":        {Kind: "String", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "AuthPermission", Key: "code"}},
+			"code":        {Kind: "String", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "AuthPermission", Key: "code"}},
 		},
 	},
 	"TranslatorLanguages": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":     {Kind: "ID", DefaultValue: nil, Required: false},
 			"locale": {Kind: "String", DefaultValue: nil, Required: false},
 			"name":   {Kind: "String", DefaultValue: nil, Required: false},
@@ -264,9 +264,9 @@ var DefaultAuthDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 		},
 	},
 	"TranslatorTranslations": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":                   {Kind: "ID", DefaultValue: nil, Required: false},
-			"translatorLanguageId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "TranslatorLanguage", Key: "id"}},
+			"translatorLanguageId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "TranslatorLanguage", Key: "id"}},
 			"locale":               {Kind: "String", DefaultValue: nil, Required: false},
 			"moduleName":           {Kind: "String", DefaultValue: nil, Required: false},
 			"group":                {Kind: "String", DefaultValue: nil, Required: false},
@@ -278,9 +278,9 @@ var DefaultAuthDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 		},
 	},
 	"Locations": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":        {Kind: "ID", DefaultValue: nil, Required: false},
-			"parentId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Location", Key: "id"}},
+			"parentId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Location", Key: "id"}},
 			"name":      {Kind: "String", DefaultValue: nil, Required: false},
 			"shortCode": {Kind: "String", DefaultValue: nil, Required: false},
 			"phoneCode": {Kind: "String", DefaultValue: nil, Required: false},
@@ -293,9 +293,9 @@ var DefaultAuthDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 	},
 }
 
-var DefaultBillingDatabaseStructure DatabaseStructureType = DatabaseStructureType{
+var DefaultBillingDatabaseStructure DatabaseStructure = DatabaseStructure{
 	"Modules": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":          {Kind: "ID", DefaultValue: nil, Required: false},
 			"moduleName":  {Kind: "String", DefaultValue: nil, Required: false},
 			"title":       {Kind: "String", DefaultValue: nil, Required: false},
@@ -304,9 +304,9 @@ var DefaultBillingDatabaseStructure DatabaseStructureType = DatabaseStructureTyp
 		},
 	},
 	"PricingPlans": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":           {Kind: "ID", DefaultValue: nil, Required: false},
-			"moduleId":     {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Module", Key: "id"}},
+			"moduleId":     {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Module", Key: "id"}},
 			"pricingType":  {Kind: "String", DefaultValue: "flat", Required: false, Options: []string{"flat", "per_user", "per_unit", "metered"}},
 			"billingCycle": {Kind: "String", DefaultValue: "flat", Required: false, Options: []string{"monthly", "yearly"}},
 			"price":        {Kind: "Float", DefaultValue: 0, Required: false},
@@ -315,9 +315,9 @@ var DefaultBillingDatabaseStructure DatabaseStructureType = DatabaseStructureTyp
 		},
 	},
 	"Subscriptions": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":                 {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":           {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"tenantId":           {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
 			"status":             {Kind: "String", DefaultValue: "flat", Required: false, Options: []string{"active", "grace", "trailing", "past_due", "canceled", "unpaid", "expired"}},
 			"trialStart":         {Kind: "Date", DefaultValue: nil, Required: false},
 			"trialEnd":           {Kind: "Date", DefaultValue: nil, Required: false},
@@ -329,30 +329,30 @@ var DefaultBillingDatabaseStructure DatabaseStructureType = DatabaseStructureTyp
 		},
 	},
 	"SubscriptionItems": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":             {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":       {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"subscriptionId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Subscription", Key: "id"}},
-			"moduleId":       {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Module", Key: "id"}},
-			"pricingPlanId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "PricingPlan", Key: "id"}},
+			"tenantId":       {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"subscriptionId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Subscription", Key: "id"}},
+			"moduleId":       {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Module", Key: "id"}},
+			"pricingPlanId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "PricingPlan", Key: "id"}},
 			"quantity":       {Kind: "Float", DefaultValue: 0, Required: false},
 		},
 	},
 	"UsageRecords": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":          {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"moduleId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Module", Key: "id"}},
+			"tenantId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"moduleId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Module", Key: "id"}},
 			"quantity":    {Kind: "Float", DefaultValue: 0, Required: false},
 			"periodStart": {Kind: "Date", DefaultValue: nil, Required: false},
 			"periodEnd":   {Kind: "Date", DefaultValue: nil, Required: false},
 		},
 	},
 	"Invoices": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":              {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":        {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"subscriptionId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Subscription", Key: "id"}},
+			"tenantId":        {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"subscriptionId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Subscription", Key: "id"}},
 			"amountDue":       {Kind: "Float", DefaultValue: 0, Required: false},
 			"amountPaid":      {Kind: "Float", DefaultValue: 0, Required: false},
 			"amountRemaining": {Kind: "Float", DefaultValue: 0, Required: false},
@@ -362,12 +362,12 @@ var DefaultBillingDatabaseStructure DatabaseStructureType = DatabaseStructureTyp
 		},
 	},
 	"InvoiceItems": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":                 {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":           {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"invoiceId":          {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Invoice", Key: "id"}},
-			"moduleId":           {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Module", Key: "id"}},
-			"subscriptionItemId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "SubscriptionItem", Key: "id"}},
+			"tenantId":           {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"invoiceId":          {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Invoice", Key: "id"}},
+			"moduleId":           {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Module", Key: "id"}},
+			"subscriptionItemId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "SubscriptionItem", Key: "id"}},
 			"description":        {Kind: "String", DefaultValue: nil, Required: false},
 			"pricingType":        {Kind: "String", DefaultValue: "flat", Required: false, Options: []string{"flat", "per_user", "per_unit", "metered"}},
 			"quantity":           {Kind: "Float", DefaultValue: 0, Required: false},
@@ -381,9 +381,9 @@ var DefaultBillingDatabaseStructure DatabaseStructureType = DatabaseStructureTyp
 		},
 	},
 	"Payments": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":                {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":          {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"tenantId":          {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
 			"provider":          {Kind: "String", DefaultValue: nil, Required: false},
 			"providerPaymentId": {Kind: "String", DefaultValue: nil, Required: false},
 			"amount":            {Kind: "Float", DefaultValue: 0, Required: false},
@@ -399,33 +399,33 @@ var DefaultBillingDatabaseStructure DatabaseStructureType = DatabaseStructureTyp
 		},
 	},
 	"PaymentAllocations": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":              {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":        {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"paymentId":       {Kind: "String", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Payments", Key: "id"}},
-			"invoiceId":       {Kind: "String", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Invoice", Key: "id"}},
+			"tenantId":        {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"paymentId":       {Kind: "String", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Payments", Key: "id"}},
+			"invoiceId":       {Kind: "String", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Invoice", Key: "id"}},
 			"amountAllocated": {Kind: "Float", DefaultValue: 0, Required: false},
 			"createdAt":       {Kind: "Date", DefaultValue: "now", Required: false},
 		},
 	},
 	"AccountCredits": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":        {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"paymentId": {Kind: "String", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Payments", Key: "id"}},
+			"tenantId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"paymentId": {Kind: "String", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Payments", Key: "id"}},
 			"amount":    {Kind: "Float", DefaultValue: 0, Required: false},
 			"createdAt": {Kind: "Date", DefaultValue: "now", Required: false},
 		},
 	},
 }
 
-var DefaultExtraDatabaseStructure DatabaseStructureType = DatabaseStructureType{
+var DefaultExtraDatabaseStructure DatabaseStructure = DatabaseStructure{
 	"Notifications": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":                {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":          {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"profileId":         {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
-			"userId":            {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
+			"tenantId":          {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"profileId":         {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
+			"userId":            {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
 			"senderName":        {Kind: "String", DefaultValue: nil, Required: false},
 			"referenceId":       {Kind: "ID", DefaultValue: nil, Required: false},
 			"referenceName":     {Kind: "String", DefaultValue: nil, Required: false},
@@ -446,12 +446,12 @@ var DefaultExtraDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 		},
 	},
 	"PushNotifications": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":             {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":       {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"profileId":      {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
-			"userId":         {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
-			"deviceId":       {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "UserDevice", Key: "id"}},
+			"tenantId":       {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"profileId":      {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
+			"userId":         {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
+			"deviceId":       {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "UserDevice", Key: "id"}},
 			"title":          {Kind: "String", DefaultValue: nil, Required: false},
 			"body":           {Kind: "String", DefaultValue: nil, Required: false},
 			"iconUrl":        {Kind: "URL", DefaultValue: nil, Required: false},
@@ -466,12 +466,12 @@ var DefaultExtraDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 		},
 	},
 	"SocketMessages": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":        {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"profileId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
-			"userId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
-			"deviceId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "UserDevice", Key: "id"}},
+			"tenantId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"profileId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
+			"userId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
+			"deviceId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "UserDevice", Key: "id"}},
 			"namespace": {Kind: "String", DefaultValue: nil, Required: false},
 			"action":    {Kind: "String", DefaultValue: nil, Required: false},
 			"content":   {Kind: "Any", DefaultValue: nil, Required: false},
@@ -481,11 +481,11 @@ var DefaultExtraDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 		},
 	},
 	"AuditTrails": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":         {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":   {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"profileId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
-			"userId":     {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
+			"tenantId":   {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"profileId":  {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
+			"userId":     {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
 			"action":     {Kind: "String", DefaultValue: nil, Required: false},
 			"documentId": {Kind: "ID", DefaultValue: nil, Required: false},
 			"collection": {Kind: "String", DefaultValue: nil, Required: false},
@@ -499,11 +499,11 @@ var DefaultExtraDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 		},
 	},
 	"Reports": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":          {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"userId":      {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
-			"profileId":   {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
+			"tenantId":    {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"userId":      {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "User", Key: "id"}},
+			"profileId":   {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
 			"name":        {Kind: "String", DefaultValue: nil, Required: false},
 			"description": {Kind: "String", DefaultValue: nil, Required: false},
 			"data":        {Kind: "Any", DefaultValue: nil, Required: false},
@@ -515,23 +515,23 @@ var DefaultExtraDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 		},
 	},
 	"ChatGroups": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":              {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":        {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"profileId":       {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
+			"tenantId":        {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"profileId":       {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Profile", Key: "id"}},
 			"parentReference": {Kind: "ID", DefaultValue: nil, Required: false},
 			"reference":       {Kind: "ID", DefaultValue: nil, Required: false},
 			"title":           {Kind: "String", DefaultValue: nil, Required: false},
 			"description":     {Kind: "String", DefaultValue: nil, Required: false},
-			"members":         {Kind: "{ID}", DefaultValue: []string{}, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "ChatGroupMember"}},
+			"members":         {Kind: "{ID}", DefaultValue: []string{}, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "ChatGroupMember"}},
 			"type":            {Kind: "String", DefaultValue: "public", Required: false, Options: []string{"private", "public", "general"}},
 			"timestamp":       {Kind: "Date", DefaultValue: "now", Required: false},
 		},
 	},
 	"ChatGroupMembers": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":              {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":        {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"tenantId":        {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
 			"reference":       {Kind: "ID", DefaultValue: nil, Required: false},
 			"userId":          {Kind: "ID", DefaultValue: nil, Required: false},
 			"userReferenceId": {Kind: "ID", DefaultValue: nil, Required: false},
@@ -543,11 +543,11 @@ var DefaultExtraDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 		},
 	},
 	"ChatMessages": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":                {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":          {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"chatGroupId":       {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "ChatGroup"}},
-			"chatGroupMemberId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "ChatGroupMember", Key: "id"}},
+			"tenantId":          {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"chatGroupId":       {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "ChatGroup"}},
+			"chatGroupMemberId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "ChatGroupMember", Key: "id"}},
 			"content":           {Kind: "String", DefaultValue: nil, Required: false},
 			"media":             {Kind: "Any", DefaultValue: nil, Required: false},
 			"mediaReference":    {Kind: "String", DefaultValue: nil, Required: false},
@@ -556,11 +556,11 @@ var DefaultExtraDatabaseStructure DatabaseStructureType = DatabaseStructureType{
 		},
 	},
 	"ChatMessageStates": {
-		Fields: map[string]DatabaseCollectionFieldConfig{
+		Fields: map[string]CollectionFieldConfig{
 			"id":                {Kind: "ID", DefaultValue: nil, Required: false},
-			"tenantId":          {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
-			"chatMessageId":     {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "ChatMessage", Key: "id"}},
-			"chatGroupMemberId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: DatabaseCollectionFieldConfigForeignKey{Model: "ChatGroupMember", Key: "id"}},
+			"tenantId":          {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "Tenant", Key: "id"}},
+			"chatMessageId":     {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "ChatMessage", Key: "id"}},
+			"chatGroupMemberId": {Kind: "ID", DefaultValue: nil, Required: false, ForeignKey: CollectionFieldConfigForeignKey{Model: "ChatGroupMember", Key: "id"}},
 			"sent":              {Kind: "Boolean", DefaultValue: false, Required: false},
 			"sentDate":          {Kind: "Date", DefaultValue: nil, Required: false},
 			"received":          {Kind: "Boolean", DefaultValue: false, Required: false},

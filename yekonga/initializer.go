@@ -458,7 +458,7 @@ func (y *YekongaData) refreshTokenProcess(req *Request, res *Response, refreshTo
 	return result, status
 }
 
-func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseStructureType {
+func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseStructure {
 	if !helper.FileExists(file) {
 		file = helper.GetPath(file)
 	}
@@ -469,7 +469,7 @@ func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseSt
 	var databaseTenantCatchStructure = DefaultTenantCatchDatabaseStructure
 	var databaseStructure = DefaultExtraDatabaseStructure
 
-	var extraDatabaseStructure map[string]map[string]map[string]interface{}
+	var extraDatabaseStructure DatabaseStructure
 	data, err := helper.LoadJSONFile(file)
 
 	if err != nil {
@@ -482,7 +482,7 @@ func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseSt
 		for k, v := range databaseAuthStructure {
 			k = helper.ToCamelCase(helper.Pluralize(k))
 			if existing, ok := databaseStructure[k]; ok {
-				mergeExtraCollectionFields(existing, extraDatabaseStructure[k])
+				mergeExtraCollectionFields(existing, extraDatabaseStructure[k].Fields)
 			} else {
 				databaseStructure[k] = v
 			}
@@ -543,8 +543,8 @@ func mergeExtraCollectionFields(existing CollectionStructure, extraFields map[st
 	}
 }
 
-func databaseCollectionFieldConfigsFromMap(fields map[string]map[string]interface{}) map[string]DatabaseCollectionFieldConfig {
-	result := make(map[string]DatabaseCollectionFieldConfig, len(fields))
+func databaseCollectionFieldConfigsFromMap(fields map[string]map[string]interface{}) map[string]CollectionFieldConfig {
+	result := make(map[string]CollectionFieldConfig, len(fields))
 
 	for kn, vn := range fields {
 		result[kn] = databaseCollectionFieldConfigFromMap(vn)
