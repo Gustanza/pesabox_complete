@@ -1,6 +1,7 @@
 package yekonga
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"strings"
@@ -79,6 +80,7 @@ type CustomGraphqlResolver func(p graphql.ResolveParams) (interface{}, error)
 
 type CustomGraphqlQuery struct {
 	Name        string
+	Model       any
 	GraphqlType GraphqlQueryType
 	IsList      bool
 	Output      map[string]datatype.DataMap
@@ -100,6 +102,8 @@ func NewGraphqlAutoBuild(yekonga *YekongaData, database map[string]*DataModel) *
 }
 
 func (g *GraphqlAutoBuild) initialize() {
+	g.initializeDefaultCustomQuery()
+
 	for k, v := range g.Database {
 		g.addModelEnumType(k, v)
 	}
@@ -132,13 +136,27 @@ func (g *GraphqlAutoBuild) initialize() {
 			if helper.IsNotEmpty(vi.Model) {
 				fieldConfig := g.getRelativeQueryField(ki, vi.Model.Name, true, foreignKey, targetKey)
 				g.QueryTypes[k].AddFieldConfig(ki, fieldConfig)
-				g.MutationTypes[helper.ToCamelCase("where_"+k+"_input")].AddFieldConfig(ki, &graphql.InputObjectFieldConfig{
-					Type: g.MutationTypes[helper.ToCamelCase("where_"+vi.ModelName+"_input")],
-				})
 
-				g.MutationTypes[helper.ToCamelCase("dimension_where_"+k+"_input")].AddFieldConfig(ki, &graphql.InputObjectFieldConfig{
-					Type: g.MutationTypes[helper.ToCamelCase("where_"+vi.ModelName+"_input")],
-				})
+				whereInputA := helper.ToCamelCase("where_" + k + "_input")
+				whereInputB := helper.ToCamelCase("where_" + vi.ModelName + "_input")
+				dimensionWhereInput := helper.ToCamelCase("dimension_where_" + k + "_input")
+
+				if f, ok := g.MutationTypes[whereInputA]; ok {
+					f.AddFieldConfig(ki, &graphql.InputObjectFieldConfig{
+						Type: g.MutationTypes[whereInputB],
+					})
+				} else {
+					console.Error("ParentFields: whereInputA", whereInputA)
+				}
+
+				if f, ok := g.MutationTypes[dimensionWhereInput]; ok {
+					f.AddFieldConfig(ki, &graphql.InputObjectFieldConfig{
+						Type: g.MutationTypes[whereInputB],
+					})
+				} else {
+					console.Error("ParentFields: dimensionWhereInput", dimensionWhereInput)
+				}
+
 			}
 		}
 
@@ -190,6 +208,56 @@ func (g *GraphqlAutoBuild) initialize() {
 	g.AuthSchema = sa
 }
 
+func (g *GraphqlAutoBuild) initializeDefaultCustomQuery() {
+	g.yekonga.SetCustomGraphql("CustomForm.result", false, false, make(map[string]datatype.DataMap), nil, func(params graphql.ResolveParams) (interface{}, error) {
+		data := params.Source
+		ctx, _ := params.Context.Value(RequestContextKey).(*RequestContext)
+		inputType := helper.GetValueOfString(data, "type")
+		options := helper.GetValueOfList(data, "options")
+		advancedOptions := helper.GetValueOfBoolean(data, "options")
+
+		console.Log("params.source", data)
+		resultQuery := `
+		query{result:customFormValues{
+			userId,
+			value,
+			isAnonymous,
+			correct,
+			time,
+			createdAt,
+			option:customFormOption{id,label,name,value,correctValue},
+		}}`
+
+		if inputType == "ranking" || inputType == "multiple" || inputType == "choice" {
+			resultQuery = `
+		query{result:customFormOptions{
+			label,
+			name,
+			value,
+			summary:customFormValueSummary{count},
+		}}`
+		} else if (len(options) > 0 && !advancedOptions) || inputType == "rating" || inputType == "words" {
+			resultQuery = `
+		query{result:customFormValues(groupBy:[value]){
+			label: value,
+			summary:customFormValueSummary{count},
+		}}`
+		}
+		result := g.yekonga.GraphQL(resultQuery, map[string]interface{}{}, ctx.Request, ctx.Response)
+		outputData := helper.GetValueOf(result.Data, "result")
+		console.Error("result.Data", outputData)
+		// console.Error("result.Errors", result.Errors)
+		// console.Error("result.AdvancedOptions", advancedOptions)
+
+		var err error
+		if helper.IsNotEmpty(result.Errors) {
+			err = errors.New(helper.ToString(result.Errors))
+		}
+
+		return outputData, err
+	})
+}
+
 func (g *GraphqlAutoBuild) GetQuery() *graphql.Object {
 	var fields = make(graphql.Fields)
 
@@ -205,7 +273,7 @@ func (g *GraphqlAutoBuild) GetQuery() *graphql.Object {
 		fields[helper.ToVariable("download_"+helper.Pluralize(k))] = g.getQueryDownloadField(k, foreignKey, targetKey)
 	}
 
-	g.setCustomQuery(&fields, QueryType)
+	g.addCustomQuery(&fields, QueryType)
 
 	var queryType = graphql.NewObject(
 		graphql.ObjectConfig{
@@ -231,7 +299,7 @@ func (g *GraphqlAutoBuild) GetMutation() *graphql.Object {
 		fields[helper.ToVariable(k+"_action")] = g.getMutationActionField(k, foreignKey, targetKey)
 	}
 
-	g.setCustomQuery(&fields, MutationType)
+	g.addCustomQuery(&fields, MutationType)
 
 	var mutationType = graphql.NewObject(
 		graphql.ObjectConfig{
@@ -242,29 +310,36 @@ func (g *GraphqlAutoBuild) GetMutation() *graphql.Object {
 	return mutationType
 }
 
-func (g *GraphqlAutoBuild) setCustomQuery(fields *graphql.Fields, kind GraphqlQueryType) {
+func (g *GraphqlAutoBuild) addCustomQuery(fields *graphql.Fields, kind GraphqlQueryType) {
 	// console.Log("g.yekonga.graphqlCustomQuery", g.yekonga.graphqlCustomQuery)
 
 	for _, v := range g.yekonga.graphqlCustomQuery {
-		if _, ok := (*fields)[v.Name]; ok {
+		insideModel := helper.IsNotEmpty(v.Model)
+
+		if _, ok := (*fields)[v.Name]; ok && !insideModel {
 			console.Error("Custom GraphqlQL " + v.Name + " already exists")
+			return
+		} else if insideModel {
 			return
 		}
 
 		if v.GraphqlType == kind {
-			output := graphql.Fields{}
+			var queryKind graphql.Output
+			if len(v.Output) != 0 {
+				output := graphql.Fields{}
 
-			for k, o := range v.Output {
-				obj, _ := helper.ConvertTo[CollectionFieldConfig](o)
-				output[k] = g.getQueryField(k, getDataModelField(k, databaseCollectionFieldConfigFromMap(obj)))
+				for k, o := range v.Output {
+					obj, _ := helper.ConvertTo[CollectionFieldConfig](o)
+					output[k] = g.getQueryField(k, getDataModelField(k, databaseCollectionFieldConfigFromMap(obj)))
+				}
+
+				queryKind = graphql.NewObject(graphql.ObjectConfig{
+					Name:   v.Name,
+					Fields: output,
+				})
+			} else {
+				queryKind = ScalarAnyType
 			}
-
-			queryKind := graphql.NewObject(graphql.ObjectConfig{
-				Name:   v.Name,
-				Fields: output,
-			})
-
-			console.Error("queryKind", v.Name)
 
 			if v.IsList {
 				(*fields)[v.Name] = &graphql.Field{
@@ -279,7 +354,45 @@ func (g *GraphqlAutoBuild) setCustomQuery(fields *graphql.Fields, kind GraphqlQu
 					Resolve: graphql.FieldResolveFn(v.Resolve),
 				}
 			}
+		}
+	}
+}
 
+func (g *GraphqlAutoBuild) addCustomModelFieldQuery(modelName string, fields *graphql.Object, kind GraphqlQueryType) {
+	for _, v := range g.yekonga.graphqlCustomQuery {
+		insideModel := helper.IsNotEmpty(v.Model)
+
+		if insideModel && modelName == v.Model {
+			var output graphql.Output
+			var queryKind graphql.Output
+			if len(v.Output) != 0 {
+				output := graphql.Fields{}
+
+				for k, o := range v.Output {
+					obj, _ := helper.ConvertTo[CollectionFieldConfig](o)
+					output[k] = g.getQueryField(k, getDataModelField(k, databaseCollectionFieldConfigFromMap(obj)))
+				}
+
+				queryKind = graphql.NewObject(graphql.ObjectConfig{
+					Name:   v.Name,
+					Fields: output,
+				})
+			} else {
+				queryKind = ScalarAnyType
+			}
+
+			if v.IsList {
+				output = graphql.NewList(queryKind)
+			} else {
+				output = queryKind
+			}
+			if helper.IsNotEmpty(fields) {
+				(*fields).AddFieldConfig(v.Name, &graphql.Field{
+					Type:    output,
+					Args:    v.Args,
+					Resolve: graphql.FieldResolveFn(v.Resolve),
+				})
+			}
 		}
 	}
 }
@@ -375,7 +488,6 @@ func (g *GraphqlAutoBuild) getQueryMultipleField(collection string, foreignKey s
 		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 			var model = g.yekonga.ModelQuery(name)
 			g.setModelParams(model, &p, foreignKey, targetKey, false)
-
 			data := model.Find(nil)
 
 			g.loadRelatedData(data, model, &p, foreignKey, targetKey)
@@ -428,7 +540,6 @@ func (g *GraphqlAutoBuild) getQueryPaginationField(collection string, foreignKey
 			g.setModelParams(model, &p, foreignKey, targetKey, false)
 
 			data := model.Paginate(nil)
-
 			if d, ok := (*data)["data"]; ok {
 				if di, oki := d.(*[]datatype.DataMap); oki {
 					g.loadRelatedData(di, model, &p, foreignKey, targetKey)
@@ -1397,6 +1508,9 @@ func (g *GraphqlAutoBuild) addQueryType(collection string, model *DataModel) {
 		Name:   name,
 		Fields: fields,
 	})
+
+	g.addCustomModelFieldQuery(name, modelFields, QueryType)
+
 	g.QueryTypes[name] = modelFields
 
 	/// Summary
@@ -2228,7 +2342,8 @@ func (g *GraphqlAutoBuild) formateOutputData(model *DataModelQuery, data interfa
 	output := map[string]interface{}{}
 
 	if helper.IsNotEmpty(data) && helper.IsMap(data) {
-		localData := helper.ToMap[interface{}](data)
+		localData := helper.ToDataMap(data)
+		// console.Log(helper.TypeOf(localData))
 		for k, v := range localData {
 			if helper.Contains(model.Model.Protected, k) {
 				output[k] = "--protected--"

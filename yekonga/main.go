@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/robertkonga/yekonga-server-go/config"
+	mainConfig "github.com/robertkonga/yekonga-server-go/config"
 	"github.com/robertkonga/yekonga-server-go/datatype"
 	"github.com/robertkonga/yekonga-server-go/gateway/setting"
 	"github.com/robertkonga/yekonga-server-go/helper"
@@ -81,16 +81,17 @@ type YekongaData struct {
 	mut                    sync.RWMutex
 	publicRoutes           []string
 
-	Config   *config.YekongaConfig
+	Config   *mainConfig.YekongaConfig
 	RootPath string
 	IsDev    bool
 }
 
 // NewYekonga creates a new instance of Yekonga server
-func ServerConfig(config config.YekongaConfig, databaseStructure DatabaseStructure) *YekongaData {
-	logger.Logo()
-
-	systemModels := NewSystemModels(&config, &databaseStructure)
+func ServerConfig(config mainConfig.YekongaConfig, databaseStructure DatabaseStructure) *YekongaData {
+	logger.LogoLarge()
+	mainConfig.SetYekongaConfig(&config)
+	databaseStructureCombined := NewDatabaseStructure(databaseStructure, &config)
+	systemModels := NewSystemModels(&config, databaseStructureCombined)
 	dbConnect := NewDatabaseConnections(&config)
 	resolverChartGroupData := SetDataGroups(systemModels)
 	exPath := "./"
@@ -109,13 +110,13 @@ func ServerConfig(config config.YekongaConfig, databaseStructure DatabaseStructu
 		dbConnect:              dbConnect,
 		models:                 systemModels,
 		resolverChartGroupData: resolverChartGroupData,
-		databaseStructure:      &databaseStructure,
+		databaseStructure:      databaseStructureCombined,
 		routes:                 make(map[string][]Route),
 		middlewares:            make([]Middleware, 0, 5),
 		initMiddlewares:        make([]Middleware, 0, 5),
 		preloadMiddlewares:     make([]Middleware, 0, 5),
 		catchMiddlewares:       make([]Middleware, 0, 5),
-		graphqlCustomQuery:     make([]CustomGraphqlQuery, 0, 0),
+		graphqlCustomQuery:     make([]CustomGraphqlQuery, 0),
 		whenReady:              make([]func(), 0, 0),
 		functions:              make(map[string]CloudFunction),
 		systemFunctions:        make(map[string]SystemHandler),
@@ -142,8 +143,8 @@ func ServerConfig(config config.YekongaConfig, databaseStructure DatabaseStructu
 }
 
 func ServerLoad(configFile string, databaseFile string) {
-	config := config.NewYekongaConfig(configFile)
-	databaseStructure := NewDatabaseStructure(databaseFile, config)
+	config := mainConfig.NewYekongaConfig(configFile)
+	databaseStructure := NewDatabaseStructureFile(databaseFile, config)
 
 	ServerConfig(*config, *databaseStructure)
 }

@@ -29,6 +29,10 @@ func NewYekongaConfig(file string) *YekongaConfig {
 	return Config
 }
 
+func SetYekongaConfig(c *YekongaConfig) {
+	Config = c
+}
+
 func toByte(data interface{}) []byte {
 	jsonData, _ := json.Marshal(data)
 

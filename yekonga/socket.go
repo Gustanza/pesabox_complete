@@ -180,6 +180,9 @@ type SocketServer struct {
 
 // of returns or creates a namespace
 func (s *SocketServer) Of(path string) *Namespace {
+	if s == nil {
+		return &Namespace{}
+	}
 	return s.getOrCreateNamespace(path)
 }
 
@@ -190,8 +193,14 @@ func (s *SocketServer) Close() {
 
 // getOrCreateNamespace returns or creates a namespace
 func (s *SocketServer) getOrCreateNamespace(path string) *Namespace {
-	path = strings.Trim(path, " ")
+	if s == nil {
+		return &Namespace{}
+	}
 
+	path = strings.Trim(path, " ")
+	if path == "" {
+		path = "/"
+	}
 	if path[0] != '/' {
 		path = "/" + path
 	}
@@ -337,6 +346,10 @@ func (n *Namespace) LeaveRoom(room string, c *Client) {
 }
 
 func (n *Namespace) EmitToClient(c *Client, event string, data interface{}) {
+	if n == nil || c == nil {
+		return
+	}
+
 	msg, err := json.Marshal(EventMessage{Event: event, Data: helper.ToByte((data))})
 	if err != nil {
 		return
@@ -348,6 +361,10 @@ func (n *Namespace) EmitToClient(c *Client, event string, data interface{}) {
 }
 
 func (n *Namespace) SendToRoom(room, event string, data interface{}, exclude *Client) {
+	if n == nil {
+		return
+	}
+
 	n.mu.Lock()
 	clientsInRoom := make([]*Client, 0)
 	if roomClients, ok := n.Rooms[room]; ok {
@@ -365,10 +382,17 @@ func (n *Namespace) SendToRoom(room, event string, data interface{}, exclude *Cl
 }
 
 func (n *Namespace) Emit(event string, data interface{}, exclude *Client) {
+	if n == nil {
+		return
+	}
 	n.Broadcast(event, data, exclude)
 }
 
 func (n *Namespace) Broadcast(event string, data interface{}, exclude *Client) {
+	if n == nil {
+		return
+	}
+
 	n.mu.Lock()
 	allClients := make([]*Client, 0, len(n.Clients))
 	for _, client := range n.Clients {
@@ -384,30 +408,51 @@ func (n *Namespace) Broadcast(event string, data interface{}, exclude *Client) {
 }
 
 func (c *Client) On(event string, handler func(data interface{})) {
+	if c == nil {
+		return
+	}
 	c.eventHandlers[event] = handler
 }
 
 func (c *Client) OnEvent(event string, handler func(data interface{})) {
+	if c == nil {
+		return
+	}
 	c.eventHandlers[event] = handler
 }
 
 func (c *Client) Emit(event string, data interface{}) {
+	if c == nil || c.Namespace == nil {
+		return
+	}
 	c.Namespace.Emit(event, data, c)
 }
 
 func (c *Client) Broadcast(event string, data interface{}) {
+	if c == nil || c.Namespace == nil {
+		return
+	}
 	c.Namespace.Broadcast(event, data, c)
 }
 
 func (c *Client) SendToRoom(room string, event string, data interface{}) {
+	if c == nil || c.Namespace == nil {
+		return
+	}
 	c.Namespace.SendToRoom(room, event, data, c)
 }
 
 func (c *Client) EmitToClient(event string, data interface{}) {
+	if c == nil || c.Namespace == nil {
+		return
+	}
 	c.Namespace.EmitToClient(c, event, data)
 }
 
 func (c *Client) SendBack(event string, data interface{}) {
+	if c == nil || c.Namespace == nil {
+		return
+	}
 	c.Namespace.EmitToClient(c, event, data)
 }
 

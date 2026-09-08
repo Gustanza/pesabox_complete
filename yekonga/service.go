@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/kardianos/service"
@@ -129,23 +131,84 @@ func (p *YekongaService) run() {
 
 }
 
-// setupLogging initializes the log file and the custom loggers.
-func setupLogging() (*os.File, error) {
-	// Create a log file that captures all output.
-	f, err := os.OpenFile("service_log.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+const logDirectory = "logs"
+
+// dailyLogWriter writes to a file in logDirectory named after the current
+// date, transparently rotating to a new file whenever the date changes.
+type dailyLogWriter struct {
+	mu          sync.Mutex
+	dir         string
+	currentDate string
+	file        *os.File
+}
+
+func newDailyLogWriter(dir string) (*dailyLogWriter, error) {
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, fmt.Errorf("error creating log directory: %v", err)
+	}
+	w := &dailyLogWriter{dir: dir}
+	if err := w.rotate(); err != nil {
+		return nil, err
+	}
+	return w, nil
+}
+
+func (w *dailyLogWriter) rotate() error {
+	date := time.Now().Format("2006-01-02")
+	if w.file != nil && w.currentDate == date {
+		return nil
+	}
+
+	f, err := os.OpenFile(filepath.Join(w.dir, date+".log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		return nil, fmt.Errorf("error opening log file: %v", err)
+		return fmt.Errorf("error opening log file: %v", err)
+	}
+
+	old := w.file
+	w.file = f
+	w.currentDate = date
+	if old != nil {
+		old.Close()
+	}
+	return nil
+}
+
+func (w *dailyLogWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if err := w.rotate(); err != nil {
+		return 0, err
+	}
+	return w.file.Write(p)
+}
+
+func (w *dailyLogWriter) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.file != nil {
+		return w.file.Close()
+	}
+	return nil
+}
+
+// setupLogging initializes the daily log file and the custom loggers.
+func setupLogging() (*dailyLogWriter, error) {
+	w, err := newDailyLogWriter(logDirectory)
+	if err != nil {
+		return nil, err
 	}
 
 	// Set the global log output to the file for compatibility with 'service.Run()' and fatal errors.
-	log.SetOutput(f)
+	log.SetOutput(w)
 
 	// Initialize custom loggers with specific prefixes for status and program events.
-	// We use the file as the output writer for both.
-	statusLog = log.New(f, "[STATUS] ", log.Ldate|log.Ltime|log.Lshortfile)
-	programLog = log.New(f, "[PROGRAM] ", log.Ldate|log.Ltime)
+	// We use the same writer for both so logs rotate together.
+	statusLog = log.New(w, "[STATUS] ", log.Ldate|log.Ltime|log.Lshortfile)
+	programLog = log.New(w, "[PROGRAM] ", log.Ldate|log.Ltime)
 
-	return f, nil
+	return w, nil
 }
 
 func applicationLiveLogs(name string) {
@@ -166,7 +229,7 @@ func applicationLiveLogs(name string) {
 	}
 
 	fmt.Printf("--- Starting live log stream for %v --- \n", name)
-	fmt.Println("   (Press Ctrl+C to stop the Go program and the command)\n")
+	fmt.Println("   (Press Ctrl+C to stop the Go program and the command)")
 
 	// 3. Use a bufio.Scanner in a goroutine to read the output line by line
 	// This is crucial for handling the continuous stream from 'journalctl -f'

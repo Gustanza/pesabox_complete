@@ -838,15 +838,25 @@ func (y *YekongaData) SetCustomGraphql(
 	isList bool,
 	output map[string]datatype.DataMap,
 	args graphql.FieldConfigArgument,
-	resolver CustomGraphqlResolver) {
+	resolver CustomGraphqlResolver,
+) {
+	var modelName any
+	var fieldName string = name
 
 	graphqlType := QueryType
 	if isMutation {
 		graphqlType = MutationType
 	}
 
+	names := strings.Split(name, ".")
+	if len(names) > 1 {
+		fieldName = names[1]
+		modelName = helper.ToCamelCase(helper.Singularize(names[0]))
+	}
+
 	y.graphqlCustomQuery = append(y.graphqlCustomQuery, CustomGraphqlQuery{
-		Name:        name,
+		Name:        fieldName,
+		Model:       modelName,
 		GraphqlType: graphqlType,
 		Output:      output,
 		Args:        args,

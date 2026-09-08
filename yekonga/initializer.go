@@ -21,7 +21,8 @@ import (
 // Allowed file extensions
 var DefaultExtensions = [...]string{
 	// Web Files
-	".html", ".css", ".js", ".webmanifest", ".htm", ".json", ".xml", ".map",
+	".html", ".css", ".js", ".webmanifest",
+	".htm", ".json", ".xml", ".map",
 
 	// Image Files
 	".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",
@@ -458,25 +459,23 @@ func (y *YekongaData) refreshTokenProcess(req *Request, res *Response, refreshTo
 	return result, status
 }
 
-func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseStructure {
+func NewDatabaseStructureFile(file string, config *config.YekongaConfig) *DatabaseStructure {
 	if !helper.FileExists(file) {
 		file = helper.GetPath(file)
 	}
 
+	structure := generateExtraDatabaseStructure(file)
+	databaseStructure := NewDatabaseStructure(structure, config)
+
+	return databaseStructure
+}
+
+func NewDatabaseStructure(extraDatabaseStructure DatabaseStructure, config *config.YekongaConfig) *DatabaseStructure {
 	var databaseAuthStructure = DefaultAuthDatabaseStructure
 	var databaseTenantStructure = DefaultTenantDatabaseStructure
 	var databaseBillingStructure = DefaultBillingDatabaseStructure
 	var databaseTenantCatchStructure = DefaultTenantCatchDatabaseStructure
 	var databaseStructure = DefaultExtraDatabaseStructure
-
-	var extraDatabaseStructure DatabaseStructure
-	data, err := helper.LoadJSONFile(file)
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	json.Unmarshal(helper.ToByte(data), &extraDatabaseStructure)
 
 	if config.IsAuthorizationServer {
 		for k, v := range databaseAuthStructure {
@@ -533,6 +532,30 @@ func NewDatabaseStructure(file string, config *config.YekongaConfig) *DatabaseSt
 
 	return &databaseStructure
 
+}
+
+func generateExtraDatabaseStructure(file string) DatabaseStructure {
+	structure := DatabaseStructure{}
+	var extraDatabaseStructure map[string]map[string]map[string]interface{}
+	data, err := helper.LoadJSONFile(file)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	json.Unmarshal(helper.ToByte(data), &extraDatabaseStructure)
+
+	for collection, fields := range extraDatabaseStructure {
+		fieldConfigs := make(map[string]CollectionFieldConfig, len(fields))
+
+		for fieldName, fieldData := range fields {
+			fieldConfigs[fieldName] = databaseCollectionFieldConfigFromMap(fieldData)
+		}
+
+		structure[collection] = fieldConfigs
+	}
+
+	return structure
 }
 
 // mergeExtraCollectionFields merges field definitions loaded from the external

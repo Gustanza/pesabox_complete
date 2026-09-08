@@ -58,6 +58,23 @@ func Logo() {
 	Info("SERVER", "no-line-break")
 	Warn(".", "no-line-break")
 	Info("GO \n")
+
+}
+
+func LogoLarge() {
+	Success(`	___      ___    __ `)
+	Success(`	\  \    /  /   |  |`)
+	Success(`	 \  \  /  /    |  |`)
+	Success(`	  \  \/  /____ |  | ___ ____  __ ___   ___ __  ___ __ `)
+	Success(`	   \    /  _  \|  |/  /  _  \|  '_  \ /  _'  |/  _'  |`)
+	Success(`	    |  |  (_)  |  '  /  / \  \  | |  |  / \  |  / \  |`)
+	Success(`	    |  |   ___/|     \  \_/  /  | |  |  \_/  |  \_/  |`)
+	Success(`	    |__|\_____/|__|\__\_____/|__| |__|\____  |\____,_|`)
+	Success(`	                                      ____/  |   `, "no-line-break")
+	Info("SERVER", "no-line-break")
+	Success(".", "no-line-break")
+	Info("GO")
+	Success(`	                                      \_____/         `)
 }
 
 func LogoHash() {

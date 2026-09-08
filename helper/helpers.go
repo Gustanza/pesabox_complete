@@ -718,6 +718,7 @@ var singularRules = []struct {
 }{
 	{regexp.MustCompile("ies$"), "y"},                // e.g., cities → city
 	{regexp.MustCompile("ves$"), "f"},                // e.g., knives → knife
+	{regexp.MustCompile("eases$"), "ease"},           // e.g., releases → release
 	{regexp.MustCompile("(s|sh|ch|x|z)es$"), "${1}"}, // e.g., boxes → box
 	{regexp.MustCompile("s$"), ""},                   // Default rule: remove "s"
 }
@@ -1462,14 +1463,18 @@ func HomeDirectory(name string) string {
 
 func GetBaseUrl(str string, domain string) string {
 	ip, _ := GetLocalIP()
-	port := config.Config.Ports.Server
-	prefix := config.Config.BaseUrl
+	port := 80
+	prefix := ""
+	if IsNotEmpty(config.Config) {
+		port = config.Config.Ports.Server
+		prefix = config.Config.BaseUrl
+	}
 
 	if IsEmpty(domain) {
 		domain = fmt.Sprintf("%s:%d", ip, port)
 	}
 
-	if config.Config.Ports.Secure {
+	if IsNotEmpty(config.Config) && config.Config.Ports.Secure {
 		port = config.Config.Ports.SSLServer
 	}
 
