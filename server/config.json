@@ -1,0 +1,63 @@
+{
+    "appName": "PesaBox",
+    "version": "1.0.0",
+    "description": "PesaBox backend API",
+    "appKey": "DEV_APP_KEY",
+    "masterKey": "DEV_MASTER_KEY",
+    "enableAppKey": false,
+    "connectionID": "default",
+    "userIdentifiers": ["phone"],
+    "domain": "localhost:8090",
+    "protocol": "http",
+    "address": "localhost",
+    "restAPI": "/api",
+    "restAuthAPI": "/api/auth",
+    "tokenKey": "DEV_TOKEN_SECRET",
+    "pdfInstances": 1,
+    "secureOnly": false,
+    "debug": true,
+    "cors": true,
+    "environment": "development",
+    "isAuthorizationServer": true,
+    "hasTenant": false,
+    "secureAuthentication": false,
+    "namingConvention": "camelCase",
+    "columnNamingConvention": "snake_case",
+    "public": [],
+    "cloud": "local",
+    "logFile": "./logs/app.log",
+    "permissions": {
+        "authActions": ["read", "create", "update", "delete"],
+        "guestActions": ["read"]
+    },
+    "graphql": {
+        "active": true,
+        "apiRoute": "/graphql",
+        "apiAuthRoute": "/graphql/auth"
+    },
+    "database": {
+        "kind": "mongodb",
+        "srv": false,
+        "host": "localhost",
+        "port": "27017",
+        "databaseName": "pesabox",
+        "prefix": "",
+        "generateID": true,
+        "generateIDLength": 24
+    },
+    "authentication": {
+        "saltRound": 10,
+        "algorithm": "bcrypt",
+        "tokenSecret": "DEV_TOKEN_SECRET",
+        "cryptoJsKey": "1234567890123456",
+        "cryptoJsIv": "1234567890123456"
+    },
+    "ports": {
+        "secure": false,
+        "server": 8090
+    },
+    "adminCredential": {
+        "username": "admin",
+        "password": "admin@123"
+    }
+}

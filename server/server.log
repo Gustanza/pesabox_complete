@@ -1,0 +1,125 @@
+[92m	___      ___    __ [0m
+[92m	\  \    /  /   |  |[0m
+[92m	 \  \  /  /    |  |[0m
+[92m	  \  \/  /____ |  | ___ ____  __ ___   ___ __  ___ __ [0m
+[92m	   \    /  _  \|  |/  /  _  \|  '_  \ /  _'  |/  _'  |[0m
+[92m	    |  |  (_)  |  '  /  / \  \  | |  |  / \  |  / \  |[0m
+[92m	    |  |   ___/|     \  \_/  /  | |  |  \_/  |  \_/  |[0m
+[92m	    |__|\_____/|__|\__\_____/|__| |__|\____  |\____,_|[0m
+[92m	                                      ____/  |   [0m[94mSERVER[0m[92m.[0m[94mGO[0m
+[92m	                                      \_____/         [0m
+[92mConnected to MongoDB![0m
+[94mApp Name[0m: PesaBox 
+[94mData Directory[0m: C:\Users\Administrator\.yekonga-server\pesa-box 
+[92mServer is running on[0m: 10.225.228.99:8090 
+[92mServer is running on[0m: 127.0.0.1:8090 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa924d0b2533404f24d01e3") _model:UserVerification count:0 createdAt:1789469904111 id:ObjectID("6aa924d0b2533404f24d01e3") otpCode:1234 otpCreatedAt:1789469904111 otpVerifiedAt:<nil> target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789469904111 userId:<nil> username:255766111333 usernameType:phone] ===
+[93muser[0m: {
+ "userId": "",
+ "email": "",
+ "phone": "255766111333",
+ "whatsapp": ""
+} 1234 is your verification code. For security, do not share this code. 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa924d0b2533404f24d01e3") _model:UserVerification count:0 createdAt:1789469904111 id:ObjectID("6aa924d0b2533404f24d01e3") otpCode:1234 otpCreatedAt:1789469904111 otpVerifiedAt:1789469908716 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789469908716 userId:<nil> username:255766111333 usernameType:phone] ===
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa924d0b2533404f24d01e3") _model:UserVerification count:0 createdAt:1789469904111 id:ObjectID("6aa924d0b2533404f24d01e3") otpCode:1234 otpCreatedAt:1789469904111 otpVerifiedAt:1789469908719 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789469908719 userId:<nil> username:255766111333 usernameType:phone] ===
+[91mauthTriggerCallback[0m: not exists 
+[91mAbort:[0m: 401 Domain mismatch expired 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa9260eb2533404f24d01e9") _model:UserVerification count:0 createdAt:1789470222068 id:ObjectID("6aa9260eb2533404f24d01e9") otpCode:1234 otpCreatedAt:1789470222068 otpVerifiedAt:<nil> target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789470222068 userId:<nil> username:255722555444 usernameType:phone] ===
+[93muser[0m: {
+ "userId": "",
+ "email": "",
+ "phone": "255722555444",
+ "whatsapp": ""
+} 1234 is your verification code. For security, do not share this code. 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa9260eb2533404f24d01e9") _model:UserVerification count:0 createdAt:1789470222068 id:ObjectID("6aa9260eb2533404f24d01e9") otpCode:1234 otpCreatedAt:1789470222068 otpVerifiedAt:1789470222101 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789470222101 userId:<nil> username:255722555444 usernameType:phone] ===
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa9260eb2533404f24d01e9") _model:UserVerification count:0 createdAt:1789470222068 id:ObjectID("6aa9260eb2533404f24d01e9") otpCode:1234 otpCreatedAt:1789470222068 otpVerifiedAt:1789470222109 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789470222109 userId:<nil> username:255722555444 usernameType:phone] ===
+[91mauthTriggerCallback[0m: not exists 
+2026/09/15 14:03:42 net/http: invalid Cookie.Domain "localhost:5174"; dropping domain attribute
+2026/09/15 14:03:42 net/http: invalid Cookie.Domain "localhost:5174"; dropping domain attribute
+2026/09/15 14:03:42 net/http: invalid Cookie.Domain "localhost:5174"; dropping domain attribute
+2026/09/15 14:03:42 net/http: invalid Cookie.Domain "localhost:5174"; dropping domain attribute
+[91mAbort:[0m: 307 https://localhost/logout 
+[92mredirect[0m: 307 https://localhost/logout 
+[91mAbort:[0m: 307 https://localhost/logout 
+[92mredirect[0m: 307 https://localhost/logout 
+[91mAbort:[0m: 307 https://localhost/logout 
+[92mredirect[0m: 307 https://localhost/logout 
+[91mAbort:[0m: 307 https://localhost/logout 
+[92mredirect[0m: 307 https://localhost/logout 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e5967caa009eaef171e0") _model:UserVerification count:0 createdAt:1789453718537 id:ObjectID("6aa8e5967caa009eaef171e0") otpCode:1234 otpCreatedAt:1789453718537 otpVerifiedAt:1789453729676 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789471524975 userId:<nil> username:255712345678 usernameType:phone] ===
+[93muser[0m: {
+ "userId": "",
+ "email": "",
+ "phone": "255712345678",
+ "whatsapp": ""
+} 1234 is your verification code. For security, do not share this code. 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e5967caa009eaef171e0") _model:UserVerification count:0 createdAt:1789453718537 id:ObjectID("6aa8e5967caa009eaef171e0") otpCode:1234 otpCreatedAt:1789453718537 otpVerifiedAt:1789471570704 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789471570704 userId:<nil> username:255712345678 usernameType:phone] ===
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e5967caa009eaef171e0") _model:UserVerification count:0 createdAt:1789453718537 id:ObjectID("6aa8e5967caa009eaef171e0") otpCode:1234 otpCreatedAt:1789453718537 otpVerifiedAt:1789471570707 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789471570707 userId:<nil> username:255712345678 usernameType:phone] ===
+[91mauthTriggerCallback[0m: not exists 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e74de51c0889999cfb80") _model:UserVerification count:0 createdAt:1789454157867 id:ObjectID("6aa8e74de51c0889999cfb80") otpCode:1234 otpCreatedAt:1789454157867 otpVerifiedAt:1789455586834 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789471631944 userId:ObjectID("6aa8ece2866f717933ab3f3e") username:255650980535 usernameType:phone] ===
+[93muser[0m: {
+ "userId": "6aa8ece2866f717933ab3f3e",
+ "email": "",
+ "phone": "255650980535",
+ "whatsapp": ""
+} 1234 is your verification code. For security, do not share this code. 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e74de51c0889999cfb80") _model:UserVerification count:0 createdAt:1789454157867 id:ObjectID("6aa8e74de51c0889999cfb80") otpCode:1234 otpCreatedAt:1789454157867 otpVerifiedAt:1789471635770 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789471635770 userId:ObjectID("6aa8ece2866f717933ab3f3e") username:255650980535 usernameType:phone] ===
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e74de51c0889999cfb80") _model:UserVerification count:0 createdAt:1789454157867 id:ObjectID("6aa8e74de51c0889999cfb80") otpCode:1234 otpCreatedAt:1789454157867 otpVerifiedAt:1789471635772 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789471635772 userId:ObjectID("6aa8ece2866f717933ab3f3e") username:255650980535 usernameType:phone] ===
+[91mauthTriggerCallback[0m: not exists 
+[91mError:triggerCallback[0m: User "BeforeFind"  Protected by default cloud function 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e74de51c0889999cfb80") _model:UserVerification count:0 createdAt:1789454157867 id:ObjectID("6aa8e74de51c0889999cfb80") otpCode:1234 otpCreatedAt:1789454157867 otpVerifiedAt:1789471635772 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789472156523 userId:ObjectID("6aa8ece2866f717933ab3f3e") username:255650980535 usernameType:phone] ===
+[93muser[0m: {
+ "userId": "6aa8ece2866f717933ab3f3e",
+ "email": "",
+ "phone": "255650980535",
+ "whatsapp": ""
+} 1234 is your verification code. For security, do not share this code. 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e74de51c0889999cfb80") _model:UserVerification count:0 createdAt:1789454157867 id:ObjectID("6aa8e74de51c0889999cfb80") otpCode:1234 otpCreatedAt:1789454157867 otpVerifiedAt:1789472173008 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789472173008 userId:ObjectID("6aa8ece2866f717933ab3f3e") username:255650980535 usernameType:phone] ===
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e74de51c0889999cfb80") _model:UserVerification count:0 createdAt:1789454157867 id:ObjectID("6aa8e74de51c0889999cfb80") otpCode:1234 otpCreatedAt:1789454157867 otpVerifiedAt:1789472173011 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789472173011 userId:ObjectID("6aa8ece2866f717933ab3f3e") username:255650980535 usernameType:phone] ===
+[91mauthTriggerCallback[0m: not exists 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e74de51c0889999cfb80") _model:UserVerification count:0 createdAt:1789454157867 id:ObjectID("6aa8e74de51c0889999cfb80") otpCode:1234 otpCreatedAt:1789454157867 otpVerifiedAt:1789472208592 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789472208592 userId:ObjectID("6aa8ece2866f717933ab3f3e") username:255650980535 usernameType:phone] ===
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e74de51c0889999cfb80") _model:UserVerification count:0 createdAt:1789454157867 id:ObjectID("6aa8e74de51c0889999cfb80") otpCode:1234 otpCreatedAt:1789454157867 otpVerifiedAt:1789472208595 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789472208595 userId:ObjectID("6aa8ece2866f717933ab3f3e") username:255650980535 usernameType:phone] ===
+[91mauthTriggerCallback[0m: not exists 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa92eb1b2533404f24d01fe") _model:UserVerification count:0 createdAt:1789472433688 id:ObjectID("6aa92eb1b2533404f24d01fe") otpCode:1234 otpCreatedAt:1789472433688 otpVerifiedAt:<nil> target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789472433688 userId:<nil> username:255625689904 usernameType:phone] ===
+[93muser[0m: {
+ "userId": "",
+ "email": "",
+ "phone": "255625689904",
+ "whatsapp": ""
+} 1234 is your verification code. For security, do not share this code. 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa92eb1b2533404f24d01fe") _model:UserVerification count:0 createdAt:1789472433688 id:ObjectID("6aa92eb1b2533404f24d01fe") otpCode:1234 otpCreatedAt:1789472433688 otpVerifiedAt:1789472439290 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789472439290 userId:<nil> username:255625689904 usernameType:phone] ===
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa92eb1b2533404f24d01fe") _model:UserVerification count:0 createdAt:1789472433688 id:ObjectID("6aa92eb1b2533404f24d01fe") otpCode:1234 otpCreatedAt:1789472433688 otpVerifiedAt:1789472439294 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789472439294 userId:<nil> username:255625689904 usernameType:phone] ===
+[91mauthTriggerCallback[0m: not exists 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e74de51c0889999cfb80") _model:UserVerification count:0 createdAt:1789454157867 id:ObjectID("6aa8e74de51c0889999cfb80") otpCode:1234 otpCreatedAt:1789454157867 otpVerifiedAt:1789472626165 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789472626165 userId:ObjectID("6aa8ece2866f717933ab3f3e") username:255650980535 usernameType:phone] ===
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e74de51c0889999cfb80") _model:UserVerification count:0 createdAt:1789454157867 id:ObjectID("6aa8e74de51c0889999cfb80") otpCode:1234 otpCreatedAt:1789454157867 otpVerifiedAt:1789472626167 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789472626167 userId:ObjectID("6aa8ece2866f717933ab3f3e") username:255650980535 usernameType:phone] ===
+[91mauthTriggerCallback[0m: not exists 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e74de51c0889999cfb80") _model:UserVerification count:0 createdAt:1789454157867 id:ObjectID("6aa8e74de51c0889999cfb80") otpCode:1234 otpCreatedAt:1789454157867 otpVerifiedAt:1789472626167 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789472849537 userId:ObjectID("6aa8ece2866f717933ab3f3e") username:255650980535 usernameType:phone] ===
+[93muser[0m: {
+ "userId": "6aa8ece2866f717933ab3f3e",
+ "email": "",
+ "phone": "255650980535",
+ "whatsapp": ""
+} 1234 is your verification code. For security, do not share this code. 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e74de51c0889999cfb80") _model:UserVerification count:0 createdAt:1789454157867 id:ObjectID("6aa8e74de51c0889999cfb80") otpCode:1234 otpCreatedAt:1789454157867 otpVerifiedAt:1789472855060 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789472855060 userId:ObjectID("6aa8ece2866f717933ab3f3e") username:255650980535 usernameType:phone] ===
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e74de51c0889999cfb80") _model:UserVerification count:0 createdAt:1789454157867 id:ObjectID("6aa8e74de51c0889999cfb80") otpCode:1234 otpCreatedAt:1789454157867 otpVerifiedAt:1789472855063 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789472855063 userId:ObjectID("6aa8ece2866f717933ab3f3e") username:255650980535 usernameType:phone] ===
+[91mauthTriggerCallback[0m: not exists 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa92eb1b2533404f24d01fe") _model:UserVerification count:0 createdAt:1789472433688 id:ObjectID("6aa92eb1b2533404f24d01fe") otpCode:1234 otpCreatedAt:1789472433688 otpVerifiedAt:1789472439294 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789473594684 userId:ObjectID("6aa92eb7b2533404f24d0201") username:255625689904 usernameType:phone] ===
+[93muser[0m: {
+ "userId": "6aa92eb7b2533404f24d0201",
+ "email": "",
+ "phone": "255625689904",
+ "whatsapp": ""
+} 1234 is your verification code. For security, do not share this code. 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa92eb1b2533404f24d01fe") _model:UserVerification count:0 createdAt:1789472433688 id:ObjectID("6aa92eb1b2533404f24d01fe") otpCode:1234 otpCreatedAt:1789472433688 otpVerifiedAt:1789473599163 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789473599163 userId:ObjectID("6aa92eb7b2533404f24d0201") username:255625689904 usernameType:phone] ===
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa92eb1b2533404f24d01fe") _model:UserVerification count:0 createdAt:1789472433688 id:ObjectID("6aa92eb1b2533404f24d01fe") otpCode:1234 otpCreatedAt:1789472433688 otpVerifiedAt:1789473599167 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789473599167 userId:ObjectID("6aa92eb7b2533404f24d0201") username:255625689904 usernameType:phone] ===
+[91mauthTriggerCallback[0m: not exists 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e74de51c0889999cfb80") _model:UserVerification count:0 createdAt:1789454157867 id:ObjectID("6aa8e74de51c0889999cfb80") otpCode:1234 otpCreatedAt:1789454157867 otpVerifiedAt:1789472855063 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789473920574 userId:ObjectID("6aa8ece2866f717933ab3f3e") username:255650980535 usernameType:phone] ===
+[93muser[0m: {
+ "userId": "6aa8ece2866f717933ab3f3e",
+ "email": "",
+ "phone": "255650980535",
+ "whatsapp": ""
+} 1234 is your verification code. For security, do not share this code. 
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e74de51c0889999cfb80") _model:UserVerification count:0 createdAt:1789454157867 id:ObjectID("6aa8e74de51c0889999cfb80") otpCode:1234 otpCreatedAt:1789454157867 otpVerifiedAt:1789473924696 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789473924696 userId:ObjectID("6aa8ece2866f717933ab3f3e") username:255650980535 usernameType:phone] ===
+=== OTP CODE (dev only): &map[_collection:user_verifications _id:ObjectID("6aa8e74de51c0889999cfb80") _model:UserVerification count:0 createdAt:1789454157867 id:ObjectID("6aa8e74de51c0889999cfb80") otpCode:1234 otpCreatedAt:1789454157867 otpVerifiedAt:1789473924699 target:login tenantId:ObjectID("000000000000000000000000") updatedAt:1789473924699 userId:ObjectID("6aa8ece2866f717933ab3f3e") username:255650980535 usernameType:phone] ===
+[91mauthTriggerCallback[0m: not exists 

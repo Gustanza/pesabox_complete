@@ -1,0 +1,271 @@
+{
+    "Groups": {
+        "groupId": {
+            "type": "ID",
+            "default": null,
+            "required": false
+        },
+        "name": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "region": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "district": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "ward": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "village": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "memberCount": {
+            "type": "Integer",
+            "default": 0,
+            "required": false
+        },
+        "femaleMembers": {
+            "type": "Integer",
+            "default": 0,
+            "required": false
+        },
+        "maleMembers": {
+            "type": "Integer",
+            "default": 0,
+            "required": false
+        },
+        "youthMembers": {
+            "type": "Integer",
+            "default": 0,
+            "required": false
+        },
+        "formationDate": {
+            "type": "Date",
+            "default": null,
+            "required": false
+        },
+        "meetingFrequency": {
+            "type": "String",
+            "default": "Weekly",
+            "required": false,
+            "options": ["Weekly", "Biweekly", "Monthly"]
+        },
+        "adminName": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "adminPhone": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "status": {
+            "type": "String",
+            "default": "Active",
+            "required": false,
+            "options": ["Active", "Inactive", "Closed"]
+        },
+        "cycleCurrent": {
+            "type": "Integer",
+            "default": 0,
+            "required": false
+        },
+        "cycleTotal": {
+            "type": "Integer",
+            "default": 30,
+            "required": false
+        },
+        "savingsModel": {
+            "type": "String",
+            "default": "Share-Based",
+            "required": false,
+            "options": ["Share-Based", "Mandatory Savings", "Voluntary Savings", "Hybrid"]
+        },
+        "enabledServices": {
+            "type": "Any",
+            "default": ["Shares", "Mandatory Savings", "Social Fund", "Loans", "Fines"],
+            "required": false
+        },
+        "shareValue": {
+            "type": "Float",
+            "default": 5000,
+            "required": false
+        },
+        "minShares": {
+            "type": "Integer",
+            "default": 1,
+            "required": false
+        },
+        "maxShares": {
+            "type": "Integer",
+            "default": 5,
+            "required": false
+        },
+        "socialFundContribution": {
+            "type": "Float",
+            "default": 2000,
+            "required": false
+        },
+        "loanInterestRate": {
+            "type": "Float",
+            "default": 10,
+            "required": false
+        },
+        "maxLoanPeriodMonths": {
+            "type": "Integer",
+            "default": 3,
+            "required": false
+        },
+        "lateMeetingFine": {
+            "type": "Float",
+            "default": 1000,
+            "required": false
+        },
+        "absenceFine": {
+            "type": "Float",
+            "default": 5000,
+            "required": false
+        },
+        "lateLoanRepaymentFine": {
+            "type": "Float",
+            "default": 3000,
+            "required": false
+        },
+        "totalSavings": {
+            "type": "Float",
+            "default": 0,
+            "required": false
+        },
+        "totalShares": {
+            "type": "Float",
+            "default": 0,
+            "required": false
+        },
+        "totalSocialFund": {
+            "type": "Float",
+            "default": 0,
+            "required": false
+        },
+        "totalLoans": {
+            "type": "Float",
+            "default": 0,
+            "required": false
+        },
+        "createdBy": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "User.id"
+        },
+        "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        },
+        "updatedAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "Members": {
+        "groupId": {
+            "type": "ID",
+            "default": null,
+            "required": true,
+            "foreignKey": "Group.id"
+        },
+        "firstName": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "lastName": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "phone": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "gender": {
+            "type": "String",
+            "default": null,
+            "required": false,
+            "options": ["Male", "Female"]
+        },
+        "memberNumber": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "status": {
+            "type": "String",
+            "default": "Active",
+            "required": false,
+            "options": ["Active", "Inactive", "Suspended"]
+        },
+        "joinedAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        },
+        "createdBy": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "User.id"
+        },
+        "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        },
+        "updatedAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "MemberVerifications": {
+        "phone": {
+            "type": "String",
+            "default": null,
+            "required": true
+        },
+        "code": {
+            "type": "String",
+            "default": null,
+            "required": true
+        },
+        "verified": {
+            "type": "Boolean",
+            "default": false,
+            "required": false
+        },
+        "expiresAt": {
+            "type": "Date",
+            "default": null,
+            "required": false
+        },
+        "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    }
+}
