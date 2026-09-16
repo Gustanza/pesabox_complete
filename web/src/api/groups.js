@@ -54,6 +54,8 @@ const GROUP_FIELDS = `
   totalShares
   totalSocialFund
   totalLoans
+  mandatorySavingsAmount
+  fineReasons
   createdAt
   updatedAt
 `

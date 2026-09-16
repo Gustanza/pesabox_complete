@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -77,22 +79,21 @@ func normalizeTanzanianPhone(phone string) string {
 	}
 }
 
-// sendOtpSms texts message to phone via SMTZ (161.97.99.40:5173's bulk-SMS
-// api) when SMTZ_API_KEY is set — used for both the login OTP (UserVerification,
-// via logOtp below) and the Add Member phone-verification OTP
-// (MemberVerification, via /api/members/request-otp). SMTZ has no OTP
-// concept of its own — it's a plain "send this text to these numbers" API —
-// so the code is generated and verified entirely on our side and just sent
-// as an ordinary SMS through SMTZ's POST /campaigns.
+// smtzSend delivers message to phone via SMTZ (161.97.99.40:5173's bulk-SMS
+// api) when SMTZ_API_KEY is set, and returns (sent, note) so callers can
+// record the outcome. SMTZ has no OTP concept of its own — it's a plain "send
+// this text to these numbers" API — so any code sent here is generated and
+// verified entirely on our side and just sent as an ordinary SMS through SMTZ's
+// POST /campaigns.
 //
-// Falls back to logging to the console whenever no key is configured, or
-// logs the failure reason if SMTZ rejects the send (e.g. status/body), so
-// "the OTP never arrived" always has an answer in the server log either way.
-func sendOtpSms(phone string, message string) {
+// Falls back to "sent" + console log whenever no key is configured (dev
+// mode), or "failed" + the reason if SMTZ rejects the send, so "the SMS never
+// arrived" always has an answer in the server log either way.
+func smtzSend(phone string, message string) (bool, string) {
 	apiKey := os.Getenv("SMTZ_API_KEY")
 	if helper.IsEmpty(apiKey) {
-		fmt.Printf("=== OTP SMS (dev only, no SMTZ_API_KEY) for %s: %s ===\n", phone, message)
-		return
+		fmt.Printf("=== SMS (dev only, no SMTZ_API_KEY) for %s: %s ===\n", phone, message)
+		return true, "dev-mode (no SMTZ_API_KEY)"
 	}
 
 	payload, _ := json.Marshal(map[string]interface{}{
@@ -108,7 +109,7 @@ func sendOtpSms(phone string, message string) {
 	)
 	if err != nil {
 		fmt.Println("smtz: could not build request:", err)
-		return
+		return false, err.Error()
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
@@ -116,15 +117,254 @@ func sendOtpSms(phone string, message string) {
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		fmt.Println("smtz: send failed:", err)
-		return
+		return false, err.Error()
 	}
 	defer res.Body.Close()
 	if res.StatusCode >= 300 {
 		body, _ := io.ReadAll(res.Body)
-		fmt.Printf("smtz: send failed with status %d: %s\n", res.StatusCode, body)
+		note := fmt.Sprintf("HTTP %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
+		fmt.Println("smtz: send failed:", note)
+		return false, note
+	}
+	fmt.Printf("smtz: sent campaign to %s\n", normalizeTanzanianPhone(phone))
+	return true, ""
+}
+
+// sendOtpSms texts message to phone via smtzSend — used for both the login OTP
+// (UserVerification, via logOtp below) and the Add Member phone-verification
+// OTP (MemberVerification, via /api/members/request-otp). It is a convenience
+// wrapper that just drops the send result on the console; the richer
+// sendSms helper (which also persists an SmsLog record) is used for the
+// member-facing joined/fine/transaction confirmations.
+func sendOtpSms(phone string, message string) {
+	sent, note := smtzSend(phone, message)
+	if !sent {
+		fmt.Printf("smtz: OTP to %s failed: %s\n", phone, note)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Member-facing SMS helpers. Every important member action (joined, fine,
+// transaction) goes through sendSmsWithLog: it delivers via smtzSend AND
+// persists an SmsLog record so /api/main/sms/activity can show the history.
+// These are package-level (not closures inside main) so route handlers
+// registered earlier in main() can call them without declaration-order
+// constraints.
+// ---------------------------------------------------------------------------
+
+// commaInt adds thousands separators to a base-10 integer ("5000" -> "5,000").
+func commaInt(n int64) string {
+	s := strconv.FormatInt(n, 10)
+	neg := strings.HasPrefix(s, "-")
+	if neg {
+		s = s[1:]
+	}
+	out := []byte{}
+	for i, c := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			out = append(out, ',')
+		}
+		out = append(out, byte(c))
+	}
+	if neg {
+		return "-" + string(out)
+	}
+	return string(out)
+}
+
+// fmtTZS renders a money amount as the "TZS 5,000" form used in SMS copy.
+func fmtTZS(v float64) string {
+	return "TZS " + commaInt(int64(math.Round(v)))
+}
+
+// dmy renders a time as the dd/mm/yyyy form used in SMS copy.
+func dmy(t time.Time) string { return t.Format("02/01/2006") }
+
+// smsDate turns a stored meeting date (string) into dd/mm/yyyy when it's a
+// known ISO layout, otherwise returns it untouched, defaulting to today.
+func smsDate(s string) string {
+	if s == "" {
+		return dmy(time.Now())
+	}
+	if t, err := time.Parse("2006-01-02", s); err == nil {
+		return dmy(t)
+	}
+	return s
+}
+
+// memberFullName joins a Member record's first and last name.
+func memberFullName(m datatype.DataMap) string {
+	return strings.TrimSpace(helper.GetValueOfString(m, "firstName") + " " + helper.GetValueOfString(m, "lastName"))
+}
+
+// meetingSmsDate finds the scheduled date string of a meeting (falling back to
+// today) so transaction/fine SMS copy can say "cha tarehe 12/09/2026".
+func meetingSmsDate(meetingId string) string {
+	if meetingId != "" {
+		mtg := yekonga.Server.ModelQuery("Meeting").SkipBeforeCommit().Where("id", meetingId).First(nil)
+		if mtg != nil {
+			return smsDate(helper.GetValueOfString(*mtg, "date"))
+		}
+	}
+	return smsDate("")
+}
+
+// txLabel maps a stored Transaction.type to the human name used in SMS copy
+// and the SMS log.
+func txLabel(typ string) string {
+	switch typ {
+	case "contribution":
+		return "Mandatory Savings"
+	case "share":
+		return "Shares"
+	case "social_fund":
+		return "Social Fund"
+	case "loan_repayment":
+		return "Loan Repayment"
+	case "loan_disbursement":
+		return "Loan Disbursement"
+	case "fine":
+		return "Fine"
+	case "expense":
+		return "Expense"
+	case "withdrawal":
+		return "Withdrawal"
+	}
+	return typ
+}
+
+// defaultFineReasons is what a group uses until its admin configures its own
+// fine reasons (spec §6) — 'Other' carries a 0 so the admin always has to type
+// a custom amount for it.
+var defaultFineReasons = []datatype.DataMap{
+	{"reason": "Late Attendance", "amount": 1000.0},
+	{"reason": "Absent", "amount": 2000.0},
+	{"reason": "Missed Contribution", "amount": 1000.0},
+	{"reason": "Late Loan Repayment", "amount": 2000.0},
+	{"reason": "Other", "amount": 0.0},
+}
+
+// groupFineReasons returns the group's configured fine reasons, falling back
+// to the platform defaults when the group hasn't set its own yet.
+func groupFineReasons(g datatype.DataMap) []datatype.DataMap {
+	raw := helper.GetValueOfList(g, "fineReasons")
+	if len(raw) == 0 {
+		return defaultFineReasons
+	}
+	out := []datatype.DataMap{}
+	for _, r := range raw {
+		m := helper.ToDataMap(r)
+		if helper.GetValueOfString(m, "reason") != "" {
+			out = append(out, m)
+		}
+	}
+	if len(out) == 0 {
+		return defaultFineReasons
+	}
+	return out
+}
+
+// fineAmountFor resolves the amount for a chosen fine reason from the group's
+// configured rules — an explicit admin-typed amount always wins, 'Other' falls
+// through to whatever the admin types because its configured amount is 0.
+func fineAmountFor(g datatype.DataMap, reason string, amount float64) float64 {
+	if amount > 0 {
+		return amount
+	}
+	for _, fr := range groupFineReasons(g) {
+		if helper.GetValueOfString(fr, "reason") == reason {
+			return helper.GetValueOfFloat(fr, "amount")
+		}
+	}
+	return amount
+}
+
+// sendSmsWithLog delivers a member-facing message AND records it in the SmsLog
+// model. The send result decides the log's status ('sent'/'failed'), with dev
+// mode (no SMTZ_API_KEY) counting as sent. A logging failure is console-only
+// and never fails the caller's own request.
+func sendSmsWithLog(authId, groupId, memberId, phone, messageType, message string) {
+	if helper.IsEmpty(phone) {
 		return
 	}
-	fmt.Printf("smtz: sent OTP campaign to %s\n", normalizeTanzanianPhone(phone))
+	sent, note := smtzSend(phone, message)
+	status := "sent"
+	if !sent {
+		status = "failed"
+	}
+	rec := yekonga.Server.ModelQuery("SmsLog").SkipBeforeCommit().Create(datatype.DataMap{
+		"groupId":          groupId,
+		"memberId":         memberId,
+		"phone":            phone,
+		"messageType":      messageType,
+		"message":          message,
+		"status":           status,
+		"providerResponse": note,
+		"createdBy":        authId,
+	})
+	if rec == nil {
+		fmt.Println("smslog: could not persist log record")
+	} else if err, ok := rec.(error); ok {
+		fmt.Println("smslog: could not persist log record:", err)
+	}
+}
+
+// joinedSmsText is the "member added to group" confirmation (spec §8).
+func joinedSmsText(g datatype.DataMap, m datatype.DataMap) string {
+	gName := helper.GetValueOfString(g, "name")
+	if gName == "" {
+		gName = "kikundi"
+	}
+	fn := memberFullName(m)
+	if fn == "" {
+		fn = "Ndugu"
+	}
+	return fmt.Sprintf("PESABOX: Habari %s, umethibitishwa kuwa mwanachama wa %s. Karibu kwenye kikundi.", fn, gName)
+}
+
+// fineSmsText is the "you were fined" confirmation (spec §13).
+func fineSmsText(g datatype.DataMap, m datatype.DataMap, reason string, amount float64, evDate string) string {
+	gName := helper.GetValueOfString(g, "name")
+	if gName == "" {
+		gName = "kikundi"
+	}
+	fn := memberFullName(m)
+	if fn == "" {
+		fn = "Ndugu"
+	}
+	return fmt.Sprintf("PESABOX: Habari %s, umepewa faini ya %s kutokana na %s kwenye kikao cha %s cha tarehe %s.", fn, fmtTZS(amount), reason, gName, evDate)
+}
+
+// txSmsText is the "contribution/share/fine-payment/loan confirmed" message
+// (spec §16); reminder/template wording depends on the transaction type.
+func txSmsText(g datatype.DataMap, m datatype.DataMap, typ string, amount float64, evDate string) string {
+	gName := helper.GetValueOfString(g, "name")
+	if gName == "" {
+		gName = "kikundi"
+	}
+	fn := memberFullName(m)
+	if fn == "" {
+		fn = "Ndugu"
+	}
+	switch typ {
+	case "contribution":
+		return fmt.Sprintf("PESABOX: Habari %s, umethibitishwa kuwa umechangia %s kama Mandatory Savings kwenye kikao cha %s cha tarehe %s. Asante.", fn, fmtTZS(amount), gName, evDate)
+	case "share":
+		cnt := 1
+		if sv := helper.GetValueOfFloat(g, "shareValue"); sv > 0 {
+			cnt = int(amount/sv + 0.5)
+		}
+		return fmt.Sprintf("PESABOX: Habari %s, umethibitishwa kununua shares %d zenye thamani ya %s kwenye %s tarehe %s. Asante.", fn, cnt, fmtTZS(amount), gName, evDate)
+	case "social_fund":
+		return fmt.Sprintf("PESABOX: Habari %s, umethibitishwa kuwa umechangia %s kama Social Fund kwenye kikao cha %s cha tarehe %s. Asante.", fn, fmtTZS(amount), gName, evDate)
+	case "loan_repayment":
+		return fmt.Sprintf("PESABOX: Habari %s, umethibitishwa kulipa %s kama malipo ya mkopo kwenye %s tarehe %s. Asante.", fn, fmtTZS(amount), gName, evDate)
+	case "loan_disbursement":
+		return fmt.Sprintf("PESABOX: Habari %s, umethibitishwa kupokea mkopo wa %s kutoka %s tarehe %s. Mrejesho ni kulingana na mkataba wa kikundi.", fn, fmtTZS(amount), gName, evDate)
+	case "fine":
+		return fmt.Sprintf("PESABOX: Habari %s, umelipa faini ya %s kwenye %s tarehe %s. Asante.", fn, fmtTZS(amount), gName, evDate)
+	}
+	return fmt.Sprintf("PESABOX: Habari %s, umethibitishwa kuchangia %s kwenye %s tarehe %s. Asante.", fn, fmtTZS(amount), gName, evDate)
 }
 
 func main() {
@@ -192,7 +432,12 @@ func main() {
 			"expiresAt": time.Now().Add(memberOtpTTL),
 		})
 
-		sendOtpSms(phone, fmt.Sprintf("Your PesaBox member verification code is %s", code))
+		message := fmt.Sprintf("Your PesaBox member verification code is %s", code)
+		sendOtpSms(phone, message)
+		sendSmsWithLog(
+			helper.GetValueOfString(helper.ToDataMap(req.Auth()), "id"),
+			"", "", phone, "member_otp", "PESABOX: "+message,
+		)
 
 		res.Json(map[string]bool{"success": true})
 	})
@@ -302,6 +547,21 @@ func main() {
 			res.Status(500)
 			res.Json(map[string]string{"error": err.Error()})
 			return
+		}
+
+		// Member Joined confirmation SMS (spec §8): the member does not have a
+		// PesaBox login, so the SMS is their proof of membership.
+		member := helper.ToDataMap(created)
+		groupRec := app.ModelQuery("Group").SkipBeforeCommit().Where("id", groupId).First(nil)
+		if groupRec != nil {
+			sendSmsWithLog(
+				helper.GetValueOfString(helper.ToDataMap(req.Auth()), "id"),
+				groupId,
+				helper.GetValueOfString(member, "id"),
+				phone,
+				"member_joined",
+				joinedSmsText(*groupRec, member),
+			)
 		}
 
 		res.Json(created)
@@ -750,15 +1010,62 @@ func main() {
 		res.Json(result)
 	})
 
-	// SMS campaign history is not persisted yet — return an empty list rather
-	// than fabricate records.
+	// Every member-facing SMS write goes through sendSmsWithLog, so this is the
+	// full SMS history. Group admins see only their own group's messages; a
+	// super admin (no group assigned) sees everything.
 	app.Get("/api/main/sms/activity", func(req *yekonga.Request, res *yekonga.Response) {
 		if req.Auth() == nil {
 			res.Status(401)
 			res.Json(map[string]string{"error": "unauthorized"})
 			return
 		}
-		res.Json([]datatype.DataMap{})
+		recs := app.ModelQuery("SmsLog").SkipBeforeCommit().OrderBy("sentAt", "desc").Find(nil)
+		result := []datatype.DataMap{}
+		if g := adminGroup(req); g != nil {
+			members := app.ModelQuery("Member").SkipBeforeCommit().Where("groupId", helper.GetValueOfString(*g, "id")).Find(nil)
+			byId := map[string]datatype.DataMap{}
+			for _, m := range *members {
+				byId[helper.GetValueOfString(m, "id")] = m
+			}
+			for _, r := range *recs {
+				if helper.GetValueOfString(r, "groupId") != helper.GetValueOfString(*g, "id") {
+					continue
+				}
+				rec := datatype.DataMap{}
+				for k, v := range r {
+					rec[k] = v
+				}
+				if mm, ok := byId[helper.GetValueOfString(r, "memberId")]; ok {
+					rec["memberName"] = memberFullName(mm)
+				}
+				result = append(result, rec)
+			}
+		} else {
+			members := app.ModelQuery("Member").SkipBeforeCommit().Find(nil)
+			byId := map[string]datatype.DataMap{}
+			for _, m := range *members {
+				byId[helper.GetValueOfString(m, "id")] = m
+			}
+			groups := app.ModelQuery("Group").SkipBeforeCommit().Find(nil)
+			groupById := map[string]datatype.DataMap{}
+			for _, gr := range *groups {
+				groupById[helper.GetValueOfString(gr, "id")] = gr
+			}
+			for _, r := range *recs {
+				rec := datatype.DataMap{}
+				for k, v := range r {
+					rec[k] = v
+				}
+				if mm, ok := byId[helper.GetValueOfString(r, "memberId")]; ok {
+					rec["memberName"] = memberFullName(mm)
+				}
+				if gr, ok := groupById[helper.GetValueOfString(r, "groupId")]; ok {
+					rec["groupName"] = helper.GetValueOfString(gr, "name")
+				}
+				result = append(result, rec)
+			}
+		}
+		res.Json(result)
 	})
 
 	app.Post("/api/main/meetings", func(req *yekonga.Request, res *yekonga.Response) {
@@ -892,11 +1199,58 @@ func main() {
 		body := helper.ToDataMap(req.Body())
 		typ := helper.GetValueOfString(body, "type")
 		amount := helper.GetValueOfFloat(body, "amount")
+
+		// Shares can be entered as a count ("3 shares"): total = count × value.
+		if typ == "share" && amount <= 0 {
+			if cnt := helper.GetValueOfInt(body, "shareCount"); cnt > 0 {
+				if sv := helper.GetValueOfFloat(*g, "shareValue"); sv > 0 {
+					amount = float64(cnt) * sv
+				}
+			}
+		}
 		if typ == "" || amount <= 0 {
 			res.Status(400)
 			res.Json(map[string]string{"error": "type and a positive amount are required"})
 			return
 		}
+
+		// Rule validation (spec §15) — the admin configures rules on the group,
+		// and the server rejects transactions that violate them instead of
+		// silently recording an off-rule amount.
+		msa := helper.GetValueOfFloat(*g, "mandatorySavingsAmount")
+		if msa > 0 && typ == "contribution" && amount != msa {
+			res.Status(400)
+			res.Json(map[string]string{"error": fmt.Sprintf("Mandatory Savings is %s per meeting", fmtTZS(msa))})
+			return
+		}
+		if typ == "share" {
+			sv := helper.GetValueOfFloat(*g, "shareValue")
+			mn := helper.GetValueOfInt(*g, "minShares")
+			mx := helper.GetValueOfInt(*g, "maxShares")
+			if sv > 0 {
+				cnt := int(amount/sv + 0.5)
+				if math.Abs(amount-float64(cnt)*sv) > 0.01 {
+					res.Status(400)
+					res.Json(map[string]string{"error": fmt.Sprintf("Share amounts must be exact multiples of the share value (%s)", fmtTZS(sv))})
+					return
+				}
+				if mn > 0 && cnt < mn {
+					res.Status(400)
+					res.Json(map[string]string{"error": fmt.Sprintf("Minimum shares per meeting is %d", mn)})
+					return
+				}
+				if mx > 0 && cnt > mx {
+					res.Status(400)
+					res.Json(map[string]string{"error": fmt.Sprintf("Maximum shares per meeting is %d", mx)})
+					return
+				}
+			}
+		}
+
+		// Reflect any derived amount (e.g. shares entered as a count) back into
+		// the record createTransaction persists.
+		body["amount"] = amount
+
 		created := createTransaction(groupId, body)
 		if created == nil {
 			res.Status(500)
@@ -908,6 +1262,26 @@ func main() {
 			res.Json(map[string]string{"error": err.Error()})
 			return
 		}
+
+		// Contribution confirmation SMS (spec §16) — only for member-scoped,
+		// money-in transactions; expenses/withdrawals don't text anyone.
+		memberId := helper.GetValueOfString(body, "memberId")
+		switch typ {
+		case "contribution", "share", "social_fund", "loan_repayment", "fine":
+			if memberId != "" {
+				if member := app.ModelQuery("Member").SkipBeforeCommit().Where("id", memberId).Where("groupId", groupId).First(nil); member != nil {
+					sendSmsWithLog(
+						helper.GetValueOfString(helper.ToDataMap(req.Auth()), "id"),
+						groupId,
+						memberId,
+						helper.GetValueOfString(*member, "phone"),
+						typ,
+						txSmsText(*g, *member, typ, amount, meetingSmsDate(helper.GetValueOfString(body, "meetingId"))),
+					)
+				}
+			}
+		}
+
 		res.Json(created)
 	})
 
@@ -978,6 +1352,17 @@ func main() {
 			res.Json(map[string]string{"error": "could not record loan disbursement"})
 			return
 		}
+
+		// Loan disbursement confirmation SMS (spec §23).
+		sendSmsWithLog(
+			helper.GetValueOfString(helper.ToDataMap(req.Auth()), "id"),
+			groupId,
+			memberId,
+			helper.GetValueOfString(*rec, "phone"),
+			"loan_disbursement",
+			txSmsText(*g, *rec, "loan_disbursement", amount, meetingSmsDate(helper.GetValueOfString(body, "meetingId"))),
+		)
+
 		res.Json(created)
 	})
 
@@ -1030,6 +1415,21 @@ func main() {
 			"method":    helper.GetValueOfString(body, "method"),
 			"reference": helper.GetValueOfString(*loan, "loanNumber"),
 		})
+
+		// Loan repayment confirmation SMS (spec §23).
+		if memberId := helper.GetValueOfString(*loan, "memberId"); memberId != "" {
+			if member := app.ModelQuery("Member").SkipBeforeCommit().Where("id", memberId).Where("groupId", groupId).First(nil); member != nil {
+				sendSmsWithLog(
+					helper.GetValueOfString(helper.ToDataMap(req.Auth()), "id"),
+					groupId,
+					memberId,
+					helper.GetValueOfString(*member, "phone"),
+					"loan_repayment",
+					txSmsText(*g, *member, "loan_repayment", amount, meetingSmsDate(helper.GetValueOfString(body, "meetingId"))),
+				)
+			}
+		}
+
 		res.Json(map[string]bool{"success": true})
 	})
 
@@ -1041,10 +1441,17 @@ func main() {
 		groupId := helper.GetValueOfString(*g, "id")
 		body := helper.ToDataMap(req.Body())
 		memberId := helper.GetValueOfString(body, "memberId")
+		reason := helper.GetValueOfString(body, "reason")
 		amount := helper.GetValueOfFloat(body, "amount")
-		if memberId == "" || amount <= 0 {
+
+		// The amount comes from the admin's pick of a configured fine reason
+		// (spec §12): "Late Attendance — TZS 1,000". An explicit typed amount
+		// still wins (used for the 'Other' reason where configured amount is 0).
+		amount = fineAmountFor(*g, reason, amount)
+
+		if memberId == "" || reason == "" || amount <= 0 {
 			res.Status(400)
-			res.Json(map[string]string{"error": "memberId and a positive amount are required"})
+			res.Json(map[string]string{"error": "memberId, a reason and a positive amount are required (or a configured fine reason)"})
 			return
 		}
 		rec := app.ModelQuery("Member").SkipBeforeCommit().Where("id", memberId).Where("groupId", groupId).First(nil)
@@ -1054,14 +1461,14 @@ func main() {
 			return
 		}
 		created := app.ModelQuery("Fine").SkipBeforeCommit().Create(datatype.DataMap{
-			"groupId":   groupId,
-			"memberId":  memberId,
-			"meetingId": helper.GetValueOfString(body, "meetingId"),
-			"reason":    helper.GetValueOfString(body, "reason"),
-			"amount":    amount,
+			"groupId":    groupId,
+			"memberId":   memberId,
+			"meetingId":  helper.GetValueOfString(body, "meetingId"),
+			"reason":     reason,
+			"amount":     amount,
 			"amountPaid": 0,
-			"status":    "pending",
-			"issuedAt":  time.Now(),
+			"status":     "pending",
+			"issuedAt":   time.Now(),
 		})
 		if created == nil {
 			res.Status(500)
@@ -1073,6 +1480,17 @@ func main() {
 			res.Json(map[string]string{"error": err.Error()})
 			return
 		}
+
+		// Fine confirmation SMS (spec §13) — the SMS is the member's proof.
+		sendSmsWithLog(
+			helper.GetValueOfString(helper.ToDataMap(req.Auth()), "id"),
+			groupId,
+			memberId,
+			helper.GetValueOfString(*rec, "phone"),
+			"fine",
+			fineSmsText(*g, *rec, reason, amount, meetingSmsDate(helper.GetValueOfString(body, "meetingId"))),
+		)
+
 		res.Json(created)
 	})
 
@@ -1128,6 +1546,21 @@ func main() {
 			"method":    helper.GetValueOfString(body, "method"),
 			"reference": helper.GetValueOfString(*fine, "id"),
 		})
+
+		// Fine payment confirmation SMS (spec §23 — "Fine Applied → ...").
+		if memberId := helper.GetValueOfString(*fine, "memberId"); memberId != "" {
+			if member := app.ModelQuery("Member").SkipBeforeCommit().Where("id", memberId).Where("groupId", groupId).First(nil); member != nil {
+				sendSmsWithLog(
+					helper.GetValueOfString(helper.ToDataMap(req.Auth()), "id"),
+					groupId,
+					memberId,
+					helper.GetValueOfString(*member, "phone"),
+					"fine_payment",
+					txSmsText(*g, *member, "fine", amount, meetingSmsDate(helper.GetValueOfString(body, "meetingId"))),
+				)
+			}
+		}
+
 		res.Json(map[string]bool{"success": true})
 	})
 

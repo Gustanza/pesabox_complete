@@ -63,16 +63,19 @@ const ALL_SERVICES = ['Shares', 'Mandatory Savings', 'Voluntary Savings', 'Socia
 const rules = computed(() => {
   if (!group.value) return []
   return [
+    ['Mandatory Savings / meeting', 'TZS ' + Number(group.value.mandatorySavingsAmount || 0).toLocaleString()],
     ['Share value', 'TZS ' + Number(group.value.shareValue || 0).toLocaleString()],
     ['Min shares / meeting', String(group.value.minShares ?? '—')],
     ['Max shares / meeting', String(group.value.maxShares ?? '—')],
     ['Social Fund / meeting', 'TZS ' + Number(group.value.socialFundContribution || 0).toLocaleString()],
     ['Loan interest', (group.value.loanInterestRate ?? 0) + '%'],
-    ['Max loan period', (group.value.maxLoanPeriodMonths ?? 0) + ' months'],
-    ['Late meeting fine', 'TZS ' + Number(group.value.lateMeetingFine || 0).toLocaleString()],
-    ['Absence fine', 'TZS ' + Number(group.value.absenceFine || 0).toLocaleString()],
-    ['Late repayment fine', 'TZS ' + Number(group.value.lateLoanRepaymentFine || 0).toLocaleString()]
+    ['Max loan period', (group.value.maxLoanPeriodMonths ?? 0) + ' months']
   ]
+})
+
+const fineReasons = computed(() => {
+  if (!group.value?.fineReasons) return []
+  return group.value.fineReasons.filter((r) => r?.reason)
 })
 </script>
 
@@ -161,6 +164,16 @@ const rules = computed(() => {
             <div class="box">{{ r[1] }}</div>
           </div>
         </div>
+        <div class="card-head" style="margin-top: 8px"><h3>Fine reasons</h3></div>
+        <div v-if="fineReasons.length" class="grid3">
+          <div v-for="r in fineReasons" :key="r.reason" class="field-view">
+            <label>{{ r.reason }}</label>
+            <div class="box">TZS {{ Number(r.amount || 0).toLocaleString() }}</div>
+          </div>
+        </div>
+        <p v-else style="font-size: 12px; color: var(--ink-400)">
+          No fine reasons configured yet — the group uses the platform defaults.
+        </p>
         <div class="card-head" style="margin-top: 8px"><h3>Enabled services</h3></div>
         <div class="toggle-line" v-for="s in ALL_SERVICES" :key="s">
           <span class="chk" :class="(group.enabledServices || []).includes(s) ? 'on' : 'off'">&#10003;</span>{{ s }}

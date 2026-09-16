@@ -118,6 +118,22 @@
             "default": 2000,
             "required": false
         },
+        "mandatorySavingsAmount": {
+            "type": "Float",
+            "default": 5000,
+            "required": false
+        },
+        "fineReasons": {
+            "type": "Any",
+            "default": [
+                { "reason": "Late Attendance", "amount": 1000 },
+                { "reason": "Absent", "amount": 2000 },
+                { "reason": "Missed Contribution", "amount": 1000 },
+                { "reason": "Late Loan Repayment", "amount": 2000 },
+                { "reason": "Other", "amount": 0 }
+            ],
+            "required": false
+        },
         "loanInterestRate": {
             "type": "Float",
             "default": 10,
@@ -570,6 +586,63 @@
             "default": "normal",
             "required": false,
             "options": ["normal", "urgent"]
+        },
+        "createdBy": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "User.id"
+        },
+        "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "SmsLogs": {
+        "groupId": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "Group.id"
+        },
+        "memberId": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "Member.id"
+        },
+        "phone": {
+            "type": "String",
+            "default": null,
+            "required": true
+        },
+        "messageType": {
+            "type": "String",
+            "default": "other",
+            "required": false,
+            "options": ["login_otp", "member_otp", "member_joined", "fine", "contribution", "share", "social_fund", "loan_disbursement", "loan_repayment", "fine_payment", "other"]
+        },
+        "message": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "status": {
+            "type": "String",
+            "default": "sent",
+            "required": false,
+            "options": ["sent", "failed"]
+        },
+        "providerResponse": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "sentAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
         },
         "createdBy": {
             "type": "ID",

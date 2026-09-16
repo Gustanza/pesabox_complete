@@ -1,6 +1,7 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import Svgs from '../components/Svgs.vue'
+import { listSmsActivity } from '../api/sms.js'
 
 const activeTab = ref('dashboard')
 const tabs = [
@@ -9,35 +10,91 @@ const tabs = [
   ['Templates', 'templates']
 ]
 
-const kpis = [
-  { l: 'Sent Today', v: '4,820', d: '' },
-  { l: 'Delivered', v: '4,650', d: '' },
-  { l: 'Failed', v: '170', d: '', dir: 'down' },
-  { l: 'Delivery Rate', v: '96.5%', d: '' }
-]
+const logs = ref([])
+const loading = ref(true)
+const error = ref('')
 
-const delivery = [
-  { lbl: 'Delivered', v: 4650, max: 4820, color: 'var(--green-600)' },
-  { lbl: 'Failed', v: 170, max: 4820, color: 'var(--danger)' }
-]
+const TYPE_LABELS = {
+  member_otp: 'Member OTP',
+  member_joined: 'Joined Group',
+  contribution: 'Mandatory Savings',
+  share: 'Shares',
+  social_fund: 'Social Fund',
+  loan_disbursement: 'Loan Disbursement',
+  loan_repayment: 'Loan Repayment',
+  fine: 'Fine Issued',
+  fine_payment: 'Fine Payment',
+  login_otp: 'Login OTP',
+  other: 'Other'
+}
 
-const logs = [
-  { time: '09:31', rec: '0712xxxxxx', group: 'Upendo', type: 'Contribution', status: 'Delivered' },
-  { time: '09:32', rec: '0754xxxxxx', group: 'Upendo', type: 'Meeting', status: 'Delivered' },
-  { time: '09:35', rec: '0788xxxxxx', group: 'Tumaini', type: 'Loan', status: 'Failed' }
-]
+function typeLabel(t) {
+  return TYPE_LABELS[t] || t || 'Other'
+}
+
+onMounted(async () => {
+  try {
+    logs.value = await listSmsActivity()
+  } catch (e) {
+    error.value = e.message || 'Failed to load SMS activity'
+  } finally {
+    loading.value = false
+  }
+})
+
+const kpis = computed(() => {
+  const now = new Date()
+  const today = logs.value.filter((l) => {
+    const t = new Date(l.sentAt || l.createdAt)
+    return !isNaN(t) && t.toDateString() === now.toDateString()
+  })
+  const failed = today.filter((l) => l.status === 'failed').length
+  const delivered = today.length - failed
+  const rate = today.length ? Math.round((delivered / today.length) * 1000) / 10 : 0
+  return [
+    { l: 'Sent Today', v: today.length.toLocaleString(), d: '' },
+    { l: 'Delivered', v: delivered.toLocaleString(), d: '' },
+    { l: 'Failed', v: failed.toLocaleString(), d: '' },
+    { l: 'Delivery Rate', v: rate + '%', d: '' }
+  ]
+})
+
+const delivery = computed(() => {
+  const total = Math.max(1, logs.value.length)
+  const delivered = logs.value.filter((l) => l.status === 'sent').length
+  const failed = logs.value.filter((l) => l.status === 'failed').length
+  return [
+    { lbl: 'Delivered', v: delivered, max: total, color: 'var(--green-600)' },
+    { lbl: 'Failed', v: failed, max: total, color: 'var(--danger)' }
+  ]
+})
 
 const logSearch = ref('')
 const logStatus = ref('All statuses')
-const filteredLogs = ref([...logs])
 
-function applyLogFilters() {
-  filteredLogs.value = logs.filter(l => {
-    const q = logSearch.value.trim().toLowerCase()
-    const matchQ = !q || l.rec.toLowerCase().includes(q) || l.group.toLowerCase().includes(q) || l.type.toLowerCase().includes(q)
-    const matchS = logStatus.value === 'All statuses' || l.status === logStatus.value
+function logStatusLabel(l) {
+  return l.status === 'sent' ? 'Delivered' : 'Failed'
+}
+
+const filteredLogs = computed(() => {
+  const q = logSearch.value.trim().toLowerCase()
+  return logs.value.filter((l) => {
+    const haystack = [l.phone, l.memberName, l.groupName, typeLabel(l.messageType)].filter(Boolean).join(' ').toLowerCase()
+    const matchQ = !q || haystack.includes(q)
+    const matchS = logStatus.value === 'All statuses' || logStatusLabel(l) === logStatus.value
     return matchQ && matchS
   })
+})
+
+function timeOf(l) {
+  const t = l.sentAt || l.createdAt
+  if (!t) return '—'
+  const d = new Date(t)
+  return isNaN(d) ? String(t) : d.toLocaleString()
+}
+
+function recipientOf(l) {
+  return [l.memberName, l.phone].filter(Boolean).join(' · ') || '—'
 }
 
 const templates = [
@@ -71,33 +128,41 @@ function barWidth(v, max) {
 
     <template v-if="activeTab === 'logs'">
       <div class="panel">
-      <div class="toolbar">
-        <div class="search-input">
-          <Svgs name="search" />
-          <input v-model="logSearch" type="search" placeholder="Search recipient..." @input="applyLogFilters" />
+        <div v-if="error" style="color: var(--danger); font-size: 13px; margin-bottom: 12px">
+          {{ error }}
         </div>
-        <select v-model="logStatus" class="filter-select" @change="applyLogFilters">
-          <option>All statuses</option>
-          <option>Delivered</option>
-          <option>Failed</option>
-        </select>
-      </div>
-      <div style="overflow-x:auto;">
-        <table class="dtable">
-          <thead>
-            <tr><th>Time</th><th>Recipient</th><th>Group</th><th>Type</th><th>Status</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="l in filteredLogs" :key="l.time">
-              <td>{{ l.time }}</td>
-              <td>{{ l.rec }}</td>
-              <td>{{ l.group }}</td>
-              <td>{{ l.type }}</td>
-              <td><span class="badge" :class="l.status === 'Delivered' ? 'green' : 'red'">{{ l.status }}</span></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <div class="toolbar">
+          <div class="search-input">
+            <Svgs name="search" />
+            <input v-model="logSearch" type="search" placeholder="Search recipient..." />
+          </div>
+          <select v-model="logStatus" class="filter-select">
+            <option>All statuses</option>
+            <option>Delivered</option>
+            <option>Failed</option>
+          </select>
+        </div>
+        <div v-if="loading" class="empty"><p>Loading…</p></div>
+        <div v-else-if="!filteredLogs.length" class="empty">
+          <div class="ic">&#128227;</div>
+          <p>No member-facing SMS recorded yet.</p>
+        </div>
+        <div v-else style="overflow-x:auto;">
+          <table class="dtable">
+            <thead>
+              <tr><th>Time</th><th>Recipient</th><th>Group</th><th>Type</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="(l, i) in filteredLogs" :key="l.id || i">
+                <td>{{ timeOf(l) }}</td>
+                <td>{{ recipientOf(l) }}</td>
+                <td>{{ l.groupName || '—' }}</td>
+                <td>{{ typeLabel(l.messageType) }}</td>
+                <td><span class="badge" :class="l.status === 'sent' ? 'green' : 'red'">{{ logStatusLabel(l) }}</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </template>
 
