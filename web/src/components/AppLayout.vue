@@ -47,7 +47,7 @@ async function logout() {
       <div class="sb-brand">
         <div class="mark">P</div>
         <div>
-          <span>PesaBox</span>
+          <span>PesaBox <span class="accent">Admin</span></span>
           <small>SUPER ADMIN</small>
         </div>
       </div>
@@ -67,17 +67,13 @@ async function logout() {
           <span>Help</span>
         </router-link>
         <button class="sb-item" @click="logout">
-          <Svgs name="chev" />
+          <Svgs name="logout" />
           <span>Logout</span>
         </button>
       </div>
     </div>
     <div class="main">
       <div class="topbar">
-        <div class="searchbox">
-          <Svgs name="search" />
-          <input placeholder="Search groups, members, transactions..." />
-        </div>
         <div class="top-right">
           <div class="icon-circle">
             <Svgs name="bell" />

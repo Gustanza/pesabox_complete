@@ -9,6 +9,7 @@ const router = useRouter()
 const search = ref('')
 const region = ref('All Regions')
 const status = ref('All Statuses')
+const page = ref(1)
 
 const groups = ref([])
 const loading = ref(true)
@@ -51,6 +52,8 @@ const filtered = computed(() => {
   })
 })
 
+const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / 8)))
+
 function go(id) {
   router.push('/groups/' + id)
 }
@@ -75,75 +78,77 @@ async function remove(g, event) {
         <p>Savings groups registered on PesaBox.</p>
       </div>
       <div class="page-actions">
-        <button class="btn btn-primary" @click="router.push('/groups/create')">+ Create Group</button>
+        <button class="btn btn-primary" @click="router.push('/groups/create')">
+          <Svgs name="plus" /> Create Group
+        </button>
       </div>
     </div>
 
-    <div class="filters">
-      <div class="fsearch">
-        <Svgs name="search" />
-        <input v-model="search" placeholder="Search groups..." />
-      </div>
-      <div class="fselect">
-        <select v-model="region">
-          <option v-for="r in regions" :key="r" :value="r">{{ r }}</option>
-        </select>
-        <Svgs name="chev" />
-      </div>
-      <div class="fselect">
-        <select v-model="status">
-          <option v-for="s in statuses" :key="s" :value="s">{{ s }}</option>
-        </select>
-        <Svgs name="chev" />
-      </div>
-    </div>
-
-    <div v-if="error" style="color: var(--danger); font-size: 13px; margin-bottom: 12px">
+    <div v-if="error" style="color: var(--danger); font-size: 13.5px; margin-bottom: 12px">
       {{ error }}
     </div>
 
-    <div class="card" style="padding: 6px 20px">
-      <div v-if="loading" class="empty">
-        <p>Loading groups…</p>
+    <div class="panel">
+      <div class="toolbar">
+        <div class="search-input">
+          <Svgs name="search" />
+          <input v-model="search" type="search" placeholder="Search groups..." />
+        </div>
+        <select v-model="region" class="filter-select">
+          <option v-for="r in regions" :key="r" :value="r">{{ r }}</option>
+        </select>
+        <select v-model="status" class="filter-select">
+          <option v-for="s in statuses" :key="s" :value="s">{{ s }}</option>
+        </select>
       </div>
-      <div v-else-if="!filtered.length" class="empty">
-        <div class="ic">&#128203;</div>
-        <p>No groups found. Create your first group to get started.</p>
-      </div>
-      <table v-else class="dtable">
-        <thead>
-          <tr>
-            <th>Group</th>
-            <th>Admin</th>
-            <th>Members</th>
-            <th>Cycle</th>
-            <th>Status</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="g in filtered" :key="g.id" class="clickable" @click="go(g.id)">
-            <td>
-              <div class="tname">
-                <div class="tav" :style="{ background: avaColor(g.name) }">{{ initials(g.name) }}</div>
-                <div>
-                  <div class="cell-main">{{ g.name }}</div>
-                  <div class="cell-sub">{{ g.region || '—' }}</div>
+      <div style="overflow-x: auto">
+        <div v-if="loading" class="empty">
+          <p>Loading groups…</p>
+        </div>
+        <div v-else-if="!filtered.length" class="empty">
+          <div class="ic">&#128203;</div>
+          <p>No groups found. Create your first group to get started.</p>
+        </div>
+        <table v-else class="dtable">
+          <thead>
+            <tr>
+              <th>Group</th>
+              <th>Admin</th>
+              <th>Members</th>
+              <th>Cycle</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="g in filtered" :key="g.id" class="clickable" @click="go(g.id)">
+              <td>
+                <div class="tname">
+                  <div class="tav" :style="{ background: avaColor(g.name) }">{{ initials(g.name) }}</div>
+                  <div>
+                    <div class="cell-main">{{ g.name }}</div>
+                    <div class="cell-sub">{{ g.region || '—' }}</div>
+                  </div>
                 </div>
-              </div>
-            </td>
-            <td>{{ g.adminName || '—' }}</td>
-            <td>{{ g.memberCount }}</td>
-            <td>{{ g.cycleCurrent }}/{{ g.cycleTotal }}</td>
-            <td>
-              <span class="badge" :class="g.status === 'Active' ? 'green' : 'grey'">{{ g.status }}</span>
-            </td>
-            <td>
-              <button class="btn btn-ghost btn-sm" @click="remove(g, $event)">Delete</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+              </td>
+              <td class="cell-muted">{{ g.adminName || '—' }}</td>
+              <td>{{ g.memberCount }}</td>
+              <td class="cell-muted">{{ g.cycleCurrent }}/{{ g.cycleTotal }}</td>
+              <td>
+                <span class="badge" :class="g.status === 'Active' ? 'green' : 'grey'">{{ g.status }}</span>
+              </td>
+              <td>
+                <button class="btn btn-ghost btn-sm" @click="remove(g, $event)">Delete</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <button class="page-btn" :disabled="page <= 1" @click="page--">&#8249;</button>
+        <button v-for="p in totalPages" :key="p" class="page-btn" :class="{ active: page === p }" @click="page = p">{{ p }}</button>
+        <button class="page-btn" :disabled="page >= totalPages" @click="page++">&#8250;</button>
+      </div>
     </div>
   </div>
 </template>

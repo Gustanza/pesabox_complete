@@ -36,27 +36,21 @@ function selectRow(a) {
       </div>
     </div>
 
-    <div class="filters">
-      <div class="fsearch">
-        <Svgs name="search" />
-        <input v-model="search" placeholder="Search audit logs..." />
-      </div>
-      <div class="fselect">
-        <select v-model="user">
+    <div class="panel">
+      <div class="toolbar">
+        <div class="search-input">
+          <Svgs name="search" />
+          <input v-model="search" type="search" placeholder="Search audit logs..." />
+        </div>
+        <select v-model="user" class="filter-select">
           <option v-for="u in users" :key="u" :value="u">{{ u }}</option>
         </select>
-        <Svgs name="chev" />
-      </div>
-      <div class="fselect">
-        <select v-model="date">
+        <select v-model="date" class="filter-select">
           <option v-for="d in dates" :key="d" :value="d">{{ d }}</option>
         </select>
-        <Svgs name="chev" />
       </div>
-    </div>
-
-    <div class="card" style="padding:6px 20px;">
-      <table class="dtable">
+      <div style="overflow-x:auto;">
+        <table class="dtable">
         <thead>
           <tr><th>Time</th><th>User</th><th>Action</th><th>Resource</th></tr>
         </thead>
@@ -66,9 +60,10 @@ function selectRow(a) {
             <td class="cell-main">{{ a.user }}</td>
             <td>{{ a.action }}</td>
             <td>{{ a.resource }}</td>
-          </tr>
+</tr>
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   </div>
 </template>

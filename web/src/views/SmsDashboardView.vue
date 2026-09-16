@@ -59,7 +59,7 @@ function barWidth(v, max) {
     <div class="page-head">
       <div>
         <h1>SMS Management</h1>
-        <p>PESABOX is the only external integration in this MVP — treat it seriously.</p>
+        <p>Outgoing messages, delivery and templates.</p>
       </div>
     </div>
 
@@ -70,21 +70,19 @@ function barWidth(v, max) {
     </div>
 
     <template v-if="activeTab === 'logs'">
-      <div class="filters">
-        <div class="fsearch">
+      <div class="panel">
+      <div class="toolbar">
+        <div class="search-input">
           <Svgs name="search" />
-          <input v-model="logSearch" placeholder="Search recipient..." @input="applyLogFilters" />
+          <input v-model="logSearch" type="search" placeholder="Search recipient..." @input="applyLogFilters" />
         </div>
-        <div class="fselect">
-          <select v-model="logStatus" @change="applyLogFilters">
-            <option>All statuses</option>
-            <option>Delivered</option>
-            <option>Failed</option>
-          </select>
-          <Svgs name="chev" />
-        </div>
+        <select v-model="logStatus" class="filter-select" @change="applyLogFilters">
+          <option>All statuses</option>
+          <option>Delivered</option>
+          <option>Failed</option>
+        </select>
       </div>
-      <div class="card" style="padding:6px 20px;">
+      <div style="overflow-x:auto;">
         <table class="dtable">
           <thead>
             <tr><th>Time</th><th>Recipient</th><th>Group</th><th>Type</th><th>Status</th></tr>
@@ -100,10 +98,11 @@ function barWidth(v, max) {
           </tbody>
         </table>
       </div>
+      </div>
     </template>
 
     <template v-else-if="activeTab === 'templates'">
-      <div class="card" style="padding:6px 20px;">
+      <div class="panel">
         <table class="dtable">
           <thead>
             <tr><th>Template</th><th>Category</th><th>Status</th></tr>

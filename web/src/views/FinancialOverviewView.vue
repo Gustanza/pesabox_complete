@@ -49,7 +49,7 @@ const loansKpis = [
           <div v-if="k.d" class="d" :class="k.dir || ''">{{ k.d }}</div>
         </div>
       </div>
-      <div class="card" style="padding:6px 20px;">
+      <div class="panel">
         <table class="dtable">
           <thead>
             <tr><th>Group</th><th>Borrower</th><th>Principal</th><th>Balance</th><th>Status</th></tr>

@@ -163,6 +163,16 @@
             "default": 0,
             "required": false
         },
+        "totalFines": {
+            "type": "Float",
+            "default": 0,
+            "required": false
+        },
+        "totalExpenses": {
+            "type": "Float",
+            "default": 0,
+            "required": false
+        },
         "createdBy": {
             "type": "ID",
             "default": null,
@@ -261,6 +271,311 @@
             "type": "Date",
             "default": null,
             "required": false
+        },
+        "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "Meetings": {
+        "groupId": {
+            "type": "ID",
+            "default": null,
+            "required": true,
+            "foreignKey": "Group.id"
+        },
+        "meetingNumber": {
+            "type": "Integer",
+            "default": 1,
+            "required": false
+        },
+        "title": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "date": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "time": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "location": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "status": {
+            "type": "String",
+            "default": "upcoming",
+            "required": false,
+            "options": ["upcoming", "in_progress", "completed", "cancelled"]
+        },
+        "notes": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "createdBy": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "User.id"
+        },
+        "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        },
+        "updatedAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "Transactions": {
+        "groupId": {
+            "type": "ID",
+            "default": null,
+            "required": true,
+            "foreignKey": "Group.id"
+        },
+        "meetingId": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "Meeting.id"
+        },
+        "memberId": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "Member.id"
+        },
+        "type": {
+            "type": "String",
+            "default": null,
+            "required": true,
+            "options": ["contribution", "share", "loan_disbursement", "loan_repayment", "fine", "social_fund", "expense", "withdrawal"]
+        },
+        "direction": {
+            "type": "String",
+            "default": "in",
+            "required": false,
+            "options": ["in", "out"]
+        },
+        "amount": {
+            "type": "Float",
+            "default": 0,
+            "required": true
+        },
+        "method": {
+            "type": "String",
+            "default": "Cash",
+            "required": false,
+            "options": ["Cash", "Mobile Money", "Bank Transfer"]
+        },
+        "reference": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "description": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "reversed": {
+            "type": "Boolean",
+            "default": false,
+            "required": false
+        },
+        "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "Loans": {
+        "groupId": {
+            "type": "ID",
+            "default": null,
+            "required": true,
+            "foreignKey": "Group.id"
+        },
+        "memberId": {
+            "type": "ID",
+            "default": null,
+            "required": true,
+            "foreignKey": "Member.id"
+        },
+        "loanNumber": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "amount": {
+            "type": "Float",
+            "default": 0,
+            "required": true
+        },
+        "amountRepaid": {
+            "type": "Float",
+            "default": 0,
+            "required": false
+        },
+        "interestRate": {
+            "type": "Float",
+            "default": 10,
+            "required": false
+        },
+        "issuedDate": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        },
+        "dueDate": {
+            "type": "Date",
+            "default": null,
+            "required": false
+        },
+        "status": {
+            "type": "String",
+            "default": "active",
+            "required": false,
+            "options": ["active", "repaid", "defaulted"]
+        },
+        "issuedMeetingId": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "Meeting.id"
+        },
+        "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        },
+        "updatedAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "Fines": {
+        "groupId": {
+            "type": "ID",
+            "default": null,
+            "required": true,
+            "foreignKey": "Group.id"
+        },
+        "memberId": {
+            "type": "ID",
+            "default": null,
+            "required": true,
+            "foreignKey": "Member.id"
+        },
+        "meetingId": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "Meeting.id"
+        },
+        "reason": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "amount": {
+            "type": "Float",
+            "default": 0,
+            "required": true
+        },
+        "amountPaid": {
+            "type": "Float",
+            "default": 0,
+            "required": false
+        },
+        "status": {
+            "type": "String",
+            "default": "pending",
+            "required": false,
+            "options": ["pending", "paid", "waived"]
+        },
+        "issuedAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        },
+        "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        },
+        "updatedAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "MeetingAttendance": {
+        "meetingId": {
+            "type": "ID",
+            "default": null,
+            "required": true,
+            "foreignKey": "Meeting.id"
+        },
+        "memberId": {
+            "type": "ID",
+            "default": null,
+            "required": true,
+            "foreignKey": "Member.id"
+        },
+        "status": {
+            "type": "String",
+            "default": "present",
+            "required": false,
+            "options": ["present", "late", "absent", "excused"]
+        },
+        "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "Announcements": {
+        "groupId": {
+            "type": "ID",
+            "default": null,
+            "required": true,
+            "foreignKey": "Group.id"
+        },
+        "title": {
+            "type": "String",
+            "default": null,
+            "required": true
+        },
+        "body": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "priority": {
+            "type": "String",
+            "default": "normal",
+            "required": false,
+            "options": ["normal", "urgent"]
+        },
+        "createdBy": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "User.id"
         },
         "createdAt": {
             "type": "Date",

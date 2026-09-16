@@ -110,7 +110,7 @@ async function remove(u) {
         Users promoted to Group Admin (see the Users tab) who don't have a group yet.
         Create a group and assign it to them below.
       </p>
-      <div class="card" style="padding: 6px 20px">
+      <div class="panel">
         <div v-if="loading" class="empty"><p>Loading…</p></div>
         <div v-else-if="!pendingAdmins.length" class="empty">
           <div class="ic">&#128100;</div>
@@ -147,7 +147,7 @@ async function remove(u) {
         Everyone registered on PesaBox. Promote a user to Group Admin, then create their group from the
         Pending Admins tab.
       </p>
-      <div class="card" style="padding: 6px 20px">
+      <div class="panel">
         <div v-if="loading" class="empty"><p>Loading…</p></div>
         <div v-else-if="!users.length" class="empty">
           <div class="ic">&#128100;</div>
