@@ -405,6 +405,56 @@ func main() {
 	app.AfterCreate("UserVerification", nil, nil, logOtp)
 	app.AfterUpdate("UserVerification", nil, nil, logOtp)
 
+	// Group.memberCount/femaleMembers/maleMembers are denormalized counters
+	// (see database.json) that the dashboard and groups list read directly
+	// instead of counting Members on every request. Nothing kept them in
+	// sync with the Members collection, so a group's counts stayed frozen
+	// at their creation-time default of 0 no matter how many members were
+	// actually added. Recomputing from a live count on every Member
+	// create/update/delete keeps them accurate.
+	recalcGroupMemberCounts := func(groupId string) {
+		if helper.IsEmpty(groupId) {
+			return
+		}
+
+		members := app.ModelQuery("Member").SkipBeforeCommit().Where("groupId", groupId).Find(nil)
+
+		var total, female, male int
+		for _, member := range *members {
+			total++
+			switch helper.GetValueOfString(member, "gender") {
+			case "Female":
+				female++
+			case "Male":
+				male++
+			}
+		}
+
+		app.ModelQuery("Group").SkipBeforeCommit().Where("id", groupId).Update(datatype.DataMap{
+			"memberCount":   total,
+			"femaleMembers": female,
+			"maleMembers":   male,
+		}, nil)
+	}
+
+	recalcGroupMemberCountsTrigger := func(req *yekonga.RequestContext, ctx *yekonga.QueryContext) (interface{}, error) {
+		data := helper.ToDataMap(ctx.Data)
+		recalcGroupMemberCounts(helper.GetValueOfString(data, "groupId"))
+		return nil, nil
+	}
+
+	app.AfterCreate("Member", nil, nil, recalcGroupMemberCountsTrigger)
+	app.AfterUpdate("Member", nil, nil, recalcGroupMemberCountsTrigger)
+	app.AfterDelete("Member", nil, nil, recalcGroupMemberCountsTrigger)
+
+	// One-time backfill so groups created/joined before the triggers above
+	// existed (their counters are stuck at the creation-time default of 0)
+	// get corrected as soon as the server restarts, without waiting for
+	// their next member change.
+	for _, group := range *app.ModelQuery("Group").SkipBeforeCommit().Find(nil) {
+		recalcGroupMemberCounts(helper.GetValueOfString(group, "id"))
+	}
+
 	app.Post("/api/members/request-otp", func(req *yekonga.Request, res *yekonga.Response) {
 		if req.Auth() == nil {
 			res.Status(401)
@@ -673,12 +723,19 @@ func main() {
 
 	// adminGroup returns the Group this session administers, or nil.
 	adminGroup := func(req *yekonga.Request) *datatype.DataMap {
-		if req.Auth() == nil {
+		auth := req.Auth()
+		if auth == nil {
 			return nil
 		}
-		auth := helper.ToDataMap(req.Auth())
-		userId := helper.GetValueOfString(auth, "id")
-		phoneTail := last9Digits(helper.GetValueOfString(auth, "username"))
+		// req.Auth() returns a typed *AuthPayload struct, not a map — reading
+		// it through helper.ToDataMap (which only knows how to convert an
+		// actual map/pointer-to-map) silently yields an empty map, so userId
+		// and phoneTail always come back "" and every one of these
+		// requireGroup-protected endpoints 403s with "no group assigned to
+		// this account" even for a session that legitimately owns a group.
+		// Read the struct's fields directly instead.
+		userId := auth.ID
+		phoneTail := last9Digits(auth.Username)
 		if userId == "" && phoneTail == "" {
 			return nil
 		}
@@ -792,6 +849,8 @@ func main() {
 					adjustGroupTotal(groupId, "totalLoans", -amount)
 				case "loan_disbursement":
 					adjustGroupTotal(groupId, "totalLoans", amount)
+				case "fine":
+					adjustGroupTotal(groupId, "totalFines", amount)
 				case "withdrawal":
 					adjustGroupTotal(groupId, "totalSavings", -amount)
 				case "expense":

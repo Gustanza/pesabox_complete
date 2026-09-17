@@ -158,7 +158,11 @@ func ToInt(value interface{}) int {
 	} else if v, ok := value.(int); ok {
 		number = v
 	} else if IsNumeric(value) {
-		n, err := strconv.ParseInt(fmt.Sprintf("%v", value), 32, 64)
+		// Values arriving here are typically float64 (JSON-decoded numbers,
+		// e.g. a schema's "default": 30), so parse as a float rather than
+		// ParseInt with an explicit base — ParseInt would otherwise treat a
+		// two-digit string like "30" as base-32 (giving 96, not 30).
+		n, err := strconv.ParseFloat(fmt.Sprintf("%v", value), 64)
 		if err == nil {
 			number = int(n)
 		}

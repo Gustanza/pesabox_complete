@@ -92,6 +92,19 @@ func (y *YekongaData) OTPVerification(username interface{}, password string, use
 	return user
 }
 
+// DevConstantOTP is returned by generateOtpCode while no SMS gateway is
+// configured, so registration/login can be exercised end-to-end before a
+// real provider is wired up in server/config.json (apiGateway.sms.provider).
+const DevConstantOTP = "1234"
+
+func (y *YekongaData) generateOtpCode() string {
+	if helper.IsEmpty(y.Config.ApiGateway.SMS.Provider) {
+		return DevConstantOTP
+	}
+
+	return helper.GetRandomInt(4)
+}
+
 func (y *YekongaData) SetOTPVerification(value interface{}, usernameType string, canCreate bool, target string, req *Request) *datatype.DataMap {
 	const userModelName = "User"
 	const tenantUserModelName = "TenantUser"
@@ -150,10 +163,13 @@ func (y *YekongaData) SetOTPVerification(value interface{}, usernameType string,
 
 		where["tenantId"] = tenantId
 		user = y.ModelQuery(userVerificationModelName).SkipTenant().SkipBeforeCommit().SetRequest(req, &Response{}).FindOne(where)
-		isTenantUser = y.ModelQuery(tenantUserModelName).SkipTenant().SkipBeforeCommit().SetRequest(req, &Response{}).Exist(datatype.DataMap{
-			"tenantId": tenantId,
-			"userId":   userId,
-		})
+
+		if !notTenant {
+			isTenantUser = y.ModelQuery(tenantUserModelName).SkipTenant().SkipBeforeCommit().SetRequest(req, &Response{}).Exist(datatype.DataMap{
+				"tenantId": tenantId,
+				"userId":   userId,
+			})
+		}
 
 		if helper.IsNotEmpty(user) {
 			id := helper.GetValueOf(user, "_id")
@@ -162,7 +178,7 @@ func (y *YekongaData) SetOTPVerification(value interface{}, usernameType string,
 			var u interface{}
 
 			if helper.IsEmpty(otpCode) {
-				otpCode = helper.GetRandomInt(4)
+				otpCode = y.generateOtpCode()
 				otpCreatedAt = helper.GetTimestamp(nil)
 			}
 
@@ -186,7 +202,7 @@ func (y *YekongaData) SetOTPVerification(value interface{}, usernameType string,
 				user = v
 			}
 		} else if isOwner || isTenantUser || canCreate || notTenant {
-			otpCode = helper.GetRandomInt(4)
+			otpCode = y.generateOtpCode()
 			otpCreatedAt = helper.GetTimestamp(nil)
 			var u interface{}
 
@@ -708,10 +724,14 @@ func (y *YekongaData) GetUserPermission(tenantId interface{}, userId string, mod
 	const tenantModelName = "Tenant"
 	var permissions *[]datatype.DataMap
 	var list = make([]string, 0)
-	var isAdmin = y.ModelQuery(tenantModelName).SkipBeforeCommit().Exist(datatype.DataMap{
-		"_id":    tenantId,
-		"userId": userId,
-	})
+	var isAdmin = false
+
+	if y.Config.HasTenant && helper.IsNotEmpty(tenantId) {
+		isAdmin = y.ModelQuery(tenantModelName).SkipBeforeCommit().Exist(datatype.DataMap{
+			"_id":    tenantId,
+			"userId": userId,
+		})
+	}
 
 	if helper.IsNotEmpty(moduleName) {
 		const permissionModelName = "AuthPermission"
@@ -978,7 +998,7 @@ func (y *YekongaData) clearAuthCookies(req *RequestContext, domain string, modul
 		Path:     accessPath,
 		Domain:   domain,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   y.Config.SecureOnly,
 		SameSite: http.SameSiteDefaultMode,
 		MaxAge:   -1,
 	}
@@ -995,7 +1015,7 @@ func (y *YekongaData) clearAuthCookies(req *RequestContext, domain string, modul
 		Path:     y.AppendBaseUrl("/refresh"),
 		Domain:   domain,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   y.Config.SecureOnly,
 		SameSite: http.SameSiteDefaultMode,
 		MaxAge:   -1,
 	}

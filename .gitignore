@@ -9,9 +9,13 @@
 *.pid
 *.orig
 *.vscode
+.env
 desktop/**/build
 desktop/**/frontend/dist
 
 
 documentation
 schema.graphql
+
+# Own nested git repo (see CLAUDE.md) — not a submodule, not tracked here.
+pesa_box_app

@@ -10,7 +10,36 @@ import (
 	"github.com/robertkonga/yekonga-server-go/helper"
 	"github.com/robertkonga/yekonga-server-go/helper/logger"
 	localDB "github.com/robertkonga/yekonga-server-go/plugins/database/db"
+	"github.com/robertkonga/yekonga-server-go/plugins/mongo-driver/bson"
 )
+
+// normalizeLocalFilterValue converts bson.ObjectID values (and slices of
+// them) to their plain hex-string form. Documents are stored as JSON, so an
+// ObjectID field is read back from disk as a plain hex string; the index
+// built over that field is keyed on that same plain string (see
+// plugins/database/db/col.go Index()). A raw bson.ObjectID's fmt.Sprint form
+// is "ObjectID(\"...\")" (its Stringer), which would never match the index,
+// so it must be normalized to .Hex() before being used as a filter value.
+func normalizeLocalFilterValue(v interface{}) interface{} {
+	switch vv := v.(type) {
+	case bson.ObjectID:
+		return vv.Hex()
+	case []bson.ObjectID:
+		hexes := make([]interface{}, 0, len(vv))
+		for _, id := range vv {
+			hexes = append(hexes, id.Hex())
+		}
+		return hexes
+	case []interface{}:
+		out := make([]interface{}, len(vv))
+		for i, item := range vv {
+			out[i] = normalizeLocalFilterValue(item)
+		}
+		return out
+	default:
+		return v
+	}
+}
 
 type localDbConnection struct {
 	query  *DataModelQuery
@@ -41,6 +70,15 @@ func (con *localDbConnection) collection() *localDB.Col {
 	}
 
 	collection := con.client.Use(con.query.Model.Collection)
+
+	// Where()-based lookups go through the hash-table index (see
+	// plugins/database/db/query.go Lookup()), which errors out for any path
+	// that hasn't been indexed. Index() is a no-op (cheap map lookup) once a
+	// path is already indexed, so it's safe to call on every query.
+	for _, field := range con.query.Model.ValidFields {
+		_ = collection.Index([]string{field})
+	}
+
 	return collection
 }
 
@@ -260,13 +298,12 @@ func (con *localDbConnection) graph() *datatype.DataMap {
 }
 
 func (con *localDbConnection) create(data datatype.DataMap) (*datatype.DataMap, error) {
-	id, err := con.collection().Insert(data)
+	_, err := con.collection().Insert(data)
 	if err != nil {
 		return nil, err
 	}
 
-	createdRecord := newLocalDBInstance(con).query.Where("id", id).FindOne(nil)
-	return createdRecord, nil
+	return &data, nil
 }
 
 func (con *localDbConnection) createMany(data []datatype.DataMap) (*[]datatype.DataMap, error) {
@@ -313,8 +350,8 @@ func (con *localDbConnection) update(data datatype.DataMap) (*datatype.DataMap, 
 		return nil, err
 	}
 
-	updatedRecord := newLocalDBInstance(con).query.Where("id", idInt).FindOne(nil)
-	return updatedRecord, nil
+	updatedRecord := datatype.DataMap(doc)
+	return &updatedRecord, nil
 }
 
 func (con *localDbConnection) updateMany(data datatype.DataMap) (*[]datatype.DataMap, error) {
@@ -453,6 +490,7 @@ func (con *localDbConnection) where() interface{} {
 		// logger.Info("where", 2)
 		for k, v := range con.query.where {
 			// logger.Info("where", 3)
+			v = normalizeLocalFilterValue(v)
 
 			if vi, ok := v.(datatype.DataMap); ok {
 				// logger.Info("where", 4)

@@ -402,17 +402,39 @@ func (y *YekongaData) refreshTokenProcess(req *Request, res *Response, refreshTo
 							accessTokenExpireTime = 15 // default 15 minutes
 						}
 
+						// The RefreshTokens record itself never stores
+						// username/usernameType/phone/email/whatsapp (see
+						// database_json.go), so pulling those from `data`
+						// always yielded empty strings — every refreshed
+						// access token silently lost this identity info
+						// after the very first refresh (which happens
+						// automatically every accessTokenExpireTime minutes).
+						// Re-fetch it from the User record instead, exactly
+						// like UserInfoMiddleware does for a fresh login.
+						var username, usernameType, phone, email, whatsapp string
+						if y.Config.IsAuthorizationServer && helper.IsNotEmpty(userId) {
+							if user := y.ModelQuery("User").SkipBeforeCommit().FindOne(datatype.DataMap{
+								"_id": helper.ObjectID(userId),
+							}); user != nil {
+								username = helper.GetValueOfString(*user, "username")
+								usernameType = helper.GetValueOfString(*user, "usernameType")
+								phone = helper.GetValueOfString(*user, "phone")
+								email = helper.GetValueOfString(*user, "email")
+								whatsapp = helper.GetValueOfString(*user, "whatsapp")
+							}
+						}
+
 						payload := TokenPayload{
 							Domain:       domain,
 							TenantId:     tenantId,
 							ProfileId:    profileId,
 							UserId:       userId,
 							AdminId:      adminId,
-							Username:     helper.GetValueOfString(data, "username"),
-							UsernameType: helper.GetValueOfString(data, "usernameType"),
-							Phone:        helper.GetValueOfString(data, "phone"),
-							Email:        helper.GetValueOfString(data, "email"),
-							Whatsapp:     helper.GetValueOfString(data, "whatsapp"),
+							Username:     username,
+							UsernameType: usernameType,
+							Phone:        phone,
+							Email:        email,
+							Whatsapp:     whatsapp,
 							ModuleName:   moduleName,
 							Roles:        make([]string, 0),
 							Permissions:  permissions,

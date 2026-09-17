@@ -66,8 +66,19 @@ func (con *mongodbConnection) findOne() *datatype.DataMap {
 	res := con.collection().FindOne(context.TODO(), localWhere, opts)
 	err := res.Decode(&result)
 	if err != nil {
-		// logger.Error("mongodbConnection.findOne", err.Error())
-	} else if result != nil {
+		// mongo.ErrNoDocuments is the expected "nothing matched" case — every
+		// other backend (mysql/sql/local) returns a literal nil here, and
+		// callers throughout the app (e.g. `if existing != nil`) rely on
+		// that. Returning &result unconditionally instead handed back a
+		// non-nil pointer to an empty map even when nothing was found, so
+		// every "does this already exist" check silently took the wrong
+		// branch.
+		if err != mongo.ErrNoDocuments {
+			logger.Error("mongodbConnection.findOne", err.Error())
+		}
+		return nil
+	}
+	if result != nil {
 		result["id"] = result["_id"]
 		result["_collection"] = con.query.Model.Collection
 		result["_model"] = con.query.Model.Name

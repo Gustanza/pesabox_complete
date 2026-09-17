@@ -581,6 +581,17 @@ var UserProfileType = graphql.NewObject(graphql.ObjectConfig{
 		"deletedAt": &graphql.Field{
 			Type: ScalarDateType,
 		},
+		// Already computed by the login/verifyOtp resolvers (see
+		// graphql_auth.go) and delivered as httpOnly cookies for browser
+		// clients, but previously unqueryable here — native/mobile clients
+		// can't rely on cookies the way a browser does, so expose them as
+		// plain fields too for Authorization: Bearer use.
+		"accessToken": &graphql.Field{
+			Type: graphql.String,
+		},
+		"refreshToken": &graphql.Field{
+			Type: graphql.String,
+		},
 	},
 })
 
