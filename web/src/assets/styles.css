@@ -624,6 +624,7 @@ textarea:focus {
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .admin-chip .av {

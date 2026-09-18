@@ -2,12 +2,23 @@
 import { computed, onMounted, ref } from 'vue'
 import Svgs from '../components/Svgs.vue'
 import { currentUser } from '@/api/auth'
+import { getDashboard } from '@/api/dashboard'
 
 const firstName = ref('')
+const dash = ref(null)
+const loading = ref(true)
+const error = ref('')
 
 onMounted(async () => {
   const me = await currentUser()
   if (me) firstName.value = me.firstName || me.username || ''
+  try {
+    dash.value = await getDashboard()
+  } catch (e) {
+    error.value = e.message || 'Failed to load dashboard'
+  } finally {
+    loading.value = false
+  }
 })
 
 const greeting = computed(() => {
@@ -25,34 +36,60 @@ const today = computed(() =>
   })
 )
 
-const stats = [
-  { icon: 'groups', label: 'Total Groups', value: '1,248' },
-  { icon: 'user', label: 'Total Members', value: '28,450' },
-  { icon: 'wallet', label: 'Total Savings', value: 'TZS 1.24B' },
-  { icon: 'doc', label: 'Loans Outstanding', value: 'TZS 210M' }
+// Compact form for the narrow stat cards, e.g. 1245000000 -> "1.25B".
+function compactMoney(n) {
+  n = Number(n) || 0
+  const abs = Math.abs(n)
+  if (abs >= 1e9) return (n / 1e9).toFixed(2).replace(/\.?0+$/, '') + 'B'
+  if (abs >= 1e6) return (n / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'M'
+  if (abs >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K'
+  return n.toLocaleString()
+}
+
+const stats = computed(() => [
+  { icon: 'groups', label: 'Total Groups', value: dash.value ? dash.value.totalGroups.toLocaleString() : '—' },
+  { icon: 'user', label: 'Total Members', value: dash.value ? dash.value.totalMembers.toLocaleString() : '—' },
+  { icon: 'wallet', label: 'Total Savings', value: dash.value ? 'TZS ' + compactMoney(dash.value.totalSavings) : '—' },
+  { icon: 'doc', label: 'Loans Outstanding', value: dash.value ? 'TZS ' + compactMoney(dash.value.totalLoansOutstanding) : '—' }
+])
+
+const STATUS_LABELS = [
+  ['api', 'API'],
+  ['database', 'Database'],
+  ['authentication', 'Authentication'],
+  ['smsProvider', 'SMS Provider'],
+  ['backgroundJobs', 'Background Jobs']
 ]
 
-const statuses = [
-  ['API', 'Operational', 'green'],
-  ['Database', 'Operational', 'green'],
-  ['Authentication', 'Operational', 'green'],
-  ['SMS Provider', 'Operational', 'green'],
-  ['Background Jobs', 'Operational', 'green']
-]
+const statuses = computed(() => {
+  const s = dash.value?.status
+  if (!s) return []
+  return STATUS_LABELS.map(([key, name]) => [
+    name,
+    s[key] ? 'Operational' : key === 'backgroundJobs' ? 'Not configured' : 'Unavailable'
+  ])
+})
 
-const activity = [
-  { time: '09:42', member: 'Neema Joseph', group: 'Upendo Vikoba', type: 'Share', amount: '+TZS 15,000', ok: true },
-  { time: '09:38', member: 'Asha Mwangi', group: 'Upendo Vikoba', type: 'Saving', amount: '+TZS 5,000', ok: true },
-  { time: '09:34', member: 'John Mfinanga', group: 'Tumaini Group', type: 'Repayment', amount: '+TZS 20,000', ok: true },
-  { time: '09:31', member: 'Grace Peter', group: 'Umoja Women', type: 'Fine', amount: '-TZS 1,000', ok: false },
-  { time: '09:26', member: 'Fatuma R.', group: 'Mshikamano', type: 'Loan', amount: '-TZS 50,000', ok: true }
-]
+const activity = computed(() => {
+  return (dash.value?.recentActivity || []).map((a) => ({
+    time: a.time,
+    member: a.member || '—',
+    group: a.group || '—',
+    type: a.type,
+    amount: (a.direction === 'in' ? '+' : '-') + 'TZS ' + Number(a.amount || 0).toLocaleString(),
+    ok: a.direction === 'in'
+  }))
+})
 
 const chartLine = computed(() => {
-  const data = [42, 58, 95, 70, 86, 122, 104]
-  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  const points = dash.value?.chart || []
+  if (!points.length) return ''
+
+  const data = points.map((p) => p.count)
+  const labels = points.map((p) => p.day)
   const w = 660, h = 260, padL = 42, padB = 28, padT = 10
-  const maxY = 140
+  const peak = Math.max(...data, 0)
+  const maxY = peak > 0 ? Math.ceil(peak * 1.25) : 5
   const stepX = (w - padL - 10) / (data.length - 1)
   const pts = data.map((v, i) => ({
     x: padL + i * stepX,
@@ -60,7 +97,7 @@ const chartLine = computed(() => {
   }))
   const path = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ')
   const area = path + ` L${pts[pts.length - 1].x.toFixed(1)},${h} L${pts[0].x.toFixed(1)},${h} Z`
-  const grid = [0, 35, 70, 105, 140]
+  const grid = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(maxY * f))
   const gridLines = grid
     .map((g) => {
       const y = padT + (h - padT - padB) * (1 - g / maxY)
@@ -96,6 +133,10 @@ const chartLine = computed(() => {
       </div>
     </div>
 
+    <div v-if="error" style="color: var(--danger); font-size: 13px; margin-bottom: 12px">
+      {{ error }}
+    </div>
+
     <div class="stat-grid">
       <div v-for="s in stats" :key="s.label" class="stat-card">
         <div class="stat-icon" style="background: var(--green-100); color: var(--green-600)">
@@ -111,7 +152,8 @@ const chartLine = computed(() => {
     <div class="chart-row">
       <div class="chart-card">
         <h3>Transactions &middot; last 7 days</h3>
-        <div v-html="chartLine"></div>
+        <p v-if="!loading && !chartLine" class="cell-muted" style="font-size: 13px">No transactions recorded yet.</p>
+        <div v-else v-html="chartLine"></div>
       </div>
       <div class="chart-card">
         <h3>System Status</h3>
@@ -132,7 +174,10 @@ const chartLine = computed(() => {
             <tr><th>Time</th><th>Member</th><th>Group</th><th>Type</th><th>Amount</th></tr>
           </thead>
           <tbody>
-            <tr v-for="a in activity" :key="a.time + a.member">
+            <tr v-if="!loading && !activity.length">
+              <td colspan="5" class="cell-muted">No activity recorded yet.</td>
+            </tr>
+            <tr v-for="(a, i) in activity" :key="a.time + a.member + i">
               <td class="cell-muted">{{ a.time }}</td>
               <td class="cell-strong">{{ a.member }}</td>
               <td class="cell-muted">{{ a.group }}</td>

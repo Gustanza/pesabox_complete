@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Svgs from './Svgs.vue'
 import { NAV_ITEMS, initials, avaColor } from '../data/mock.js'
@@ -15,9 +15,15 @@ const meName = computed(() => {
   return [me.value.firstName, me.value.lastName].filter(Boolean).join(' ') || me.value.username
 })
 
-onMounted(async () => {
+async function loadMe() {
   me.value = await currentUser()
-})
+}
+
+onMounted(loadMe)
+// AppLayout stays mounted across child-route navigation, so the topbar chip
+// would otherwise keep showing stale data after e.g. saving /profile and
+// navigating back — refetch on every route change instead.
+watch(() => route.path, loadMe)
 
 const activeKey = computed(() => {
   const path = route.path
@@ -79,13 +85,13 @@ async function logout() {
             <Svgs name="bell" />
             <span class="dot"></span>
           </div>
-          <div class="admin-chip" v-if="me">
+          <router-link to="/profile" class="admin-chip" v-if="me">
             <div class="av" :style="{ background: avaColor(meName) }">{{ initials(meName) }}</div>
             <div>
               <div class="nm">{{ meName }}</div>
               <div class="rl">{{ roleLabel(me.role) }}</div>
             </div>
-          </div>
+          </router-link>
         </div>
       </div>
       <div class="content">

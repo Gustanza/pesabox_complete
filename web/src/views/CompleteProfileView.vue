@@ -1,39 +1,33 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { requestOtp } from '@/api/auth'
+import { updateProfile } from '@/api/auth'
 import Svgs from '../components/Svgs.vue'
 
 const router = useRouter()
-const phone = ref('')
+const fullName = ref('')
+const email = ref('')
 const loading = ref(false)
 const error = ref('')
 
-function isPhoneLike(value) {
-  return /^\+?\d{9,13}$/.test(value.replace(/[\s-]/g, ''))
-}
-
-async function register() {
-  if (!isPhoneLike(phone.value)) {
-    error.value = 'Enter a valid phone number, e.g. 0712 345 678'
+async function save() {
+  const name = fullName.value.trim()
+  if (!name) {
+    error.value = 'Enter your full name'
     return
   }
+
+  const [firstName, ...rest] = name.split(/\s+/)
+  const lastName = rest.join(' ')
 
   loading.value = true
   error.value = ''
 
   try {
-    const result = await requestOtp(phone.value)
-    if (!result?.status) {
-      error.value = result?.message || 'Unable to send a code right now'
-      return
-    }
-    router.push({
-      path: '/otp',
-      query: { mode: 'register', username: phone.value }
-    })
+    await updateProfile({ firstName, lastName, email: email.value.trim() })
+    router.push('/')
   } catch (e) {
-    error.value = e.message
+    error.value = e.message || 'Unable to save your profile right now'
   } finally {
     loading.value = false
   }
@@ -52,30 +46,22 @@ async function register() {
     </div>
     <div class="login-right">
       <div class="login-form">
-        <h1>Create your account</h1>
-        <div class="sub">Get started with PesaBox</div>
+        <h1>Complete your profile</h1>
+        <div class="sub">Just a couple of details before you go in</div>
 
-        <label class="field-label">Phone number</label>
-        <input
-          v-model="phone"
-          type="tel"
-          inputmode="tel"
-          placeholder="0712 345 678"
-          style="margin-bottom: 18px"
-          @keyup.enter="register"
-        />
+        <label class="field-label">Full name</label>
+        <input v-model="fullName" type="text" placeholder="Jane Doe" style="margin-bottom: 18px" @keyup.enter="save" />
+
+        <label class="field-label">Email <span style="color: var(--ink-400); font-weight: 400">(optional)</span></label>
+        <input v-model="email" type="email" placeholder="jane@example.com" style="margin-bottom: 18px" @keyup.enter="save" />
 
         <div v-if="error" style="color: var(--danger); font-size: 13.5px; margin-bottom: 12px">
           {{ error }}
         </div>
 
-        <button class="btn btn-primary btn-block" :disabled="loading" @click="register">
-          {{ loading ? 'Sending code…' : 'Send me a code' }}
+        <button class="btn btn-primary btn-block" :disabled="loading" @click="save">
+          {{ loading ? 'Saving…' : 'Continue' }}
         </button>
-
-        <div class="link">
-          Already have an account? <router-link to="/login">Sign in</router-link>
-        </div>
       </div>
     </div>
   </div>

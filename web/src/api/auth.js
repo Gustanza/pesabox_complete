@@ -54,6 +54,24 @@ export function currentUser() {
     .catch(() => null)
 }
 
+// Fills in firstName/lastName/email for a session whose account was just
+// auto-created by the OTP login (see server/main.go's /api/me) — the phone
+// number used to sign in stays the login identifier and is never touched here.
+export function updateProfile(changes) {
+  return fetch('/api/me', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(changes)
+  }).then(async (res) => {
+    const json = await res.json().catch(() => null)
+    if (!res.ok) {
+      throw new Error(json?.error || 'Request failed')
+    }
+    return json
+  })
+}
+
 export function logout() {
   // Ask for JSON explicitly: without an Accept header the server treats this
   // as a plain browser navigation and replies with a redirect instead.

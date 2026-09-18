@@ -2,18 +2,17 @@ package main
 
 import (
 	"bufio"
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"math"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/robertkonga/yekonga-server-go/config"
 	"github.com/robertkonga/yekonga-server-go/datatype"
+	"github.com/robertkonga/yekonga-server-go/gateway"
+	"github.com/robertkonga/yekonga-server-go/gateway/setting"
 	"github.com/robertkonga/yekonga-server-go/helper"
 	"github.com/robertkonga/yekonga-server-go/yekonga"
 )
@@ -24,7 +23,7 @@ const memberOtpTTL = 5 * time.Minute
 // loadDotEnv reads KEY=VALUE pairs from a .env file next to the binary (git-
 // ignored — see server/.env) and applies them via os.Setenv, without
 // overwriting a variable that's already set in the real environment (so
-// `SMTZ_API_KEY=... ./pesabox-server.exe` still wins over the file). Missing
+// `BEEM_API_KEY=... ./pesabox-server.exe` still wins over the file). Missing
 // file, blank lines, and lines starting with # are all fine and skipped.
 func loadDotEnv(path string) {
 	f, err := os.Open(path)
@@ -55,17 +54,13 @@ func loadDotEnv(path string) {
 	}
 }
 
-// smtzSenderID must already be "approved" on the SMTZ account (checked via
-// GET /sender-ids) — an unapproved one gets every send rejected with 403.
-// "PesaBox" was never registered (it's "pending" as "HAFLA2"); "SMTZ" is
-// approved on this account, so it's the default until "PesaBox" clears
-// approval — then flip this back.
-const smtzSenderID = "SMTZ"
+// beemSenderID is the Sender ID approved on the Beem Africa account (see
+// BEEM_SENDER_ID in server/.env to override without a rebuild).
+const beemSenderID = "TUKIIO"
 
 // normalizeTanzanianPhone converts a locally-typed number (e.g. the
 // "0766555111" an admin types into Add Member) into the plain international
-// MSISDN form SMTZ's API requires ("255766555111") — its /campaigns example
-// only ever shows numbers in that form, and it 400s on anything else.
+// MSISDN form Beem's API requires ("255766555111").
 func normalizeTanzanianPhone(phone string) string {
 	digits := strings.TrimSpace(phone)
 	digits = strings.TrimPrefix(digits, "+")
@@ -79,73 +74,72 @@ func normalizeTanzanianPhone(phone string) string {
 	}
 }
 
-// smtzSend delivers message to phone via SMTZ (161.97.99.40:5173's bulk-SMS
-// api) when SMTZ_API_KEY is set, and returns (sent, note) so callers can
-// record the outcome. SMTZ has no OTP concept of its own — it's a plain "send
-// this text to these numbers" API — so any code sent here is generated and
-// verified entirely on our side and just sent as an ordinary SMS through SMTZ's
-// POST /campaigns.
+// beemSend delivers message to phone via Beem Africa's SMS API (see
+// gateway/sms/beem.go) when BEEM_API_KEY/BEEM_SECRET_KEY are set, and returns
+// (sent, note) so callers can record the outcome. Beem has no OTP concept of
+// its own — it's a plain "send this text to this number" API — so any code
+// sent here is generated and verified entirely on our side and just sent as
+// an ordinary SMS.
 //
-// Falls back to "sent" + console log whenever no key is configured (dev
-// mode), or "failed" + the reason if SMTZ rejects the send, so "the SMS never
-// arrived" always has an answer in the server log either way.
-func smtzSend(phone string, message string) (bool, string) {
-	apiKey := os.Getenv("SMTZ_API_KEY")
-	if helper.IsEmpty(apiKey) {
-		fmt.Printf("=== SMS (dev only, no SMTZ_API_KEY) for %s: %s ===\n", phone, message)
-		return true, "dev-mode (no SMTZ_API_KEY)"
+// Falls back to "sent" + console log whenever no credentials are configured
+// (dev mode), or "failed" + the reason if Beem rejects the send, so "the SMS
+// never arrived" always has an answer in the server log either way.
+//
+// Previously this went through SMTZ's bulk-SMS API — switched to Beem after
+// SMTZ proved unreliable; SMTZ_API_KEY/smtzSend are gone.
+func beemSend(phone string, message string) (bool, string) {
+	apiKey := os.Getenv("BEEM_API_KEY")
+	secretKey := os.Getenv("BEEM_SECRET_KEY")
+	if helper.IsEmpty(apiKey) || helper.IsEmpty(secretKey) {
+		fmt.Printf("=== SMS (dev only, no BEEM_API_KEY/BEEM_SECRET_KEY) for %s: %s ===\n", phone, message)
+		return true, "dev-mode (no Beem credentials)"
 	}
 
-	payload, _ := json.Marshal(map[string]interface{}{
-		"senderId":   smtzSenderID,
-		"content":    message,
-		"recipients": []string{normalizeTanzanianPhone(phone)},
+	sender := os.Getenv("BEEM_SENDER_ID")
+	if helper.IsEmpty(sender) {
+		sender = beemSenderID
+	}
+
+	provider := gateway.NewSMSProvider(&config.SMSGatewayConfig{
+		Provider:  config.ProviderBeem,
+		Sender:    sender,
+		APIKey:    apiKey,
+		SecretKey: secretKey,
 	})
 
-	req, err := http.NewRequest(
-		"POST",
-		"http://161.97.99.40:3010/api/v1/campaigns",
-		bytes.NewReader(payload),
-	)
+	resp, err := provider.Send(setting.SendParams{
+		Phone: normalizeTanzanianPhone(phone),
+		Text:  message,
+	}, nil)
 	if err != nil {
-		fmt.Println("smtz: could not build request:", err)
+		fmt.Println("beem: send failed:", err)
 		return false, err.Error()
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		fmt.Println("smtz: send failed:", err)
-		return false, err.Error()
-	}
-	defer res.Body.Close()
-	if res.StatusCode >= 300 {
-		body, _ := io.ReadAll(res.Body)
-		note := fmt.Sprintf("HTTP %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
-		fmt.Println("smtz: send failed:", note)
+	if resp.Status != "SUCCESS" {
+		note := fmt.Sprintf("code %d: %s", resp.Code, resp.Message)
+		fmt.Println("beem: send failed:", note)
 		return false, note
 	}
-	fmt.Printf("smtz: sent campaign to %s\n", normalizeTanzanianPhone(phone))
+	fmt.Printf("beem: sent to %s (request_id=%s)\n", normalizeTanzanianPhone(phone), resp.RequestID)
 	return true, ""
 }
 
-// sendOtpSms texts message to phone via smtzSend — used for both the login OTP
+// sendOtpSms texts message to phone via beemSend — used for both the login OTP
 // (UserVerification, via logOtp below) and the Add Member phone-verification
 // OTP (MemberVerification, via /api/members/request-otp). It is a convenience
 // wrapper that just drops the send result on the console; the richer
 // sendSms helper (which also persists an SmsLog record) is used for the
 // member-facing joined/fine/transaction confirmations.
 func sendOtpSms(phone string, message string) {
-	sent, note := smtzSend(phone, message)
+	sent, note := beemSend(phone, message)
 	if !sent {
-		fmt.Printf("smtz: OTP to %s failed: %s\n", phone, note)
+		fmt.Printf("beem: OTP to %s failed: %s\n", phone, note)
 	}
 }
 
 // ---------------------------------------------------------------------------
 // Member-facing SMS helpers. Every important member action (joined, fine,
-// transaction) goes through sendSmsWithLog: it delivers via smtzSend AND
+// transaction) goes through sendSmsWithLog: it delivers via beemSend AND
 // persists an SmsLog record so /api/main/sms/activity can show the history.
 // These are package-level (not closures inside main) so route handlers
 // registered earlier in main() can call them without declaration-order
@@ -281,13 +275,13 @@ func fineAmountFor(g datatype.DataMap, reason string, amount float64) float64 {
 
 // sendSmsWithLog delivers a member-facing message AND records it in the SmsLog
 // model. The send result decides the log's status ('sent'/'failed'), with dev
-// mode (no SMTZ_API_KEY) counting as sent. A logging failure is console-only
-// and never fails the caller's own request.
+// mode (no BEEM_API_KEY/BEEM_SECRET_KEY) counting as sent. A logging failure
+// is console-only and never fails the caller's own request.
 func sendSmsWithLog(authId, groupId, memberId, phone, messageType, message string) {
 	if helper.IsEmpty(phone) {
 		return
 	}
-	sent, note := smtzSend(phone, message)
+	sent, note := beemSend(phone, message)
 	status := "sent"
 	if !sent {
 		status = "failed"
@@ -369,22 +363,22 @@ func txSmsText(g datatype.DataMap, m datatype.DataMap, typ string, amount float6
 
 func main() {
 	loadDotEnv("./.env")
-	if key := os.Getenv("SMTZ_API_KEY"); key != "" {
-		masked := key
-		if len(masked) > 10 {
-			masked = masked[:10] + "…"
+	if apiKey, secretKey := os.Getenv("BEEM_API_KEY"), os.Getenv("BEEM_SECRET_KEY"); apiKey != "" && secretKey != "" {
+		masked := apiKey
+		if len(masked) > 6 {
+			masked = masked[:6] + "…"
 		}
-		fmt.Printf("SMTZ_API_KEY loaded (%s) — member OTPs will send real SMS.\n", masked)
+		fmt.Printf("BEEM_API_KEY loaded (%s) — member OTPs will send real SMS via Beem Africa.\n", masked)
 	} else {
-		fmt.Println("SMTZ_API_KEY not set — member OTPs stay in dev mode (constant code, console log only).")
+		fmt.Println("BEEM_API_KEY/BEEM_SECRET_KEY not set — member OTPs stay in dev mode (constant code, console log only).")
 	}
 
 	yekonga.ServerLoad("./config.json", "./database.json")
 	app := yekonga.Server
 
-	// Texts the login OTP via SMTZ (same sendOtpSms used for Add Member's
-	// phone verification) when SMTZ_API_KEY is set; otherwise falls back to
-	// printing it, same as before. UserVerification's usernameType can be
+	// Texts the login OTP via Beem (same sendOtpSms used for Add Member's
+	// phone verification) when Beem credentials are set; otherwise falls back
+	// to printing it, same as before. UserVerification's usernameType can be
 	// "email" for a non-phone identifier, in which case there's nothing to
 	// text — that case still just logs.
 	logOtp := func(req *yekonga.RequestContext, ctx *yekonga.QueryContext) (interface{}, error) {
@@ -471,7 +465,7 @@ func main() {
 		}
 
 		code := yekonga.DevConstantOTP
-		if helper.IsNotEmpty(os.Getenv("SMTZ_API_KEY")) {
+		if helper.IsNotEmpty(os.Getenv("BEEM_API_KEY")) && helper.IsNotEmpty(os.Getenv("BEEM_SECRET_KEY")) {
 			code = helper.GetRandomInt(4)
 		}
 
@@ -693,6 +687,170 @@ func main() {
 
 		id := req.Param("id")
 		app.ModelQuery("User").SkipBeforeCommit().Where("id", id).Delete(nil)
+		res.Json(map[string]bool{"success": true})
+	})
+
+	// Cross-group platform snapshot for the Super Admin dashboard: totals
+	// rolled up from every Group's live counters, a 7-day transaction chart,
+	// the latest activity across all groups, and a best-effort status check
+	// of the services the dashboard cares about. Unlike "/api/main/*" this
+	// is deliberately not group-scoped — a Super Admin has no adminGroup().
+	app.Get("/api/admin/dashboard", func(req *yekonga.Request, res *yekonga.Response) {
+		if req.Auth() == nil {
+			res.Status(401)
+			res.Json(map[string]string{"error": "unauthorized"})
+			return
+		}
+
+		groups := app.ModelQuery("Group").SkipBeforeCommit().Find(nil)
+		groupById := map[string]datatype.DataMap{}
+		totalSavings, totalLoans := 0.0, 0.0
+		if groups != nil {
+			for _, g := range *groups {
+				groupById[helper.GetValueOfString(g, "id")] = g
+				totalSavings += helper.GetValueOfFloat(g, "totalSavings")
+				totalLoans += helper.GetValueOfFloat(g, "totalLoans")
+			}
+		}
+
+		members := app.ModelQuery("Member").SkipBeforeCommit().Find(nil)
+		memberById := map[string]datatype.DataMap{}
+		if members != nil {
+			for _, m := range *members {
+				memberById[helper.GetValueOfString(m, "id")] = m
+			}
+		}
+
+		txns := app.ModelQuery("Transaction").SkipBeforeCommit().OrderBy("createdAt", "desc").Find(nil)
+
+		typeLabels := map[string]string{
+			"contribution":      "Saving",
+			"share":             "Share",
+			"social_fund":       "Social Fund",
+			"loan_disbursement": "Loan",
+			"loan_repayment":    "Repayment",
+			"fine":              "Fine",
+			"expense":           "Expense",
+			"withdrawal":        "Withdrawal",
+		}
+
+		now := time.Now()
+		chartByDay := map[string]int{}
+		dayOrder := make([]string, 0, 7)
+		for i := 6; i >= 0; i-- {
+			key := now.AddDate(0, 0, -i).Format("2006-01-02")
+			chartByDay[key] = 0
+			dayOrder = append(dayOrder, key)
+		}
+		weekAgo := now.AddDate(0, 0, -7)
+
+		recentActivity := []datatype.DataMap{}
+		if txns != nil {
+			for _, t := range *txns {
+				createdAt := helper.GetValueOfDate(t, "createdAt")
+				if !createdAt.IsZero() && !createdAt.Before(weekAgo) {
+					key := createdAt.Format("2006-01-02")
+					if _, ok := chartByDay[key]; ok {
+						chartByDay[key]++
+					}
+				}
+				if len(recentActivity) >= 8 {
+					continue
+				}
+				typ := helper.GetValueOfString(t, "type")
+				label := typeLabels[typ]
+				if label == "" {
+					label = typ
+				}
+				memberName := ""
+				if mm, ok := memberById[helper.GetValueOfString(t, "memberId")]; ok {
+					memberName = memberFullName(mm)
+				}
+				groupName := ""
+				if gg, ok := groupById[helper.GetValueOfString(t, "groupId")]; ok {
+					groupName = helper.GetValueOfString(gg, "name")
+				}
+				recentActivity = append(recentActivity, datatype.DataMap{
+					"time":      createdAt.Format("15:04"),
+					"member":    memberName,
+					"group":     groupName,
+					"type":      label,
+					"amount":    helper.GetValueOfFloat(t, "amount"),
+					"direction": helper.GetValueOfString(t, "direction"),
+				})
+			}
+		}
+
+		chart := make([]datatype.DataMap, 0, 7)
+		for _, key := range dayOrder {
+			d, _ := time.Parse("2006-01-02", key)
+			chart = append(chart, datatype.DataMap{"day": d.Format("Mon"), "count": chartByDay[key]})
+		}
+
+		totalGroups := 0
+		if groups != nil {
+			totalGroups = len(*groups)
+		}
+		totalMembers := 0
+		if members != nil {
+			totalMembers = len(*members)
+		}
+
+		res.Json(datatype.DataMap{
+			"totalGroups":           totalGroups,
+			"totalMembers":          totalMembers,
+			"totalSavings":          totalSavings,
+			"totalLoansOutstanding": totalLoans,
+			"chart":                 chart,
+			"recentActivity":        recentActivity,
+			"status": datatype.DataMap{
+				"api":            true,
+				"database":       groups != nil,
+				"authentication": true,
+				"smsProvider":    helper.IsNotEmpty(os.Getenv("BEEM_API_KEY")) && helper.IsNotEmpty(os.Getenv("BEEM_SECRET_KEY")),
+				"backgroundJobs": false,
+			},
+		})
+	})
+
+	// Self-service profile completion: the phone-OTP flow auto-creates a User
+	// with no firstName/lastName (see yekonga's GetUser), so the web app sends
+	// the new admin here right after their first OTP verification to fill
+	// those in before letting them into the dashboard. Deliberately does not
+	// touch "username" — that field is the phone number the OTP login looks
+	// the account up by (see GetUser's Where("username", ...)), so changing it
+	// here would lock the account out of its own login.
+	app.Post("/api/me", func(req *yekonga.Request, res *yekonga.Response) {
+		auth := req.Auth()
+		if auth == nil {
+			res.Status(401)
+			res.Json(map[string]string{"error": "unauthorized"})
+			return
+		}
+
+		body := helper.ToDataMap(req.Body())
+		firstName := strings.TrimSpace(helper.GetValueOfString(body, "firstName"))
+		lastName := strings.TrimSpace(helper.GetValueOfString(body, "lastName"))
+		email := strings.TrimSpace(helper.GetValueOfString(body, "email"))
+
+		if firstName == "" {
+			res.Status(400)
+			res.Json(map[string]string{"error": "firstName is required"})
+			return
+		}
+
+		changes := datatype.DataMap{"firstName": firstName, "lastName": lastName}
+		if email != "" {
+			changes["email"] = email
+		}
+
+		updated := app.ModelQuery("User").SkipBeforeCommit().Where("id", auth.ID).Update(changes, nil)
+		if updated == nil {
+			res.Status(404)
+			res.Json(map[string]string{"error": "user not found"})
+			return
+		}
+
 		res.Json(map[string]bool{"success": true})
 	})
 

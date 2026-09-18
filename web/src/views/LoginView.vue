@@ -79,10 +79,6 @@ async function signIn() {
           {{ loading ? 'Sending code…' : 'Continue' }}
         </button>
 
-        <div class="link">
-          No account? <router-link to="/register">Register</router-link>
-        </div>
-
         <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 26px; color: var(--ink-400); font-size: 12.5px">
           <Svgs name="shield" width="14" height="14" /> Access is logged for security purposes
         </div>
