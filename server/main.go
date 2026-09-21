@@ -137,6 +137,10 @@ func smtzSend(phone string, message string) (bool, string) {
 // sendSms helper (which also persists an SmsLog record) is used for the
 // member-facing joined/fine/transaction confirmations.
 func sendOtpSms(phone string, message string) {
+	if !smsAllowed("login_otp") {
+		fmt.Printf("smtz: OTP to %s not sent - OTP texts are switched off in Settings\n", phone)
+		return
+	}
 	sent, note := smtzSend(phone, message)
 	if !sent {
 		fmt.Printf("smtz: OTP to %s failed: %s\n", phone, note)
@@ -287,6 +291,9 @@ func sendSmsWithLog(authId, groupId, memberId, phone, messageType, message strin
 	if helper.IsEmpty(phone) {
 		return
 	}
+	if !smsAllowed(messageType) {
+		return // switched off in Settings
+	}
 	sent, note := smtzSend(phone, message)
 	status := "sent"
 	if !sent {
@@ -309,62 +316,37 @@ func sendSmsWithLog(authId, groupId, memberId, phone, messageType, message strin
 	}
 }
 
-// joinedSmsText is the "member added to group" confirmation (spec §8).
+// joinedSmsText is the "member added to group" confirmation (spec §8). The
+// wording lives in sms.go's editable templates (Swahili default).
 func joinedSmsText(g datatype.DataMap, m datatype.DataMap) string {
-	gName := helper.GetValueOfString(g, "name")
-	if gName == "" {
-		gName = "kikundi"
-	}
-	fn := memberFullName(m)
-	if fn == "" {
-		fn = "Ndugu"
-	}
-	return fmt.Sprintf("PESABOX: Habari %s, umethibitishwa kuwa mwanachama wa %s. Karibu kwenye kikundi.", fn, gName)
+	gName, fn := smsNames(g, m)
+	return renderSms("member_joined", map[string]string{"JINA": fn, "KIKUNDI": gName})
 }
 
 // fineSmsText is the "you were fined" confirmation (spec §13).
 func fineSmsText(g datatype.DataMap, m datatype.DataMap, reason string, amount float64, evDate string) string {
-	gName := helper.GetValueOfString(g, "name")
-	if gName == "" {
-		gName = "kikundi"
-	}
-	fn := memberFullName(m)
-	if fn == "" {
-		fn = "Ndugu"
-	}
-	return fmt.Sprintf("PESABOX: Habari %s, umepewa faini ya %s kutokana na %s kwenye kikao cha %s cha tarehe %s.", fn, fmtTZS(amount), reason, gName, evDate)
+	gName, fn := smsNames(g, m)
+	return renderSms("fine_issued", map[string]string{
+		"JINA": fn, "KIKUNDI": gName, "KIASI": fmtTZS(amount), "SABABU": reason, "TAREHE": evDate,
+	})
 }
 
 // txSmsText is the "contribution/share/fine-payment/loan confirmed" message
-// (spec §16); reminder/template wording depends on the transaction type.
+// (spec §16); the template used depends on the transaction type.
 func txSmsText(g datatype.DataMap, m datatype.DataMap, typ string, amount float64, evDate string) string {
-	gName := helper.GetValueOfString(g, "name")
-	if gName == "" {
-		gName = "kikundi"
-	}
-	fn := memberFullName(m)
-	if fn == "" {
-		fn = "Ndugu"
-	}
-	switch typ {
-	case "contribution":
-		return fmt.Sprintf("PESABOX: Habari %s, umethibitishwa kuwa umechangia %s kama Mandatory Savings kwenye kikao cha %s cha tarehe %s. Asante.", fn, fmtTZS(amount), gName, evDate)
-	case "share":
+	gName, fn := smsNames(g, m)
+	vars := map[string]string{"JINA": fn, "KIKUNDI": gName, "KIASI": fmtTZS(amount), "TAREHE": evDate}
+	if typ == "share" {
 		cnt := 1
 		if sv := helper.GetValueOfFloat(g, "shareValue"); sv > 0 {
 			cnt = int(amount/sv + 0.5)
 		}
-		return fmt.Sprintf("PESABOX: Habari %s, umethibitishwa kununua shares %d zenye thamani ya %s kwenye %s tarehe %s. Asante.", fn, cnt, fmtTZS(amount), gName, evDate)
-	case "social_fund":
-		return fmt.Sprintf("PESABOX: Habari %s, umethibitishwa kuwa umechangia %s kama Social Fund kwenye kikao cha %s cha tarehe %s. Asante.", fn, fmtTZS(amount), gName, evDate)
-	case "loan_repayment":
-		return fmt.Sprintf("PESABOX: Habari %s, umethibitishwa kulipa %s kama malipo ya mkopo kwenye %s tarehe %s. Asante.", fn, fmtTZS(amount), gName, evDate)
-	case "loan_disbursement":
-		return fmt.Sprintf("PESABOX: Habari %s, umethibitishwa kupokea mkopo wa %s kutoka %s tarehe %s. Mrejesho ni kulingana na mkataba wa kikundi.", fn, fmtTZS(amount), gName, evDate)
-	case "fine":
-		return fmt.Sprintf("PESABOX: Habari %s, umelipa faini ya %s kwenye %s tarehe %s. Asante.", fn, fmtTZS(amount), gName, evDate)
+		vars["IDADI"] = strconv.Itoa(cnt)
 	}
-	return fmt.Sprintf("PESABOX: Habari %s, umethibitishwa kuchangia %s kwenye %s tarehe %s. Asante.", fn, fmtTZS(amount), gName, evDate)
+	if findSmsTemplate(typ) == nil {
+		typ = "generic"
+	}
+	return renderSms(typ, vars)
 }
 
 func main() {
@@ -394,7 +376,7 @@ func main() {
 		code := helper.GetValueOfString(data, "otpCode")
 
 		if usernameType == "phone" && helper.IsNotEmpty(phone) && helper.IsNotEmpty(code) {
-			sendOtpSms(phone, fmt.Sprintf("Your PesaBox login code is %s", code))
+			sendOtpSms(phone, renderSms("login_otp", map[string]string{"CODE": code}))
 			return nil, nil
 		}
 
@@ -482,11 +464,11 @@ func main() {
 			"expiresAt": time.Now().Add(memberOtpTTL),
 		})
 
-		message := fmt.Sprintf("Your PesaBox member verification code is %s", code)
+		message := renderSms("member_otp", map[string]string{"CODE": code})
 		sendOtpSms(phone, message)
 		sendSmsWithLog(
 			helper.GetValueOfString(helper.ToDataMap(req.Auth()), "id"),
-			"", "", phone, "member_otp", "PESABOX: "+message,
+			"", "", phone, "member_otp", message,
 		)
 
 		res.Json(map[string]bool{"success": true})
@@ -771,6 +753,11 @@ func main() {
 		}
 		return g
 	}
+
+	registerReports(app, adminGroup)
+	registerSmsAdmin(app)
+	registerSmsSettings(app)
+	startSmsReminders(app)
 
 	fullName := func(m datatype.DataMap) string {
 		return strings.TrimSpace(helper.GetValueOfString(m, "firstName") + " " + helper.GetValueOfString(m, "lastName"))

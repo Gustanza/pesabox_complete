@@ -1,8 +1,11 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { intlLocale } from '../i18n'
 import { getGroup, updateGroup, deleteGroup } from '../api/groups.js'
 
+const { t, te } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
@@ -12,17 +15,20 @@ const error = ref('')
 const tab = ref('overview')
 const saving = ref(false)
 
-const tabs = ['Overview', 'Members', 'Financial Setup', 'Meetings', 'Cycles', 'Transactions']
 const tabKeys = ['overview', 'members', 'financial', 'meetings', 'cycles', 'transactions']
+const tabLabels = computed(() => [t('gd.tabOverview'), t('gd.tabMembers'), t('gd.tabFinancial'), t('gd.tabMeetings'), t('gd.tabCycles'), t('gd.tabTransactions')])
+const statusText = (st) => (te('grp.st.' + st) ? t('grp.st.' + st) : st)
+const svcText = (sv) => (te('gd.svc.' + sv) ? t('gd.svc.' + sv) : sv)
+const num = (n) => Number(n || 0).toLocaleString(intlLocale())
 
 async function load() {
   loading.value = true
   error.value = ''
   try {
     group.value = await getGroup(route.params.id)
-    if (!group.value) error.value = 'Group not found'
+    if (!group.value) error.value = t('gd.notFound')
   } catch (e) {
-    error.value = e.message || 'Failed to load group'
+    error.value = e.message || t('gd.loadFailed')
   } finally {
     loading.value = false
   }
@@ -42,19 +48,19 @@ async function toggleStatus() {
     const result = await updateGroup(group.value.id, { status: nextStatus })
     if (result?.success) group.value = result.data
   } catch (e) {
-    error.value = e.message || 'Failed to update status'
+    error.value = e.message || t('gd.statusFailed')
   } finally {
     saving.value = false
   }
 }
 
 async function removeGroup() {
-  if (!confirm(`Delete "${group.value.name}"? This cannot be undone.`)) return
+  if (!confirm(t('gd.confirmDelete', { name: group.value.name }))) return
   try {
     await deleteGroup(group.value.id)
     router.push('/groups')
   } catch (e) {
-    error.value = e.message || 'Failed to delete group'
+    error.value = e.message || t('gd.deleteFailed')
   }
 }
 
@@ -63,13 +69,13 @@ const ALL_SERVICES = ['Shares', 'Mandatory Savings', 'Voluntary Savings', 'Socia
 const rules = computed(() => {
   if (!group.value) return []
   return [
-    ['Mandatory Savings / meeting', 'TZS ' + Number(group.value.mandatorySavingsAmount || 0).toLocaleString()],
-    ['Share value', 'TZS ' + Number(group.value.shareValue || 0).toLocaleString()],
-    ['Min shares / meeting', String(group.value.minShares ?? '—')],
-    ['Max shares / meeting', String(group.value.maxShares ?? '—')],
-    ['Social Fund / meeting', 'TZS ' + Number(group.value.socialFundContribution || 0).toLocaleString()],
-    ['Loan interest', (group.value.loanInterestRate ?? 0) + '%'],
-    ['Max loan period', (group.value.maxLoanPeriodMonths ?? 0) + ' months']
+    [t('gd.ruleMandatory'), 'TZS ' + num(group.value.mandatorySavingsAmount)],
+    [t('gd.ruleShareValue'), 'TZS ' + num(group.value.shareValue)],
+    [t('gd.ruleMinShares'), String(group.value.minShares ?? '—')],
+    [t('gd.ruleMaxShares'), String(group.value.maxShares ?? '—')],
+    [t('gd.ruleSocial'), 'TZS ' + num(group.value.socialFundContribution)],
+    [t('gd.ruleInterest'), (group.value.loanInterestRate ?? 0) + '%'],
+    [t('gd.ruleMaxPeriod'), t('gd.monthsN', { n: group.value.maxLoanPeriodMonths ?? 0 })]
   ]
 })
 
@@ -81,7 +87,7 @@ const fineReasons = computed(() => {
 
 <template>
   <div v-if="loading" class="empty">
-    <p>Loading group…</p>
+    <p>{{ t('gd.loading') }}</p>
   </div>
   <div v-else-if="error && !group" class="empty">
     <div class="ic">&#9888;</div>
@@ -89,21 +95,21 @@ const fineReasons = computed(() => {
   </div>
   <div v-else-if="group">
     <div class="crumb">
-      <b @click="router.push('/groups')">Groups</b> / {{ group.name }}
+      <b @click="router.push('/groups')">{{ t('gd.groups') }}</b> / {{ group.name }}
     </div>
     <div class="page-head">
       <div>
         <h1>{{ group.name }}</h1>
         <p class="sub-row">
-          <span class="badge" :class="group.status === 'Active' ? 'green' : 'grey'">{{ group.status }}</span>
+          <span class="badge" :class="group.status === 'Active' ? 'green' : 'grey'">{{ statusText(group.status) }}</span>
         </p>
       </div>
       <div class="page-actions">
-        <button class="btn btn-outline" @click="editGroup">Edit Group</button>
+        <button class="btn btn-outline" @click="editGroup">{{ t('gd.editGroup') }}</button>
         <button class="btn btn-outline" :disabled="saving" @click="toggleStatus">
-          {{ group.status === 'Active' ? 'Suspend Group' : 'Activate Group' }}
+          {{ group.status === 'Active' ? t('gd.suspend') : t('gd.activate') }}
         </button>
-        <button class="btn btn-danger" @click="removeGroup">Delete Group</button>
+        <button class="btn btn-danger" @click="removeGroup">{{ t('gd.deleteGroup') }}</button>
       </div>
     </div>
 
@@ -112,8 +118,8 @@ const fineReasons = computed(() => {
     </div>
 
     <div class="dtabs">
-      <button v-for="(t, i) in tabs" :key="t" class="dtab" :class="{ active: tab === tabKeys[i] }" @click="tab = tabKeys[i]">
-        {{ t }}
+      <button v-for="(label, i) in tabLabels" :key="tabKeys[i]" class="dtab" :class="{ active: tab === tabKeys[i] }" @click="tab = tabKeys[i]">
+        {{ label }}
       </button>
     </div>
 
@@ -121,24 +127,24 @@ const fineReasons = computed(() => {
     <div v-if="tab === 'overview'" class="grid2">
       <div class="card">
         <div class="card-head">
-          <h3>Group details</h3>
-          <a href="#" @click.prevent="editGroup">Edit</a>
+          <h3>{{ t('gd.details') }}</h3>
+          <a href="#" @click.prevent="editGroup">{{ t('gd.edit') }}</a>
         </div>
-        <div class="kv"><span class="k">Admin</span><span class="v">{{ group.adminName || '—' }}</span></div>
-        <div class="kv"><span class="k">Admin phone</span><span class="v">{{ group.adminPhone || '—' }}</span></div>
-        <div class="kv"><span class="k">Members</span><span class="v">{{ group.memberCount }} (F: {{ group.femaleMembers }}, M: {{ group.maleMembers }}, Youth: {{ group.youthMembers }})</span></div>
-        <div class="kv"><span class="k">Location</span><span class="v">{{ [group.village, group.ward, group.district, group.region].filter(Boolean).join(', ') || '—' }}</span></div>
-        <div class="kv"><span class="k">Meeting Frequency</span><span class="v">{{ group.meetingFrequency }}</span></div>
-        <div class="kv"><span class="k">Current Cycle</span><span class="v">{{ group.cycleCurrent }} / {{ group.cycleTotal }}</span></div>
+        <div class="kv"><span class="k">{{ t('offc.admin') }}</span><span class="v">{{ group.adminName || '—' }}</span></div>
+        <div class="kv"><span class="k">{{ t('offc.adminPhone') }}</span><span class="v">{{ group.adminPhone || '—' }}</span></div>
+        <div class="kv"><span class="k">{{ t('gd.members') }}</span><span class="v">{{ t('gd.membersLine', { n: group.memberCount, f: group.femaleMembers, m: group.maleMembers, y: group.youthMembers }) }}</span></div>
+        <div class="kv"><span class="k">{{ t('gd.location') }}</span><span class="v">{{ [group.village, group.ward, group.district, group.region].filter(Boolean).join(', ') || '—' }}</span></div>
+        <div class="kv"><span class="k">{{ t('gd.frequency') }}</span><span class="v">{{ group.meetingFrequency }}</span></div>
+        <div class="kv"><span class="k">{{ t('gd.currentCycle') }}</span><span class="v">{{ group.cycleCurrent }} / {{ group.cycleTotal }}</span></div>
       </div>
       <div class="card">
-        <div class="card-head"><h3>Financial Summary</h3></div>
-        <div class="kv"><span class="k">Savings</span><span class="v">TZS {{ Number(group.totalSavings || 0).toLocaleString() }}</span></div>
-        <div class="kv"><span class="k">Shares</span><span class="v">TZS {{ Number(group.totalShares || 0).toLocaleString() }}</span></div>
-        <div class="kv"><span class="k">Social Fund</span><span class="v">TZS {{ Number(group.totalSocialFund || 0).toLocaleString() }}</span></div>
-        <div class="kv"><span class="k">Loans Outstanding</span><span class="v">TZS {{ Number(group.totalLoans || 0).toLocaleString() }}</span></div>
+        <div class="card-head"><h3>{{ t('gd.finSummary') }}</h3></div>
+        <div class="kv"><span class="k">{{ t('gd.savings') }}</span><span class="v">TZS {{ num(group.totalSavings) }}</span></div>
+        <div class="kv"><span class="k">{{ t('gd.shares') }}</span><span class="v">TZS {{ num(group.totalShares) }}</span></div>
+        <div class="kv"><span class="k">{{ t('gd.socialFund') }}</span><span class="v">TZS {{ num(group.totalSocialFund) }}</span></div>
+        <div class="kv"><span class="k">{{ t('gd.loansOut') }}</span><span class="v">TZS {{ num(group.totalLoans) }}</span></div>
         <p style="font-size: 11.5px; color: var(--ink-400); margin-top: 10px">
-          Updated automatically once meetings and transactions are recorded.
+          {{ t('gd.autoUpdated') }}
         </p>
       </div>
     </div>
@@ -147,16 +153,16 @@ const fineReasons = computed(() => {
     <div v-else-if="tab === 'members'">
       <div class="card empty">
         <div class="ic">&#128101;</div>
-        <p>Member management is coming soon. {{ group.memberCount }} member(s) are currently recorded for {{ group.name }}.</p>
+        <p>{{ t('gd.membersSoon', { n: group.memberCount, name: group.name }) }}</p>
       </div>
     </div>
 
     <!-- Financial -->
     <div v-else-if="tab === 'financial'">
       <div class="card">
-        <div class="card-head"><h3>Group Constitution</h3></div>
+        <div class="card-head"><h3>{{ t('gd.constitution') }}</h3></div>
         <p style="font-size: 12.5px; color: var(--ink-600); margin-bottom: 14px; line-height: 1.5">
-          Set from the group's own app once it exists — shown here read-only for now.
+          {{ t('gd.constitutionNote') }}
         </p>
         <div class="grid3">
           <div v-for="r in rules" :key="r[0]" class="field-view">
@@ -164,19 +170,19 @@ const fineReasons = computed(() => {
             <div class="box">{{ r[1] }}</div>
           </div>
         </div>
-        <div class="card-head" style="margin-top: 8px"><h3>Fine reasons</h3></div>
+        <div class="card-head" style="margin-top: 8px"><h3>{{ t('gd.fineReasonsTitle') }}</h3></div>
         <div v-if="fineReasons.length" class="grid3">
           <div v-for="r in fineReasons" :key="r.reason" class="field-view">
             <label>{{ r.reason }}</label>
-            <div class="box">TZS {{ Number(r.amount || 0).toLocaleString() }}</div>
+            <div class="box">TZS {{ num(r.amount) }}</div>
           </div>
         </div>
         <p v-else style="font-size: 12px; color: var(--ink-400)">
-          No fine reasons configured yet — the group uses the platform defaults.
+          {{ t('gd.noFineReasons') }}
         </p>
-        <div class="card-head" style="margin-top: 8px"><h3>Enabled services</h3></div>
+        <div class="card-head" style="margin-top: 8px"><h3>{{ t('gd.enabledServices') }}</h3></div>
         <div class="toggle-line" v-for="s in ALL_SERVICES" :key="s">
-          <span class="chk" :class="(group.enabledServices || []).includes(s) ? 'on' : 'off'">&#10003;</span>{{ s }}
+          <span class="chk" :class="(group.enabledServices || []).includes(s) ? 'on' : 'off'">&#10003;</span>{{ svcText(s) }}
         </div>
       </div>
     </div>
@@ -185,7 +191,7 @@ const fineReasons = computed(() => {
     <div v-else-if="tab === 'meetings'">
       <div class="card empty">
         <div class="ic">&#128203;</div>
-        <p>Meeting management is coming soon for {{ group.name }}.</p>
+        <p>{{ t('gd.meetingsSoon', { name: group.name }) }}</p>
       </div>
     </div>
 
@@ -193,7 +199,7 @@ const fineReasons = computed(() => {
     <div v-else-if="tab === 'cycles'">
       <div class="card empty">
         <div class="ic">&#128203;</div>
-        <p>Cycle tracking is coming soon. {{ group.name }} is on cycle {{ group.cycleCurrent }} of {{ group.cycleTotal }} meetings.</p>
+        <p>{{ t('gd.cyclesSoon', { name: group.name, cur: group.cycleCurrent, total: group.cycleTotal }) }}</p>
       </div>
     </div>
 
@@ -201,7 +207,7 @@ const fineReasons = computed(() => {
     <div v-else-if="tab === 'transactions'">
       <div class="card empty">
         <div class="ic">&#128203;</div>
-        <p>Transaction history is coming soon for {{ group.name }}.</p>
+        <p>{{ t('gd.txSoon', { name: group.name }) }}</p>
       </div>
     </div>
   </div>

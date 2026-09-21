@@ -1,7 +1,11 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Svgs from '../components/Svgs.vue'
+import { intlLocale } from '../i18n'
 import { currentUser } from '@/api/auth'
+
+const { t, te } = useI18n()
 
 const firstName = ref('')
 
@@ -12,12 +16,12 @@ onMounted(async () => {
 
 const greeting = computed(() => {
   const h = new Date().getHours()
-  const part = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
+  const part = h < 12 ? t('dash.morning') : h < 18 ? t('dash.afternoon') : t('dash.evening')
   return `${part}${firstName.value ? ', ' + firstName.value : ''}`
 })
 
 const today = computed(() =>
-  new Date().toLocaleDateString('en-GB', {
+  new Date().toLocaleDateString(intlLocale(), {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -26,18 +30,18 @@ const today = computed(() =>
 )
 
 const stats = [
-  { icon: 'groups', label: 'Total Groups', value: '1,248' },
-  { icon: 'user', label: 'Total Members', value: '28,450' },
-  { icon: 'wallet', label: 'Total Savings', value: 'TZS 1.24B' },
-  { icon: 'doc', label: 'Loans Outstanding', value: 'TZS 210M' }
+  { icon: 'groups', key: 'dash.totalGroups', value: '1,248' },
+  { icon: 'user', key: 'dash.totalMembers', value: '28,450' },
+  { icon: 'wallet', key: 'dash.totalSavings', value: 'TZS 1.24B' },
+  { icon: 'doc', key: 'dash.loansOutstanding', value: 'TZS 210M' }
 ]
 
 const statuses = [
-  ['API', 'Operational', 'green'],
-  ['Database', 'Operational', 'green'],
-  ['Authentication', 'Operational', 'green'],
-  ['SMS Provider', 'Operational', 'green'],
-  ['Background Jobs', 'Operational', 'green']
+  ['dash2.api', 'Operational', 'green'],
+  ['dash2.database', 'Operational', 'green'],
+  ['dash2.authentication', 'Operational', 'green'],
+  ['dash.smsProvider', 'Operational', 'green'],
+  ['dash2.jobs', 'Operational', 'green']
 ]
 
 const activity = [
@@ -50,7 +54,8 @@ const activity = [
 
 const chartLine = computed(() => {
   const data = [42, 58, 95, 70, 86, 122, 104]
-  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  // 1 Jan 2024 is a Monday — short weekday names in the active language
+  const labels = [1, 2, 3, 4, 5, 6, 7].map((d) => new Date(2024, 0, d).toLocaleDateString(intlLocale(), { weekday: 'short' }))
   const w = 660, h = 260, padL = 42, padB = 28, padT = 10
   const maxY = 140
   const stepX = (w - padL - 10) / (data.length - 1)
@@ -92,17 +97,17 @@ const chartLine = computed(() => {
     <div class="page-head">
       <div>
         <h1>{{ greeting }}</h1>
-        <p>Platform overview &nbsp;|&nbsp; {{ today }}</p>
+        <p>{{ t('dash.overview') }} &nbsp;|&nbsp; {{ today }}</p>
       </div>
     </div>
 
     <div class="stat-grid">
-      <div v-for="s in stats" :key="s.label" class="stat-card">
+      <div v-for="s in stats" :key="s.key" class="stat-card">
         <div class="stat-icon" style="background: var(--green-100); color: var(--green-600)">
           <Svgs :name="s.icon" />
         </div>
         <div>
-          <div class="stat-label">{{ s.label }}</div>
+          <div class="stat-label">{{ t(s.key) }}</div>
           <div class="stat-value">{{ s.value }}</div>
         </div>
       </div>
@@ -110,13 +115,13 @@ const chartLine = computed(() => {
 
     <div class="chart-row">
       <div class="chart-card">
-        <h3>Transactions &middot; last 7 days</h3>
+        <h3>{{ t('dash.txChart') }}</h3>
         <div v-html="chartLine"></div>
       </div>
       <div class="chart-card">
-        <h3>System Status</h3>
+        <h3>{{ t('dash.systemStatus') }}</h3>
         <div v-for="[name, state2] in statuses" :key="name" class="status-row">
-          <span>{{ name }}</span>
+          <span>{{ t(name) }}</span>
           <span class="status-dot" :class="state2 === 'Operational' ? '' : 'red'"></span>
         </div>
       </div>
@@ -124,19 +129,25 @@ const chartLine = computed(() => {
 
     <div class="panel">
       <div class="panel-inner" style="padding-bottom: 0">
-        <h3 style="font-size: 17px">Recent Activity</h3>
+        <h3 style="font-size: 17px">{{ t('dash.recent') }}</h3>
       </div>
       <div style="overflow-x: auto; margin-top: 14px">
         <table class="dtable">
           <thead>
-            <tr><th>Time</th><th>Member</th><th>Group</th><th>Type</th><th>Amount</th></tr>
+            <tr>
+              <th>{{ t('dash.time') }}</th>
+              <th>{{ t('dash.member') }}</th>
+              <th>{{ t('dash.group') }}</th>
+              <th>{{ t('dash.type') }}</th>
+              <th>{{ t('dash.amount') }}</th>
+            </tr>
           </thead>
           <tbody>
             <tr v-for="a in activity" :key="a.time + a.member">
               <td class="cell-muted">{{ a.time }}</td>
               <td class="cell-strong">{{ a.member }}</td>
               <td class="cell-muted">{{ a.group }}</td>
-              <td class="cell-muted">{{ a.type }}</td>
+              <td class="cell-muted">{{ te('dash2.act.' + a.type.toLowerCase()) ? t('dash2.act.' + a.type.toLowerCase()) : a.type }}</td>
               <td class="cell-strong" :style="{ color: a.ok ? 'var(--green-600)' : 'var(--danger)' }">{{ a.amount }}</td>
             </tr>
           </tbody>

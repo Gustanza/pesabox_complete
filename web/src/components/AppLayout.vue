@@ -1,10 +1,16 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import Svgs from './Svgs.vue'
 import { NAV_ITEMS, initials, avaColor } from '../data/mock.js'
 import { logout as logoutRequest, currentUser } from '@/api/auth'
-import { roleLabel } from '@/api/users'
+import { setLocale } from '@/i18n'
+
+const { t, te, locale } = useI18n()
+function roleText(role) {
+  return te('roles.' + role) ? t('roles.' + role) : role || t('roles.user')
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -48,7 +54,7 @@ async function logout() {
         <div class="mark">P</div>
         <div>
           <span>PesaBox <span class="accent">Admin</span></span>
-          <small>SUPER ADMIN</small>
+          <small>{{ t('layout.superAdmin') }}</small>
         </div>
       </div>
       <router-link
@@ -59,22 +65,30 @@ async function logout() {
         :class="{ active: activeKey === item.key }"
       >
         <Svgs :name="item.icon" />
-        <span>{{ item.label }}</span>
+        <span>{{ te('nav.' + item.key) ? t('nav.' + item.key) : item.label }}</span>
       </router-link>
       <div class="sb-foot">
         <router-link to="/settings" class="sb-item">
           <Svgs name="settings" />
-          <span>Help</span>
+          <span>{{ t('nav.help') }}</span>
         </router-link>
         <button class="sb-item" @click="logout">
           <Svgs name="logout" />
-          <span>Logout</span>
+          <span>{{ t('nav.logout') }}</span>
         </button>
       </div>
     </div>
     <div class="main">
       <div class="topbar">
         <div class="top-right">
+          <div class="lang-switch" role="group" :aria-label="t('layout.language')">
+            <button
+              v-for="l in ['sw', 'en']"
+              :key="l"
+              :class="{ active: locale === l }"
+              @click="setLocale(l)"
+            >{{ l.toUpperCase() }}</button>
+          </div>
           <div class="icon-circle">
             <Svgs name="bell" />
             <span class="dot"></span>
@@ -83,7 +97,7 @@ async function logout() {
             <div class="av" :style="{ background: avaColor(meName) }">{{ initials(meName) }}</div>
             <div>
               <div class="nm">{{ meName }}</div>
-              <div class="rl">{{ roleLabel(me.role) }}</div>
+              <div class="rl">{{ roleText(me.role) }}</div>
             </div>
           </div>
         </div>

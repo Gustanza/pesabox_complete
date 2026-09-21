@@ -664,6 +664,16 @@ func (y *YekongaData) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("keep-alive", "timeout=5, max=98")
 	w.Header().Set("connection", "keep-alive")
 
+	// CORS preflight. A browser sends OPTIONS before any cross-origin request
+	// that carries an Authorization header, and only proceeds if the answer is
+	// a 2xx. Routes are registered per method (Get/Post/...), so without this
+	// every REST route answered OPTIONS with 404 and the request that followed
+	// was blocked — the app worked on phones/desktop but not in a browser.
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	defer res.Close()
 
 	// Apply middlewares

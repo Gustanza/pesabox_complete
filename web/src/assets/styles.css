@@ -1638,3 +1638,25 @@ textarea:focus {
   gap: 12px;
   margin-top: 30px;
 }
+/* Language switch (SW | EN) in the top bar */
+.lang-switch {
+  display: inline-flex;
+  border: 1px solid var(--line, #e3e8e6);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-right: 14px;
+}
+.lang-switch button {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink-400, #6b7a75);
+  cursor: pointer;
+}
+.lang-switch button.active {
+  background: var(--green-600, #0f6e56);
+  color: #fff;
+}
