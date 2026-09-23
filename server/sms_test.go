@@ -24,7 +24,7 @@ func TestSmsTemplateDefaultsAreConsistent(t *testing.T) {
 				t.Errorf("%s/%s is %d chars — keep default SMS short", d.Type, lang, len([]rune(body)))
 			}
 			for _, m := range placeholderRe.FindAllStringSubmatch(body, -1) {
-				ok := false
+				ok := m[1] == "BRAND" // global: filled in for every template (see fillSms)
 				for _, v := range d.Vars {
 					ok = ok || v == m[1]
 				}

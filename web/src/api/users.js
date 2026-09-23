@@ -1,45 +1,18 @@
-// The built-in "User" model is protected from generic public GraphQL find
-// queries (it carries password/token/otp fields), so this talks to the
-// dedicated sanitized admin routes registered in server/main.go instead of
-// the auto-generated CRUD API used by groups.js.
-import { apiFetch } from './http.js'
-
-const ENDPOINT = '/api/admin/users'
-
-async function request(path, options) {
-  const res = await apiFetch(ENDPOINT + path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options
-  })
-
-  const json = await res.json().catch(() => null)
-
-  if (!res.ok) {
-    throw new Error(json?.error || 'Request failed')
-  }
-
-  return json
-}
+// Users & roles — the sanitized admin routes in server/access_routes.go (the
+// built-in User model is never exposed over GraphQL). The 7 roles follow
+// "Pesa Box User Levels.pdf" (level 1 → 7).
+export { listUsers, addUser, updateUser, deactivateUser, addAssignment, removeAssignment } from './admin.js'
 
 export const ROLES = [
-  { value: 'super_admin', label: 'Super Admin' },
-  { value: 'support_admin', label: 'Support Admin' },
-  { value: 'group_admin', label: 'Group Admin' },
-  { value: 'user', label: 'Member' }
+  'super_admin',
+  'staff',
+  'partner_user',
+  'cluster_manager',
+  'group_admin',
+  'group_officer',
+  'group_member'
 ]
 
-export function roleLabel(value) {
-  return ROLES.find((r) => r.value === value)?.label || value || 'Member'
-}
+export const PRESETS = ['viewer', 'support', 'operations']
 
-export function listUsers() {
-  return request('', { method: 'GET' })
-}
-
-export function updateUser(id, changes) {
-  return request('/' + id, { method: 'POST', body: JSON.stringify(changes) })
-}
-
-export function deleteUser(id) {
-  return request('/' + id, { method: 'DELETE' })
-}
+export const POSITIONS = ['mwenyekiti', 'katibu', 'mweka_hazina', 'committee']

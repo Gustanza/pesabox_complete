@@ -351,6 +351,13 @@ func main() {
 	yekonga.ServerLoad("./config.json", "./database.json")
 	app := yekonga.Server
 
+	// User levels, partner/cluster scoping and the GraphQL guard — see
+	// access.go / guard.go. migrateAccess moves pre-existing data (old role
+	// names, groups without a cluster) onto the new structure on every start.
+	registerGuards(app)
+	migrateAccess(app)
+	migrateSmsBrand(app)
+
 	// Texts the login OTP via Beem (same sendOtpSms used for Add Member's
 	// phone verification) when Beem credentials are set; otherwise falls back
 	// to printing it, same as before. UserVerification's usernameType can be
@@ -519,9 +526,8 @@ func main() {
 	// silently discards whatever error a trigger returns, so there'd be no
 	// way to tell the app why creation failed).
 	app.Post("/api/members", func(req *yekonga.Request, res *yekonga.Response) {
-		if req.Auth() == nil {
-			res.Status(401)
-			res.Json(map[string]string{"error": "unauthorized"})
+		actor := requireActor(app, req, res)
+		if actor == nil {
 			return
 		}
 
@@ -531,6 +537,10 @@ func main() {
 		if helper.IsEmpty(phone) || helper.IsEmpty(groupId) {
 			res.Status(400)
 			res.Json(map[string]string{"error": "groupId and phone are required"})
+			return
+		}
+		if !actor.CanIn(PermGroupOperate, groupId) {
+			deny(res, 403, "your role does not allow adding members to this group")
 			return
 		}
 
@@ -569,8 +579,10 @@ func main() {
 		}
 
 		// Member Joined confirmation SMS (spec §8): the member does not have a
-		// PesaBox login, so the SMS is their proof of membership.
+		// login, so the SMS is their proof of membership.
 		member := helper.ToDataMap(created)
+		writeAudit(app, actor, "create", "Member", helper.GetValueOfString(member, "id"), groupId,
+			"Added member "+memberFullName(member), nil)
 		groupRec := app.ModelQuery("Group").SkipBeforeCommit().Where("id", groupId).First(nil)
 		if groupRec != nil {
 			sendSmsWithLog(
@@ -584,208 +596,6 @@ func main() {
 		}
 
 		res.Json(created)
-	})
-
-	// The built-in "User" model is protected from generic public GraphQL
-	// find queries by default (it carries password/token/otp fields), so the
-	// admin dashboard's user list/role-management goes through these two
-	// dedicated, sanitized routes instead of the auto-generated CRUD API.
-	app.Get("/api/admin/users", func(req *yekonga.Request, res *yekonga.Response) {
-		if req.Auth() == nil {
-			res.Status(401)
-			res.Json(map[string]string{"error": "unauthorized"})
-			return
-		}
-
-		list := app.ModelQuery("User").SkipBeforeCommit().Find(nil)
-		result := make([]datatype.DataMap, 0, len(*list))
-
-		for _, u := range *list {
-			result = append(result, datatype.DataMap{
-				"id":        helper.GetValueOfString(u, "id"),
-				"firstName": helper.GetValueOfString(u, "firstName"),
-				"lastName":  helper.GetValueOfString(u, "lastName"),
-				"username":  helper.GetValueOfString(u, "username"),
-				"phone":     helper.GetValueOfString(u, "phone"),
-				"email":     helper.GetValueOfString(u, "email"),
-				"role":      helper.GetValueOfString(u, "role"),
-				"status":    helper.GetValueOfString(u, "status"),
-				"isActive":  helper.GetValueOfBoolean(u, "isActive"),
-				"createdAt": u["createdAt"],
-			})
-		}
-
-		res.Json(result)
-	})
-
-	app.Post("/api/admin/users/:id", func(req *yekonga.Request, res *yekonga.Response) {
-		if req.Auth() == nil {
-			res.Status(401)
-			res.Json(map[string]string{"error": "unauthorized"})
-			return
-		}
-
-		id := req.Param("id")
-		body := helper.ToDataMap(req.Body())
-		changes := datatype.DataMap{}
-
-		if role, ok := body["role"]; ok {
-			changes["role"] = role
-		}
-		if status, ok := body["status"]; ok {
-			changes["status"] = status
-			changes["isActive"] = status == "active"
-		}
-
-		if len(changes) == 0 {
-			res.Status(400)
-			res.Json(map[string]string{"error": "no changes provided"})
-			return
-		}
-
-		updated := app.ModelQuery("User").SkipBeforeCommit().Where("id", id).Update(changes, nil)
-		if updated == nil {
-			res.Status(404)
-			res.Json(map[string]string{"error": "user not found"})
-			return
-		}
-
-		res.Json(map[string]bool{"success": true})
-	})
-
-	app.Delete("/api/admin/users/:id", func(req *yekonga.Request, res *yekonga.Response) {
-		if req.Auth() == nil {
-			res.Status(401)
-			res.Json(map[string]string{"error": "unauthorized"})
-			return
-		}
-
-		id := req.Param("id")
-		app.ModelQuery("User").SkipBeforeCommit().Where("id", id).Delete(nil)
-		res.Json(map[string]bool{"success": true})
-	})
-
-	// Cross-group platform snapshot for the Super Admin dashboard: totals
-	// rolled up from every Group's live counters, a 7-day transaction chart,
-	// the latest activity across all groups, and a best-effort status check
-	// of the services the dashboard cares about. Unlike "/api/main/*" this
-	// is deliberately not group-scoped — a Super Admin has no adminGroup().
-	app.Get("/api/admin/dashboard", func(req *yekonga.Request, res *yekonga.Response) {
-		if req.Auth() == nil {
-			res.Status(401)
-			res.Json(map[string]string{"error": "unauthorized"})
-			return
-		}
-
-		groups := app.ModelQuery("Group").SkipBeforeCommit().Find(nil)
-		groupById := map[string]datatype.DataMap{}
-		totalSavings, totalLoans := 0.0, 0.0
-		if groups != nil {
-			for _, g := range *groups {
-				groupById[helper.GetValueOfString(g, "id")] = g
-				totalSavings += helper.GetValueOfFloat(g, "totalSavings")
-				totalLoans += helper.GetValueOfFloat(g, "totalLoans")
-			}
-		}
-
-		members := app.ModelQuery("Member").SkipBeforeCommit().Find(nil)
-		memberById := map[string]datatype.DataMap{}
-		if members != nil {
-			for _, m := range *members {
-				memberById[helper.GetValueOfString(m, "id")] = m
-			}
-		}
-
-		txns := app.ModelQuery("Transaction").SkipBeforeCommit().OrderBy("createdAt", "desc").Find(nil)
-
-		typeLabels := map[string]string{
-			"contribution":      "Saving",
-			"share":             "Share",
-			"social_fund":       "Social Fund",
-			"loan_disbursement": "Loan",
-			"loan_repayment":    "Repayment",
-			"fine":              "Fine",
-			"expense":           "Expense",
-			"withdrawal":        "Withdrawal",
-		}
-
-		now := time.Now()
-		chartByDay := map[string]int{}
-		dayOrder := make([]string, 0, 7)
-		for i := 6; i >= 0; i-- {
-			key := now.AddDate(0, 0, -i).Format("2006-01-02")
-			chartByDay[key] = 0
-			dayOrder = append(dayOrder, key)
-		}
-		weekAgo := now.AddDate(0, 0, -7)
-
-		recentActivity := []datatype.DataMap{}
-		if txns != nil {
-			for _, t := range *txns {
-				createdAt := helper.GetValueOfDate(t, "createdAt")
-				if !createdAt.IsZero() && !createdAt.Before(weekAgo) {
-					key := createdAt.Format("2006-01-02")
-					if _, ok := chartByDay[key]; ok {
-						chartByDay[key]++
-					}
-				}
-				if len(recentActivity) >= 8 {
-					continue
-				}
-				typ := helper.GetValueOfString(t, "type")
-				label := typeLabels[typ]
-				if label == "" {
-					label = typ
-				}
-				memberName := ""
-				if mm, ok := memberById[helper.GetValueOfString(t, "memberId")]; ok {
-					memberName = memberFullName(mm)
-				}
-				groupName := ""
-				if gg, ok := groupById[helper.GetValueOfString(t, "groupId")]; ok {
-					groupName = helper.GetValueOfString(gg, "name")
-				}
-				recentActivity = append(recentActivity, datatype.DataMap{
-					"time":      createdAt.Format("15:04"),
-					"member":    memberName,
-					"group":     groupName,
-					"type":      label,
-					"amount":    helper.GetValueOfFloat(t, "amount"),
-					"direction": helper.GetValueOfString(t, "direction"),
-				})
-			}
-		}
-
-		chart := make([]datatype.DataMap, 0, 7)
-		for _, key := range dayOrder {
-			d, _ := time.Parse("2006-01-02", key)
-			chart = append(chart, datatype.DataMap{"day": d.Format("Mon"), "count": chartByDay[key]})
-		}
-
-		totalGroups := 0
-		if groups != nil {
-			totalGroups = len(*groups)
-		}
-		totalMembers := 0
-		if members != nil {
-			totalMembers = len(*members)
-		}
-
-		res.Json(datatype.DataMap{
-			"totalGroups":           totalGroups,
-			"totalMembers":          totalMembers,
-			"totalSavings":          totalSavings,
-			"totalLoansOutstanding": totalLoans,
-			"chart":                 chart,
-			"recentActivity":        recentActivity,
-			"status": datatype.DataMap{
-				"api":            true,
-				"database":       groups != nil,
-				"authentication": true,
-				"smsProvider":    helper.IsNotEmpty(os.Getenv("BEEM_API_KEY")) && helper.IsNotEmpty(os.Getenv("BEEM_SECRET_KEY")),
-				"backgroundJobs": false,
-			},
-		})
 	})
 
 	// Self-service profile completion: the phone-OTP flow auto-creates a User
@@ -839,59 +649,16 @@ func main() {
 	// dashboard balances stay live without a separate aggregation step.
 	// ---------------------------------------------------------------------------
 
-	// last9Digits keeps only the numeric digits of a phone-ish string, truncated
-	// to the last 9 — mirrors AppState._phoneTail.
-	last9Digits := func(s string) string {
-		digits := strings.Map(func(r rune) rune {
-			if r >= '0' && r <= '9' {
-				return r
-			}
-			return -1
-		}, s)
-		if len(digits) > 9 {
-			digits = digits[len(digits)-9:]
-		}
-		return digits
-	}
-
-	// adminGroup returns the Group this session administers, or nil.
+	// adminGroup returns the Group this session runs day-to-day (its "home"
+	// group), or nil. That is the group with a mwenyekiti/katibu/... assignment
+	// for this user, otherwise the one they created or whose adminPhone is
+	// their login phone — see resolveActor in access.go.
 	adminGroup := func(req *yekonga.Request) *datatype.DataMap {
-		auth := req.Auth()
-		if auth == nil {
+		a := actorFromRequest(app, req)
+		if a == nil || a.HomeGroupID == "" {
 			return nil
 		}
-		// req.Auth() returns a typed *AuthPayload struct, not a map — reading
-		// it through helper.ToDataMap (which only knows how to convert an
-		// actual map/pointer-to-map) silently yields an empty map, so userId
-		// and phoneTail always come back "" and every one of these
-		// requireGroup-protected endpoints 403s with "no group assigned to
-		// this account" even for a session that legitimately owns a group.
-		// Read the struct's fields directly instead.
-		userId := auth.ID
-		phoneTail := last9Digits(auth.Username)
-		if userId == "" && phoneTail == "" {
-			return nil
-		}
-		all := app.ModelQuery("Group").SkipBeforeCommit().Find(nil)
-		if all == nil {
-			return nil
-		}
-		var match *datatype.DataMap
-		for i := range *all {
-			g := (*all)[i]
-			createdBy := helper.GetValueOfString(g, "createdBy")
-			adminPhone := last9Digits(helper.GetValueOfString(g, "adminPhone"))
-			if (userId != "" && createdBy == userId) || (phoneTail != "" && adminPhone != "" && phoneTail == adminPhone) {
-				if createdBy == userId {
-					match = &g
-					break
-				}
-				if match == nil {
-					match = &g
-				}
-			}
-		}
-		return match
+		return app.ModelQuery("Group").SkipBeforeCommit().Where("id", a.HomeGroupID).First(nil)
 	}
 
 	// requireGroup 403s when this session has no group assigned yet.
@@ -905,10 +672,30 @@ func main() {
 		return g
 	}
 
-	registerReports(app, adminGroup)
+	// requireGroupPerm is requireGroup plus a role check inside that group
+	// (e.g. a Group Officer may record money but not change group settings).
+	requireGroupPerm := func(req *yekonga.Request, res *yekonga.Response, perm string) (*Actor, *datatype.DataMap) {
+		g := requireGroup(req, res)
+		if g == nil {
+			return nil, nil
+		}
+		a := actorFromRequest(app, req)
+		if !a.CanIn(perm, helper.GetValueOfString(*g, "id")) {
+			deny(res, 403, "your role in this group does not allow this")
+			return nil, nil
+		}
+		return a, g
+	}
+
+	registerReports(app)
+	registerDashboard(app)
 	registerSmsAdmin(app)
 	registerSmsSettings(app)
 	startSmsReminders(app)
+	registerAccessRoutes(app)
+	registerStructureRoutes(app)
+	registerGovernmentLoans(app, requireGroup, requireGroupPerm)
+	registerOfficerRoutes(app, requireGroup, requireGroupPerm)
 
 	fullName := func(m datatype.DataMap) string {
 		return strings.TrimSpace(helper.GetValueOfString(m, "firstName") + " " + helper.GetValueOfString(m, "lastName"))
@@ -973,6 +760,7 @@ func main() {
 			"method":      method,
 			"reference":   helper.GetValueOfString(x, "reference"),
 			"description": description,
+			"createdBy":   helper.GetValueOfString(x, "createdBy"),
 		})
 		if created != nil {
 			if _, isErr := created.(error); !isErr {
@@ -997,6 +785,20 @@ func main() {
 			}
 		}
 		return created
+	}
+
+	// meetingLocked reports whether money is being recorded against a meeting
+	// that has already been closed (closed meetings are locked — TODO.md N3).
+	meetingLocked := func(res *yekonga.Response, groupId, meetingId string) bool {
+		if meetingId == "" {
+			return false
+		}
+		mtg := app.ModelQuery("Meeting").SkipBeforeCommit().Where("id", meetingId).Where("groupId", groupId).First(nil)
+		if mtg != nil && helper.GetValueOfString(*mtg, "status") == "completed" {
+			deny(res, 400, "this meeting is closed and can no longer be changed")
+			return true
+		}
+		return false
 	}
 
 	// enrichList copies each record and attaches the member's name/phone so the
@@ -1208,65 +1010,55 @@ func main() {
 	})
 
 	// Every member-facing SMS write goes through sendSmsWithLog, so this is the
-	// full SMS history. Group admins see only their own group's messages; a
-	// super admin (no group assigned) sees everything.
+	// full SMS history. The mobile app gets its own (home) group's messages;
+	// the web dashboard passes ?scope=all and gets everything the caller's role
+	// can see (all groups for a super admin, assigned ones for staff/partners).
 	app.Get("/api/main/sms/activity", func(req *yekonga.Request, res *yekonga.Response) {
-		if req.Auth() == nil {
-			res.Status(401)
-			res.Json(map[string]string{"error": "unauthorized"})
+		actor := requireActor(app, req, res)
+		if actor == nil {
+			return
+		}
+		visible := func(groupId string) bool { return actor.Sees(groupId) }
+		if req.Query("scope") != "all" && actor.HomeGroupID != "" {
+			home := actor.HomeGroupID
+			visible = func(groupId string) bool { return groupId == home }
+		} else if !actor.Can(PermSms) && actor.HomeGroupID == "" {
+			deny(res, 403, "your role does not allow this")
 			return
 		}
 		recs := app.ModelQuery("SmsLog").SkipBeforeCommit().OrderBy("sentAt", "desc").Find(nil)
+		memberById := map[string]datatype.DataMap{}
+		for _, m := range listAll(app, "Member") {
+			memberById[helper.GetValueOfString(m, "id")] = m
+		}
+		groupById := map[string]datatype.DataMap{}
+		for _, gr := range listAll(app, "Group") {
+			groupById[helper.GetValueOfString(gr, "id")] = gr
+		}
 		result := []datatype.DataMap{}
-		if g := adminGroup(req); g != nil {
-			members := app.ModelQuery("Member").SkipBeforeCommit().Where("groupId", helper.GetValueOfString(*g, "id")).Find(nil)
-			byId := map[string]datatype.DataMap{}
-			for _, m := range *members {
-				byId[helper.GetValueOfString(m, "id")] = m
+		for _, r := range *recs {
+			gid := helper.GetValueOfString(r, "groupId")
+			// OTP messages carry no group; only platform-wide viewers see them.
+			if !(gid == "" && actor.All && req.Query("scope") == "all") && !visible(gid) {
+				continue
 			}
-			for _, r := range *recs {
-				if helper.GetValueOfString(r, "groupId") != helper.GetValueOfString(*g, "id") {
-					continue
-				}
-				rec := datatype.DataMap{}
-				for k, v := range r {
-					rec[k] = v
-				}
-				if mm, ok := byId[helper.GetValueOfString(r, "memberId")]; ok {
-					rec["memberName"] = memberFullName(mm)
-				}
-				result = append(result, rec)
+			rec := datatype.DataMap{}
+			for k, v := range r {
+				rec[k] = v
 			}
-		} else {
-			members := app.ModelQuery("Member").SkipBeforeCommit().Find(nil)
-			byId := map[string]datatype.DataMap{}
-			for _, m := range *members {
-				byId[helper.GetValueOfString(m, "id")] = m
+			if mm, ok := memberById[helper.GetValueOfString(r, "memberId")]; ok {
+				rec["memberName"] = memberFullName(mm)
 			}
-			groups := app.ModelQuery("Group").SkipBeforeCommit().Find(nil)
-			groupById := map[string]datatype.DataMap{}
-			for _, gr := range *groups {
-				groupById[helper.GetValueOfString(gr, "id")] = gr
+			if gr, ok := groupById[gid]; ok {
+				rec["groupName"] = helper.GetValueOfString(gr, "name")
 			}
-			for _, r := range *recs {
-				rec := datatype.DataMap{}
-				for k, v := range r {
-					rec[k] = v
-				}
-				if mm, ok := byId[helper.GetValueOfString(r, "memberId")]; ok {
-					rec["memberName"] = memberFullName(mm)
-				}
-				if gr, ok := groupById[helper.GetValueOfString(r, "groupId")]; ok {
-					rec["groupName"] = helper.GetValueOfString(gr, "name")
-				}
-				result = append(result, rec)
-			}
+			result = append(result, rec)
 		}
 		res.Json(result)
 	})
 
 	app.Post("/api/main/meetings", func(req *yekonga.Request, res *yekonga.Response) {
-		g := requireGroup(req, res)
+		actor, g := requireGroupPerm(req, res, PermGroupOperate)
 		if g == nil {
 			return
 		}
@@ -1287,7 +1079,7 @@ func main() {
 			"time":          helper.GetValueOfString(body, "time"),
 			"location":      helper.GetValueOfString(body, "location"),
 			"status":        "upcoming",
-			"createdBy":     helper.GetValueOfString(helper.ToDataMap(req.Auth()), "id"),
+			"createdBy":     actor.UserID,
 		})
 		if created == nil {
 			res.Status(500)
@@ -1299,21 +1091,29 @@ func main() {
 			res.Json(map[string]string{"error": err.Error()})
 			return
 		}
+		writeAudit(app, actor, "create", "Meeting", helper.GetValueOfString(helper.ToDataMap(created), "id"), groupId,
+			fmt.Sprintf("Created meeting #%d %s", number, title), nil)
 		res.Json(created)
 	})
 
 	app.Post("/api/main/meetings/:id/start", func(req *yekonga.Request, res *yekonga.Response) {
-		g := requireGroup(req, res)
+		actor, g := requireGroupPerm(req, res, PermGroupOperate)
 		if g == nil {
 			return
 		}
 		groupId := helper.GetValueOfString(*g, "id")
-		updated := app.ModelQuery("Meeting").SkipBeforeCommit().Where("id", req.Param("id")).Where("groupId", groupId).Update(datatype.DataMap{"status": "in_progress"}, nil)
-		if updated == nil {
+		mtg := app.ModelQuery("Meeting").SkipBeforeCommit().Where("id", req.Param("id")).Where("groupId", groupId).First(nil)
+		if mtg == nil {
 			res.Status(404)
 			res.Json(map[string]string{"error": "meeting not found"})
 			return
 		}
+		if helper.GetValueOfString(*mtg, "status") == "completed" {
+			deny(res, 400, "this meeting is closed and can no longer be changed")
+			return
+		}
+		app.ModelQuery("Meeting").SkipBeforeCommit().Where("id", req.Param("id")).Update(datatype.DataMap{"status": "in_progress"}, nil)
+		writeAudit(app, actor, "update", "Meeting", req.Param("id"), groupId, "Started meeting", nil)
 		res.Json(map[string]bool{"success": true})
 	})
 
@@ -1323,8 +1123,13 @@ func main() {
 		if g == nil {
 			return
 		}
+		if app.ModelQuery("Meeting").SkipBeforeCommit().Where("id", req.Param("id")).Where("groupId", helper.GetValueOfString(*g, "id")).First(nil) == nil {
+			res.Status(404)
+			res.Json(map[string]string{"error": "meeting not found"})
+			return
+		}
 		rows := app.ModelQuery("MeetingAttendance").SkipBeforeCommit().Where("meetingId", req.Param("id")).Find(nil)
-		members := app.ModelQuery("Member").SkipBeforeCommit().Find(nil)
+		members := app.ModelQuery("Member").SkipBeforeCommit().Where("groupId", helper.GetValueOfString(*g, "id")).Find(nil)
 		byId := map[string]datatype.DataMap{}
 		for _, m := range *members {
 			byId[helper.GetValueOfString(m, "id")] = m
@@ -1346,7 +1151,7 @@ func main() {
 
 	// Accepts either {"memberId":"...","status":"present"} or a "members" list.
 	app.Post("/api/main/meetings/:id/attendance", func(req *yekonga.Request, res *yekonga.Response) {
-		g := requireGroup(req, res)
+		actor, g := requireGroupPerm(req, res, PermGroupOperate)
 		if g == nil {
 			return
 		}
@@ -1356,6 +1161,10 @@ func main() {
 		if mtg == nil {
 			res.Status(404)
 			res.Json(map[string]string{"error": "meeting not found"})
+			return
+		}
+		if helper.GetValueOfString(*mtg, "status") == "completed" {
+			deny(res, 400, "this meeting is closed and can no longer be changed")
 			return
 		}
 		body := helper.ToDataMap(req.Body())
@@ -1378,17 +1187,20 @@ func main() {
 				app.ModelQuery("MeetingAttendance").SkipBeforeCommit().Where("id", helper.GetValueOfString(*existing, "id")).Update(datatype.DataMap{"status": status}, nil)
 			} else {
 				app.ModelQuery("MeetingAttendance").SkipBeforeCommit().Create(datatype.DataMap{
+					"groupId":   groupId,
 					"meetingId": meetingId,
 					"memberId":  memberId,
 					"status":    status,
 				})
 			}
 		}
+		writeAudit(app, actor, "update", "MeetingAttendance", meetingId, groupId,
+			fmt.Sprintf("Recorded attendance for %d member(s)", len(rows)), nil)
 		res.Json(map[string]bool{"success": true})
 	})
 
 	app.Post("/api/main/transactions", func(req *yekonga.Request, res *yekonga.Response) {
-		g := requireGroup(req, res)
+		actor, g := requireGroupPerm(req, res, PermFinanceWrite)
 		if g == nil {
 			return
 		}
@@ -1444,9 +1256,14 @@ func main() {
 			}
 		}
 
+		if meetingLocked(res, groupId, helper.GetValueOfString(body, "meetingId")) {
+			return
+		}
+
 		// Reflect any derived amount (e.g. shares entered as a count) back into
 		// the record createTransaction persists.
 		body["amount"] = amount
+		body["createdBy"] = actor.UserID
 
 		created := createTransaction(groupId, body)
 		if created == nil {
@@ -1459,6 +1276,9 @@ func main() {
 			res.Json(map[string]string{"error": err.Error()})
 			return
 		}
+
+		writeAudit(app, actor, "create", "Transaction", helper.GetValueOfString(helper.ToDataMap(created), "id"), groupId,
+			fmt.Sprintf("Recorded %s %s", txLabel(typ), fmtTZS(amount)), nil)
 
 		// Contribution confirmation SMS (spec §16) — only for member-scoped,
 		// money-in transactions; expenses/withdrawals don't text anyone.
@@ -1483,7 +1303,7 @@ func main() {
 	})
 
 	app.Post("/api/main/loans", func(req *yekonga.Request, res *yekonga.Response) {
-		g := requireGroup(req, res)
+		actor, g := requireGroupPerm(req, res, PermFinanceWrite)
 		if g == nil {
 			return
 		}
@@ -1500,6 +1320,9 @@ func main() {
 		if rec == nil {
 			res.Status(404)
 			res.Json(map[string]string{"error": "member not found in your group"})
+			return
+		}
+		if meetingLocked(res, groupId, helper.GetValueOfString(body, "meetingId")) {
 			return
 		}
 		rate := helper.GetValueOfFloat(body, "interestRate")
@@ -1544,11 +1367,14 @@ func main() {
 			"amount":    amount,
 			"method":    helper.GetValueOfString(body, "method"),
 			"reference": fmt.Sprintf("LN-%04d", number),
+			"createdBy": actor.UserID,
 		}) == nil {
 			res.Status(500)
 			res.Json(map[string]string{"error": "could not record loan disbursement"})
 			return
 		}
+		writeAudit(app, actor, "create", "Loan", helper.GetValueOfString(helper.ToDataMap(created), "id"), groupId,
+			fmt.Sprintf("Issued loan LN-%04d of %s to %s", number, fmtTZS(amount), memberFullName(*rec)), nil)
 
 		// Loan disbursement confirmation SMS (spec §23).
 		sendSmsWithLog(
@@ -1564,7 +1390,7 @@ func main() {
 	})
 
 	app.Post("/api/main/loans/:id/repayment", func(req *yekonga.Request, res *yekonga.Response) {
-		g := requireGroup(req, res)
+		actor, g := requireGroupPerm(req, res, PermFinanceWrite)
 		if g == nil {
 			return
 		}
@@ -1580,6 +1406,9 @@ func main() {
 		if loan == nil {
 			res.Status(404)
 			res.Json(map[string]string{"error": "loan not found"})
+			return
+		}
+		if meetingLocked(res, groupId, helper.GetValueOfString(body, "meetingId")) {
 			return
 		}
 		loanAmt := helper.GetValueOfFloat(*loan, "amount")
@@ -1611,7 +1440,10 @@ func main() {
 			"amount":    amount,
 			"method":    helper.GetValueOfString(body, "method"),
 			"reference": helper.GetValueOfString(*loan, "loanNumber"),
+			"createdBy": actor.UserID,
 		})
+		writeAudit(app, actor, "create", "Transaction", req.Param("id"), groupId,
+			fmt.Sprintf("Loan %s repayment %s", helper.GetValueOfString(*loan, "loanNumber"), fmtTZS(amount)), nil)
 
 		// Loan repayment confirmation SMS (spec §23).
 		if memberId := helper.GetValueOfString(*loan, "memberId"); memberId != "" {
@@ -1631,7 +1463,7 @@ func main() {
 	})
 
 	app.Post("/api/main/fines", func(req *yekonga.Request, res *yekonga.Response) {
-		g := requireGroup(req, res)
+		actor, g := requireGroupPerm(req, res, PermFinanceWrite)
 		if g == nil {
 			return
 		}
@@ -1657,6 +1489,9 @@ func main() {
 			res.Json(map[string]string{"error": "member not found in your group"})
 			return
 		}
+		if meetingLocked(res, groupId, helper.GetValueOfString(body, "meetingId")) {
+			return
+		}
 		created := app.ModelQuery("Fine").SkipBeforeCommit().Create(datatype.DataMap{
 			"groupId":    groupId,
 			"memberId":   memberId,
@@ -1678,6 +1513,9 @@ func main() {
 			return
 		}
 
+		writeAudit(app, actor, "create", "Fine", helper.GetValueOfString(helper.ToDataMap(created), "id"), groupId,
+			fmt.Sprintf("Fined %s %s (%s)", memberFullName(*rec), fmtTZS(amount), reason), nil)
+
 		// Fine confirmation SMS (spec §13) — the SMS is the member's proof.
 		sendSmsWithLog(
 			helper.GetValueOfString(helper.ToDataMap(req.Auth()), "id"),
@@ -1692,7 +1530,7 @@ func main() {
 	})
 
 	app.Post("/api/main/fines/:id/pay", func(req *yekonga.Request, res *yekonga.Response) {
-		g := requireGroup(req, res)
+		actor, g := requireGroupPerm(req, res, PermFinanceWrite)
 		if g == nil {
 			return
 		}
@@ -1742,7 +1580,10 @@ func main() {
 			"amount":    amount,
 			"method":    helper.GetValueOfString(body, "method"),
 			"reference": helper.GetValueOfString(*fine, "id"),
+			"createdBy": actor.UserID,
 		})
+		writeAudit(app, actor, "create", "Transaction", req.Param("id"), groupId,
+			fmt.Sprintf("Fine payment %s", fmtTZS(amount)), nil)
 
 		// Fine payment confirmation SMS (spec §23 — "Fine Applied → ...").
 		if memberId := helper.GetValueOfString(*fine, "memberId"); memberId != "" {
@@ -1762,7 +1603,7 @@ func main() {
 	})
 
 	app.Post("/api/main/expenses", func(req *yekonga.Request, res *yekonga.Response) {
-		g := requireGroup(req, res)
+		actor, g := requireGroupPerm(req, res, PermFinanceWrite)
 		if g == nil {
 			return
 		}
@@ -1782,6 +1623,7 @@ func main() {
 			"amount":      amount,
 			"method":      helper.GetValueOfString(body, "method"),
 			"description": helper.GetValueOfString(body, "description"),
+			"createdBy":   actor.UserID,
 		})
 		if created == nil {
 			res.Status(500)
@@ -1793,11 +1635,94 @@ func main() {
 			res.Json(map[string]string{"error": err.Error()})
 			return
 		}
+		writeAudit(app, actor, "create", "Transaction", helper.GetValueOfString(helper.ToDataMap(created), "id"), groupId,
+			fmt.Sprintf("Recorded expense %s", fmtTZS(amount)), nil)
 		res.Json(created)
 	})
 
+	// Reverse a transaction (TODO.md D5/N4): financial records are never
+	// deleted or edited — a mistake is undone by marking the original
+	// "reversed" (every balance/report skips reversed rows) and putting back
+	// whatever it changed (group totals, the loan's or fine's paid amount).
+	// Allowed even for closed meetings: this is how their mistakes get fixed.
+	app.Post("/api/main/transactions/:id/reverse", func(req *yekonga.Request, res *yekonga.Response) {
+		actor, g := requireGroupPerm(req, res, PermFinanceWrite)
+		if g == nil {
+			return
+		}
+		groupId := helper.GetValueOfString(*g, "id")
+		txn := app.ModelQuery("Transaction").SkipBeforeCommit().Where("id", req.Param("id")).Where("groupId", groupId).First(nil)
+		if txn == nil {
+			deny(res, 404, "transaction not found")
+			return
+		}
+		if helper.GetValueOfBoolean(*txn, "reversed") {
+			deny(res, 400, "this transaction was already reversed")
+			return
+		}
+		reason := strings.TrimSpace(helper.GetValueOfString(bodyMap(req), "reason"))
+		if reason == "" {
+			deny(res, 400, "a reason is required")
+			return
+		}
+		typ := helper.GetValueOfString(*txn, "type")
+		amount := helper.GetValueOfFloat(*txn, "amount")
+		reference := helper.GetValueOfString(*txn, "reference")
+
+		switch typ {
+		case "contribution":
+			adjustGroupTotal(groupId, "totalSavings", -amount)
+		case "share":
+			adjustGroupTotal(groupId, "totalShares", -amount)
+		case "social_fund":
+			adjustGroupTotal(groupId, "totalSocialFund", -amount)
+		case "withdrawal":
+			adjustGroupTotal(groupId, "totalSavings", amount)
+		case "expense":
+			adjustGroupTotal(groupId, "totalExpenses", -amount)
+		case "fine":
+			// A fine payment: the fine is owed again.
+			if fine := app.ModelQuery("Fine").SkipBeforeCommit().Where("id", reference).Where("groupId", groupId).First(nil); fine != nil {
+				paid := math.Max(0, helper.GetValueOfFloat(*fine, "amountPaid")-amount)
+				app.ModelQuery("Fine").SkipBeforeCommit().Where("id", reference).Update(datatype.DataMap{"amountPaid": paid, "status": "pending"}, nil)
+			}
+			adjustGroupTotal(groupId, "totalFines", -amount)
+		case "loan_repayment":
+			if loan := app.ModelQuery("Loan").SkipBeforeCommit().Where("loanNumber", reference).Where("groupId", groupId).First(nil); loan != nil {
+				repaid := math.Max(0, helper.GetValueOfFloat(*loan, "amountRepaid")-amount)
+				app.ModelQuery("Loan").SkipBeforeCommit().Where("id", helper.GetValueOfString(*loan, "id")).Update(datatype.DataMap{"amountRepaid": repaid, "status": "active"}, nil)
+			}
+			adjustGroupTotal(groupId, "totalLoans", amount)
+		case "loan_disbursement":
+			// Only a loan nobody has repaid yet can be cancelled this way;
+			// otherwise reverse its repayments first.
+			loan := app.ModelQuery("Loan").SkipBeforeCommit().Where("loanNumber", reference).Where("groupId", groupId).First(nil)
+			if loan != nil && helper.GetValueOfFloat(*loan, "amountRepaid") > 0 {
+				deny(res, 400, "reverse this loan's repayments first")
+				return
+			}
+			if loan != nil {
+				app.ModelQuery("Loan").SkipBeforeCommit().Where("id", helper.GetValueOfString(*loan, "id")).Update(datatype.DataMap{"status": "cancelled"}, nil)
+			}
+			adjustGroupTotal(groupId, "totalLoans", -amount)
+		default:
+			deny(res, 400, "this kind of transaction cannot be reversed")
+			return
+		}
+
+		app.ModelQuery("Transaction").SkipBeforeCommit().Where("id", req.Param("id")).Update(datatype.DataMap{
+			"reversed":       true,
+			"reversedAt":     time.Now(),
+			"reversedBy":     actor.UserID,
+			"reversalReason": reason,
+		}, nil)
+		writeAudit(app, actor, "reverse", "Transaction", req.Param("id"), groupId,
+			fmt.Sprintf("Reversed %s %s: %s", txLabel(typ), fmtTZS(amount), reason), nil)
+		res.Json(map[string]bool{"success": true})
+	})
+
 	app.Post("/api/main/announcements", func(req *yekonga.Request, res *yekonga.Response) {
-		g := requireGroup(req, res)
+		actor, g := requireGroupPerm(req, res, PermGroupOperate)
 		if g == nil {
 			return
 		}
@@ -1813,7 +1738,7 @@ func main() {
 			"title":     title,
 			"body":      helper.GetValueOfString(body, "body"),
 			"priority":  helper.GetValueOfString(body, "priority"),
-			"createdBy": helper.GetValueOfString(helper.ToDataMap(req.Auth()), "id"),
+			"createdBy": actor.UserID,
 		})
 		if created == nil {
 			res.Status(500)
@@ -1825,12 +1750,14 @@ func main() {
 			res.Json(map[string]string{"error": err.Error()})
 			return
 		}
+		writeAudit(app, actor, "create", "Announcement", helper.GetValueOfString(helper.ToDataMap(created), "id"),
+			helper.GetValueOfString(*g, "id"), "Posted announcement "+title, nil)
 		res.Json(created)
 	})
 
 	// Edit an existing member (used by the mobile app's Edit Member screen).
 	app.Post("/api/main/members/:id", func(req *yekonga.Request, res *yekonga.Response) {
-		g := requireGroup(req, res)
+		actor, g := requireGroupPerm(req, res, PermGroupOperate)
 		if g == nil {
 			return
 		}
@@ -1859,6 +1786,15 @@ func main() {
 			res.Json(map[string]string{"error": "member not found"})
 			return
 		}
+		action := "update"
+		if st, ok := changes["status"]; ok && st != helper.GetValueOfString(*rec, "status") {
+			if st == "Active" {
+				action = "reactivate"
+			} else {
+				action = "deactivate"
+			}
+		}
+		writeAudit(app, actor, action, "Member", req.Param("id"), groupId, "Edited member "+memberFullName(*rec), changes)
 		res.Json(map[string]bool{"success": true})
 	})
 

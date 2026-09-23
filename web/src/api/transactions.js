@@ -32,6 +32,7 @@ const TRANSACTION_FIELDS = `
   reference
   description
   reversed
+  reversalReason
   createdAt
 `
 

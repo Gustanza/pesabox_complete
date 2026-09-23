@@ -16,6 +16,7 @@ export default {
   nav: {
     dashboard: 'Dashboard',
     groups: 'Groups',
+    structure: 'Partners & Clusters',
     users: 'Users',
     members: 'Members',
     finance: 'Finance',
@@ -32,9 +33,13 @@ export default {
   },
   roles: {
     super_admin: 'Super Admin',
-    support_admin: 'Support Admin',
+    staff: '@:app.name Staff',
+    partner_user: 'Partner User',
+    cluster_manager: 'Cluster Manager',
     group_admin: 'Group Admin',
-    user: 'Member'
+    group_officer: 'Group Officer',
+    group_member: 'Group Member',
+    user: 'No role'
   },
   reports: {
     title: 'Reports',
@@ -205,7 +210,7 @@ export default {
     smsProvider: 'SMS Provider',
     operational: 'Operational',
     live: 'Live',
-    devMode: 'Dev mode (no SMTZ key)',
+    devMode: 'Dev mode (no Beem keys)',
     recent: 'Recent Activity',
     noActivity: 'No activity yet.',
     time: 'Time',
@@ -256,7 +261,7 @@ export default {
   },
   grp: {
     title: 'Groups',
-    subtitle: 'Savings groups registered on PesaBox.',
+    subtitle: 'Savings groups registered on @:{\'app.name\'}.',
     create: 'Create Group',
     search: 'Search groups...',
     allRegions: 'All Regions',
@@ -340,7 +345,7 @@ export default {
   },
   mem: {
     title: 'Members',
-    subtitle: 'Manage every member registered on PesaBox. Unassigned members have no group yet.',
+    subtitle: 'Manage every member registered on @:{\'app.name\'}. Unassigned members have no group yet.',
     refresh: 'Refresh',
     total: 'Total members',
     assigned: 'Assigned to groups',
@@ -422,7 +427,7 @@ export default {
     register: 'Register',
     registerTagline: 'One account to manage every savings group on the platform.',
     createAccount: 'Create your account',
-    getStarted: 'Get started with PesaBox',
+    getStarted: 'Get started with @:app.name',
     fullName: 'Full name',
     sendCode: 'Send me a code',
     haveAccount: 'Already have an account?',
@@ -448,7 +453,7 @@ export default {
     pendingTab: 'Pending Admins ({n})',
     roleFailed: 'Failed to update role',
     pendingNote: "Users promoted to Group Admin (see the Users tab) who don't have a group yet. Create a group and assign it to them below.",
-    everyoneNote: 'Everyone registered on PesaBox. Promote a user to Group Admin, then create their group from the Pending Admins tab.',
+    everyoneNote: 'Everyone registered on @:{\'app.name\'}. Promote a user to Group Admin, then create their group from the Pending Admins tab.',
     noPending: 'No admins waiting for a group.',
     admin: 'Admin',
     registered: 'Registered',
@@ -468,4 +473,233 @@ export default {
     adminPhone: 'Admin phone'
   },
   // @@more@@
+  app: {
+    name: 'HelaBox'
+  },
+  access: {
+    noAccessTitle: 'You don\'t have access to this dashboard',
+    useApp: 'You are a leader of {group}. Use the @:app.name mobile app to run your group.',
+    noRole: 'Your account hasn\'t been given a role yet. Ask your administrator to give you access.',
+    yourRole: 'Your role'
+  },
+  struct: {
+    title: 'Partners & Clusters',
+    subtitle: 'Programme structure: Partner → Cluster → Group. Every group sits in exactly one cluster.',
+    partners: 'Partners',
+    clusters: 'Clusters',
+    partner: 'Partner',
+    cluster: 'Cluster',
+    groups: 'Groups',
+    addPartner: 'Add partner',
+    addCluster: 'Add cluster',
+    editPartner: 'Edit partner',
+    editCluster: 'Edit cluster',
+    name: 'Name',
+    type: 'Type',
+    types: {
+      NGO: 'NGO',
+      Government: 'Government',
+      Bank: 'Bank',
+      Other: 'Other'
+    },
+    contactPerson: 'Contact person',
+    phone: 'Phone',
+    email: 'Email',
+    partnerNamePh: 'e.g. GATA',
+    clusterNamePh: 'e.g. Arusha North Cluster',
+    saving: 'Saving…',
+    nameRequired: 'A name is required.',
+    partnerRequired: 'Choose the partner this cluster belongs to.',
+    confirmDeactivate: 'Deactivate {name}? Nothing is deleted and you can reactivate it later.',
+    confirmReactivate: 'Reactivate {name}?',
+    deactivate: 'Deactivate',
+    reactivate: 'Reactivate',
+    allPartners: 'All partners',
+    allClusters: 'All clusters',
+    noPartners: 'No partners yet.',
+    noClusters: 'No clusters for this selection.',
+    loadFailed: 'Could not load partners and clusters'
+  },
+  ur: {
+    title: 'Users & Roles',
+    subtitle: 'The 7 user levels, staff permission presets, and which areas each person can see.',
+    people: 'People',
+    addPerson: 'Add person',
+    addNote: 'They sign in with their phone number and a one-time code (OTP) sent by SMS.',
+    firstName: 'First name',
+    lastName: 'Last name',
+    preset: 'Permission preset',
+    presets: {
+      viewer: 'Viewer',
+      support: 'Support',
+      operations: 'Operations'
+    },
+    presetHint: {
+      viewer: 'Sees the dashboard, reports and SMS for their assigned areas. Cannot change anything.',
+      support: 'Viewer, plus onboarding groups and helping with members and meetings.',
+      operations: 'Support, plus group settings, group officers and recording money.'
+    },
+    assignTitle: 'Assign {name} to an area',
+    scopeType: 'Area type',
+    scope: {
+      all: 'Everything',
+      partner: 'Partner',
+      cluster: 'Cluster',
+      group: 'Group'
+    },
+    choose: '— Choose —',
+    position: 'Position in the group',
+    noPosition: 'None (monitoring only)',
+    positionHint: 'A position lets them run the group from the mobile app. Mwenyekiti is the Group Admin.',
+    assign: 'Assign',
+    unassign: 'Remove',
+    confirmUnassign: 'Remove access to {name}?',
+    confirmDeactivate: 'Deactivate {name}\'s account? They can\'t sign in until you reactivate it.',
+    chooseScope: 'Choose an area to assign.',
+    phoneRequired: 'A phone number is required.',
+    search: 'Search name or phone…',
+    allRoles: 'All roles',
+    noRole: 'No role',
+    access: 'Can see',
+    you: 'you',
+    pos: {
+      mwenyekiti: 'Mwenyekiti (Chair)',
+      katibu: 'Katibu (Secretary)',
+      mweka_hazina: 'Mweka Hazina (Treasurer)',
+      committee: 'Committee member'
+    }
+  },
+  aud: {
+    subtitle: 'Every change is recorded here: who, when and what. Entries can never be edited or deleted.',
+    allActions: 'All actions',
+    allRecords: 'All records',
+    from: 'From',
+    to: 'To',
+    details: 'Details',
+    capped: 'Showing the latest 1,000 entries — use the filters to narrow down.',
+    actions: {
+      create: 'Created',
+      update: 'Changed',
+      reverse: 'Reversed',
+      delete: 'Deleted',
+      deactivate: 'Deactivated',
+      reactivate: 'Reactivated',
+      assign: 'Assigned',
+      unassign: 'Unassigned'
+    },
+    models: {
+      Transaction: 'Transaction',
+      Loan: 'Loan',
+      Fine: 'Fine',
+      GovernmentLoan: 'Government loan',
+      GovernmentLoanRepayment: 'Government loan repayment',
+      Member: 'Member',
+      Meeting: 'Meeting',
+      MeetingAttendance: 'Attendance',
+      Group: 'Group',
+      Cluster: 'Cluster',
+      Partner: 'Partner',
+      User: 'User',
+      Assignment: 'Access',
+      Announcement: 'Announcement'
+    }
+  },
+  kpi: {
+    activeGroups: 'Active groups',
+    inactiveN: '{n} with no meeting in 30 days',
+    members: 'Members',
+    womenMen: 'Women {f} · Men {m}',
+    par30: 'Portfolio at risk (PAR 30)',
+    atRisk: 'overdue by 30+ days',
+    attendance: 'Attendance',
+    attendanceNote: 'present or late',
+    shares: 'Shares',
+    socialFund: 'Social fund',
+    govLoans: 'Government loans',
+    govLoansNote: 'still owed to outside lenders',
+    off: 'Off',
+    noTx7: 'No transactions in the last 7 days.',
+    rollupTitle: 'Performance by level',
+    byPartner: 'By partner',
+    byCluster: 'By cluster',
+    byGroup: 'By group',
+    levels: {
+      partner: 'Partner',
+      cluster: 'Cluster',
+      group: 'Group'
+    },
+    noRows: 'No data for this selection.',
+    inactive: 'Inactive',
+    activeN: '{n} active',
+    fm: '(W {f} · M {m})'
+  },
+  gl: {
+    tab: 'Government loans',
+    note: 'Loans the group received from outside (e.g. council 10% loans, a bank or an NGO). Kept separate from members\' savings. The group records them from the mobile app.',
+    empty: 'No government loans recorded for this group.',
+    lender: 'Lender',
+    received: 'Received',
+    principal: 'Amount',
+    interest: 'Interest',
+    repaid: 'Repaid',
+    outstanding: 'Government loans outstanding',
+    due: 'Due',
+    overdue: 'Overdue',
+    st: {
+      active: 'Active',
+      repaid: 'Repaid',
+      defaulted: 'Defaulted'
+    }
+  },
+  gdx: {
+    close: 'Close group',
+    noMembers: 'No members recorded yet for {name}.',
+    noMeetings: 'No meetings recorded yet for {name}.',
+    noTransactions: 'No transactions recorded yet for {name}.',
+    no: 'No.',
+    joined: 'Joined',
+    title: 'Title',
+    date: 'Date',
+    method: 'Method',
+    attendance: 'Attendance',
+    meetingSt: {
+      upcoming: 'Upcoming',
+      in_progress: 'In progress',
+      completed: 'Closed',
+      cancelled: 'Cancelled'
+    },
+    cycleProgress: 'Cycle progress',
+    cycleOf: '{n} / {total} meetings',
+    meetingsHeld: 'Meetings held',
+    cycleNote: 'This reflects the group\'s live cycle counters plus its recorded meetings.',
+    tx: {
+      contribution: 'Saving',
+      share: 'Share',
+      social_fund: 'Social fund',
+      loan_disbursement: 'Loan',
+      loan_repayment: 'Repayment',
+      fine: 'Fine',
+      expense: 'Expense',
+      withdrawal: 'Withdrawal'
+    }
+  },
+  cgx: {
+    clusterRequired: 'Choose the cluster for this group.',
+    defaultCluster: '— Default cluster —'
+  },
+  prof: {
+    title: 'My Profile',
+    subtitle: 'Update the name and email shown across the admin dashboard.',
+    tagline: 'One account to manage every savings group on the platform.',
+    completeTitle: 'Complete your profile',
+    completeSub: 'Just a couple of details before you go in',
+    details: 'Your details',
+    fullName: 'Full name',
+    yourName: 'Your name',
+    optional: 'optional',
+    phoneHint: 'This is your login number — it can\'t be changed here.',
+    enterName: 'Enter your full name',
+    saveFailed: 'Unable to save your profile right now',
+    saved: 'Profile saved.'
+  }
 }

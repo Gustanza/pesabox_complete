@@ -15,6 +15,7 @@ export default {
   nav: {
     dashboard: 'Dashibodi',
     groups: 'Vikundi',
+    structure: 'Wabia na Klasta',
     users: 'Watumiaji',
     members: 'Wanachama',
     finance: 'Fedha',
@@ -31,9 +32,13 @@ export default {
   },
   roles: {
     super_admin: 'Msimamizi Mkuu',
-    support_admin: 'Msimamizi wa Msaada',
+    staff: 'Mfanyakazi wa @:app.name',
+    partner_user: 'Mtumiaji wa Mbia',
+    cluster_manager: 'Meneja wa Klasta',
     group_admin: 'Msimamizi wa Kikundi',
-    user: 'Mwanachama'
+    group_officer: 'Kiongozi wa Kikundi',
+    group_member: 'Mwanachama',
+    user: 'Hana nafasi'
   },
   reports: {
     title: 'Ripoti',
@@ -204,7 +209,7 @@ export default {
     smsProvider: 'Mtoa Huduma wa SMS',
     operational: 'Inafanya kazi',
     live: 'Hai',
-    devMode: 'Hali ya majaribio (hakuna ufunguo wa SMTZ)',
+    devMode: 'Hali ya majaribio (hakuna funguo za Beem)',
     recent: 'Shughuli za Hivi Karibuni',
     noActivity: 'Hakuna shughuli bado.',
     time: 'Muda',
@@ -255,7 +260,7 @@ export default {
   },
   grp: {
     title: 'Vikundi',
-    subtitle: 'Vikundi vya akiba vilivyosajiliwa kwenye PesaBox.',
+    subtitle: 'Vikundi vya akiba vilivyosajiliwa kwenye @:{\'app.name\'}.',
     create: 'Unda Kikundi',
     search: 'Tafuta vikundi...',
     allRegions: 'Mikoa Yote',
@@ -339,7 +344,7 @@ export default {
   },
   mem: {
     title: 'Wanachama',
-    subtitle: 'Simamia kila mwanachama aliyesajiliwa kwenye PesaBox. Wanachama wasiopangiwa hawana kikundi bado.',
+    subtitle: 'Simamia kila mwanachama aliyesajiliwa kwenye @:{\'app.name\'}. Wanachama wasiopangiwa hawana kikundi bado.',
     refresh: 'Onyesha upya',
     total: 'Jumla ya wanachama',
     assigned: 'Waliopangiwa vikundi',
@@ -421,7 +426,7 @@ export default {
     register: 'Jisajili',
     registerTagline: 'Akaunti moja ya kusimamia kila kikundi cha akiba kwenye jukwaa.',
     createAccount: 'Fungua akaunti yako',
-    getStarted: 'Anza na PesaBox',
+    getStarted: 'Anza na @:app.name',
     fullName: 'Jina kamili',
     sendCode: 'Nitumie nambari',
     haveAccount: 'Tayari una akaunti?',
@@ -447,7 +452,7 @@ export default {
     pendingTab: 'Wasimamizi Wanaosubiri ({n})',
     roleFailed: 'Imeshindwa kubadilisha wadhifa',
     pendingNote: 'Watumiaji waliopandishwa kuwa Msimamizi wa Kikundi (angalia kichupo cha Watumiaji) ambao bado hawana kikundi. Unda kikundi na uwapangie hapa chini.',
-    everyoneNote: 'Kila mtu aliyesajiliwa kwenye PesaBox. Mpandishe mtumiaji kuwa Msimamizi wa Kikundi, kisha unda kikundi chake kutoka kichupo cha Wasimamizi Wanaosubiri.',
+    everyoneNote: 'Kila mtu aliyesajiliwa kwenye @:{\'app.name\'}. Mpandishe mtumiaji kuwa Msimamizi wa Kikundi, kisha unda kikundi chake kutoka kichupo cha Wasimamizi Wanaosubiri.',
     noPending: 'Hakuna wasimamizi wanaosubiri kikundi.',
     admin: 'Msimamizi',
     registered: 'Alisajiliwa',
@@ -467,4 +472,233 @@ export default {
     adminPhone: 'Simu ya msimamizi'
   },
   // @@more@@
+  app: {
+    name: 'HelaBox'
+  },
+  access: {
+    noAccessTitle: 'Huna ruhusa ya dashibodi hii',
+    useApp: 'Wewe ni kiongozi wa {group}. Tumia programu ya simu ya @:app.name kuendesha kikundi chako.',
+    noRole: 'Akaunti yako bado haijapewa nafasi. Wasiliana na msimamizi wako ili akupe ruhusa.',
+    yourRole: 'Nafasi yako'
+  },
+  struct: {
+    title: 'Wabia na Klasta',
+    subtitle: 'Mpangilio wa programu: Mbia → Klasta → Kikundi. Kila kikundi kiko kwenye klasta moja.',
+    partners: 'Wabia',
+    clusters: 'Klasta',
+    partner: 'Mbia',
+    cluster: 'Klasta',
+    groups: 'Vikundi',
+    addPartner: 'Ongeza mbia',
+    addCluster: 'Ongeza klasta',
+    editPartner: 'Hariri mbia',
+    editCluster: 'Hariri klasta',
+    name: 'Jina',
+    type: 'Aina',
+    types: {
+      NGO: 'Shirika (NGO)',
+      Government: 'Serikali',
+      Bank: 'Benki',
+      Other: 'Nyingine'
+    },
+    contactPerson: 'Mtu wa mawasiliano',
+    phone: 'Simu',
+    email: 'Barua pepe',
+    partnerNamePh: 'mf. GATA',
+    clusterNamePh: 'mf. Klasta ya Arusha Kaskazini',
+    saving: 'Inahifadhi…',
+    nameRequired: 'Jina linahitajika.',
+    partnerRequired: 'Chagua mbia wa klasta hii.',
+    confirmDeactivate: 'Zima {name}? Kumbukumbu zake hazitafutwa na unaweza kuwasha tena baadaye.',
+    confirmReactivate: 'Washa tena {name}?',
+    deactivate: 'Zima',
+    reactivate: 'Washa tena',
+    allPartners: 'Wabia wote',
+    allClusters: 'Klasta zote',
+    noPartners: 'Hakuna wabia bado.',
+    noClusters: 'Hakuna klasta kwa uchaguzi huu.',
+    loadFailed: 'Imeshindwa kupakia wabia na klasta'
+  },
+  ur: {
+    title: 'Watumiaji na Nafasi',
+    subtitle: 'Ngazi 7 za watumiaji, ruhusa za wafanyakazi, na maeneo kila mtu anayoweza kuona.',
+    people: 'Watu',
+    addPerson: 'Ongeza mtu',
+    addNote: 'Mtu huyu ataingia kwa namba yake ya simu na nambari ya siri (OTP) atakayotumiwa.',
+    firstName: 'Jina la kwanza',
+    lastName: 'Jina la mwisho',
+    preset: 'Kiwango cha ruhusa',
+    presets: {
+      viewer: 'Mtazamaji',
+      support: 'Msaada',
+      operations: 'Uendeshaji'
+    },
+    presetHint: {
+      viewer: 'Anaona dashibodi, ripoti na SMS za maeneo aliyopangiwa. Hawezi kubadilisha kitu.',
+      support: 'Kama Mtazamaji, pamoja na kusajili vikundi na kusaidia wanachama na mikutano.',
+      operations: 'Kama Msaada, pamoja na mipangilio ya vikundi, viongozi na kurekodi fedha.'
+    },
+    assignTitle: 'Mpangie {name} eneo',
+    scopeType: 'Aina ya eneo',
+    scope: {
+      all: 'Kila kitu',
+      partner: 'Mbia',
+      cluster: 'Klasta',
+      group: 'Kikundi'
+    },
+    choose: '— Chagua —',
+    position: 'Cheo kikundini',
+    noPosition: 'Hakuna (ufuatiliaji tu)',
+    positionHint: 'Cheo kinamfanya aendeshe kikundi kupitia programu ya simu. Mwenyekiti ni Msimamizi wa Kikundi.',
+    assign: 'Mpangie',
+    unassign: 'Ondoa',
+    confirmUnassign: 'Ondoa ruhusa ya {name}?',
+    confirmDeactivate: 'Zima akaunti ya {name}? Hataweza kuingia hadi uiwashe tena.',
+    chooseScope: 'Chagua eneo la kumpangia.',
+    phoneRequired: 'Namba ya simu inahitajika.',
+    search: 'Tafuta jina au simu…',
+    allRoles: 'Nafasi zote',
+    noRole: 'Hana nafasi',
+    access: 'Anachoweza kuona',
+    you: 'wewe',
+    pos: {
+      mwenyekiti: 'Mwenyekiti',
+      katibu: 'Katibu',
+      mweka_hazina: 'Mweka Hazina',
+      committee: 'Mjumbe wa kamati'
+    }
+  },
+  aud: {
+    subtitle: 'Kila badiliko linarekodiwa hapa: nani, lini na nini. Kumbukumbu hizi haziwezi kuhaririwa wala kufutwa.',
+    allActions: 'Vitendo vyote',
+    allRecords: 'Kumbukumbu zote',
+    from: 'Kuanzia',
+    to: 'Hadi',
+    details: 'Maelezo',
+    capped: 'Inaonyesha kumbukumbu 1,000 za karibuni — tumia vichujio kupunguza.',
+    actions: {
+      create: 'Imeundwa',
+      update: 'Imebadilishwa',
+      reverse: 'Imerejeshwa',
+      delete: 'Imefutwa',
+      deactivate: 'Imezimwa',
+      reactivate: 'Imewashwa',
+      assign: 'Amepangiwa',
+      unassign: 'Ameondolewa'
+    },
+    models: {
+      Transaction: 'Muamala',
+      Loan: 'Mkopo',
+      Fine: 'Faini',
+      GovernmentLoan: 'Mkopo wa Serikali',
+      GovernmentLoanRepayment: 'Marejesho ya Mkopo wa Serikali',
+      Member: 'Mwanachama',
+      Meeting: 'Mkutano',
+      MeetingAttendance: 'Mahudhurio',
+      Group: 'Kikundi',
+      Cluster: 'Klasta',
+      Partner: 'Mbia',
+      User: 'Mtumiaji',
+      Assignment: 'Ruhusa',
+      Announcement: 'Tangazo'
+    }
+  },
+  kpi: {
+    activeGroups: 'Vikundi hai',
+    inactiveN: '{n} havijakutana siku 30',
+    members: 'Wanachama',
+    womenMen: 'Wanawake {f} · Wanaume {m}',
+    par30: 'Mikopo hatarini (PAR 30)',
+    atRisk: 'imechelewa zaidi ya siku 30',
+    attendance: 'Mahudhurio',
+    attendanceNote: 'waliohudhuria au kuchelewa',
+    shares: 'Hisa',
+    socialFund: 'Mfuko wa jamii',
+    govLoans: 'Mikopo ya serikali',
+    govLoansNote: 'salio linalodaiwa na wakopeshaji wa nje',
+    off: 'Imezimwa',
+    noTx7: 'Hakuna miamala siku 7 zilizopita.',
+    rollupTitle: 'Utendaji kwa ngazi',
+    byPartner: 'Kwa mbia',
+    byCluster: 'Kwa klasta',
+    byGroup: 'Kwa kikundi',
+    levels: {
+      partner: 'Mbia',
+      cluster: 'Klasta',
+      group: 'Kikundi'
+    },
+    noRows: 'Hakuna data kwa uchaguzi huu.',
+    inactive: 'Haifanyi kazi',
+    activeN: '{n} hai',
+    fm: '(W {f} · M {m})'
+  },
+  gl: {
+    tab: 'Mikopo ya serikali',
+    note: 'Mikopo ambayo kikundi kimepokea kutoka nje (mf. mikopo ya asilimia 10 ya halmashauri, benki au shirika). Inatunzwa tofauti na akiba za wanachama. Kikundi hurekodi mikopo hii kupitia programu ya simu.',
+    empty: 'Kikundi hiki hakina mikopo ya serikali iliyorekodiwa.',
+    lender: 'Mkopeshaji',
+    received: 'Ilipokelewa',
+    principal: 'Kiasi',
+    interest: 'Riba',
+    repaid: 'Kimelipwa',
+    outstanding: 'Salio la mikopo ya serikali',
+    due: 'Mwisho wa kulipa',
+    overdue: 'Imechelewa',
+    st: {
+      active: 'Inaendelea',
+      repaid: 'Imelipwa',
+      defaulted: 'Imeshindwa'
+    }
+  },
+  gdx: {
+    close: 'Funga kikundi',
+    noMembers: 'Hakuna wanachama waliorekodiwa bado kwa {name}.',
+    noMeetings: 'Hakuna mikutano iliyorekodiwa bado kwa {name}.',
+    noTransactions: 'Hakuna miamala iliyorekodiwa bado kwa {name}.',
+    no: 'Na.',
+    joined: 'Alijiunga',
+    title: 'Kichwa',
+    date: 'Tarehe',
+    method: 'Njia',
+    attendance: 'Mahudhurio',
+    meetingSt: {
+      upcoming: 'Unakuja',
+      in_progress: 'Unaendelea',
+      completed: 'Umefungwa',
+      cancelled: 'Umeghairiwa'
+    },
+    cycleProgress: 'Maendeleo ya mzunguko',
+    cycleOf: '{n} / {total} mikutano',
+    meetingsHeld: 'Mikutano iliyofanyika',
+    cycleNote: 'Hii inatokana na kaunta za mzunguko wa kikundi pamoja na mikutano iliyorekodiwa.',
+    tx: {
+      contribution: 'Akiba',
+      share: 'Hisa',
+      social_fund: 'Mfuko wa jamii',
+      loan_disbursement: 'Mkopo',
+      loan_repayment: 'Marejesho',
+      fine: 'Faini',
+      expense: 'Matumizi',
+      withdrawal: 'Uondoaji'
+    }
+  },
+  cgx: {
+    clusterRequired: 'Chagua klasta ya kikundi hiki.',
+    defaultCluster: '— Klasta ya kawaida —'
+  },
+  prof: {
+    title: 'Wasifu Wangu',
+    subtitle: 'Badilisha jina na barua pepe inayoonekana kwenye dashibodi.',
+    tagline: 'Akaunti moja kusimamia kila kikundi cha akiba kwenye jukwaa.',
+    completeTitle: 'Kamilisha wasifu wako',
+    completeSub: 'Taarifa chache kabla ya kuingia',
+    details: 'Taarifa zako',
+    fullName: 'Jina kamili',
+    yourName: 'Jina lako',
+    optional: 'si lazima',
+    phoneHint: 'Hii ni namba yako ya kuingia — haiwezi kubadilishwa hapa.',
+    enterName: 'Andika jina lako kamili',
+    saveFailed: 'Imeshindwa kuhifadhi wasifu wako kwa sasa',
+    saved: 'Wasifu umehifadhiwa.'
+  }
 }

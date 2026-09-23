@@ -1,8 +1,10 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { listGroups } from '@/api/groups'
+import { listPartners, listClusters } from '@/api/admin'
+import { can } from '@/api/access'
 import { fetchReport, listDatasets, exportReports } from '@/api/reports'
 
 const { t, locale } = useI18n()
@@ -18,6 +20,28 @@ const expanded = reactive({}) // datasetKey -> column picker open
 const format = ref('xlsx')
 const groups = ref([])
 const groupId = ref('')
+const partners = ref([])
+const clusters = ref([])
+const partnerId = ref('')
+const clusterId = ref('')
+const showStructure = computed(() => can('structure.view'))
+const shownClusters = computed(() => clusters.value.filter((c) => !partnerId.value || c.partnerId === partnerId.value))
+const shownGroups = computed(() => {
+  if (clusterId.value) return groups.value.filter((g) => g.clusterId === clusterId.value)
+  if (partnerId.value) {
+    const ids = new Set(shownClusters.value.map((c) => c.id))
+    return groups.value.filter((g) => ids.has(g.clusterId))
+  }
+  return groups.value
+})
+const scope = computed(() => ({ partnerId: partnerId.value, clusterId: clusterId.value, groupId: groupId.value }))
+watch(partnerId, () => {
+  clusterId.value = ''
+  groupId.value = ''
+})
+watch(clusterId, () => {
+  groupId.value = ''
+})
 const from = ref('')
 const to = ref('')
 const generating = ref('')
@@ -48,8 +72,11 @@ onMounted(async () => {
   }
   try {
     groups.value = await listGroups()
+    if (showStructure.value) {
+      ;[partners.value, clusters.value] = await Promise.all([listPartners(), listClusters()])
+    }
   } catch {
-    // group filter just won't have options; the report itself still works
+    // filters just won't have options; the report itself still works
   }
 })
 
@@ -78,7 +105,7 @@ async function generate(d) {
   generating.value = d.key
   error.value = ''
   try {
-    const report = await fetchReport(d.key, { groupId: groupId.value, from: from.value, to: to.value })
+    const report = await fetchReport(d.key, { ...scope.value, from: from.value, to: to.value })
     lastReport.value = { label: label(d), ...report }
   } catch (e) {
     error.value = e.message || t('reports.generateFailed')
@@ -110,7 +137,7 @@ async function doExport() {
       datasets: selectedKeys.value,
       columns,
       format: format.value,
-      groupId: groupId.value,
+      ...scope.value,
       from: from.value,
       to: to.value,
       lang: locale.value
@@ -185,11 +212,25 @@ function printPreview() {
               <input v-model="to" type="date" class="box" style="flex: 1" />
             </div>
           </div>
+          <div v-if="showStructure" class="field-view">
+            <label>{{ t('struct.partner') }}</label>
+            <select v-model="partnerId" class="box" style="width: 100%">
+              <option value="">{{ t('struct.allPartners') }}</option>
+              <option v-for="p in partners" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+          </div>
+          <div v-if="showStructure" class="field-view">
+            <label>{{ t('struct.cluster') }}</label>
+            <select v-model="clusterId" class="box" style="width: 100%">
+              <option value="">{{ t('struct.allClusters') }}</option>
+              <option v-for="c in shownClusters" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
+          </div>
           <div class="field-view">
             <label>{{ t('reports.group') }}</label>
             <select v-model="groupId" class="box" style="width: 100%">
               <option value="">{{ t('reports.allGroups') }}</option>
-              <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+              <option v-for="g in shownGroups" :key="g.id" :value="g.id">{{ g.name }}</option>
             </select>
           </div>
         </div>

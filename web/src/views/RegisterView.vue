@@ -7,6 +7,7 @@ import { requestOtp } from '@/api/auth'
 import Svgs from '../components/Svgs.vue'
 
 const router = useRouter()
+const { t, locale } = useI18n()
 const phone = ref('')
 const loading = ref(false)
 const error = ref('')
@@ -46,7 +47,7 @@ async function register() {
   <div class="login-split">
     <div class="login-left">
       <div class="login-shield"><Svgs name="shield" width="60" height="60" /></div>
-      <h1>PesaBox <span>Admin</span></h1>
+      <h1>{{ t('app.name') }} <span>Admin</span></h1>
       <p class="sub">{{ t('auth.registerTagline') }}</p>
       <div class="login-feature"><div class="fi"><Svgs name="chart" /></div><span>{{ t('login.f1') }}</span></div>
       <div class="login-feature"><div class="fi"><Svgs name="doc" /></div><span>{{ t('login.f2') }}</span></div>
@@ -60,7 +61,7 @@ async function register() {
         <h1>{{ t('auth.createAccount') }}</h1>
         <div class="sub">{{ t('auth.getStarted') }}</div>
 
-        <label class="field-label">Phone number</label>
+        <label class="field-label">{{ t('auth.phone') }}</label>
         <input
           v-model="phone"
           type="tel"

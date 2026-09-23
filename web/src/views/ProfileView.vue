@@ -1,8 +1,10 @@
 <script setup>
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { currentUser, updateProfile } from '@/api/auth'
 import { initials, avaColor } from '../data/mock.js'
 
+const { t } = useI18n()
 const fullName = ref('')
 const email = ref('')
 const phone = ref('')
@@ -26,7 +28,7 @@ onMounted(async () => {
 async function save() {
   const name = fullName.value.trim()
   if (!name) {
-    error.value = 'Enter your full name'
+    error.value = t('prof.enterName')
     return
   }
 
@@ -41,7 +43,7 @@ async function save() {
     await updateProfile({ firstName, lastName, email: email.value.trim() })
     saved.value = true
   } catch (e) {
-    error.value = e.message || 'Unable to save your profile right now'
+    error.value = e.message || t('prof.saveFailed')
   } finally {
     saving.value = false
   }
@@ -51,42 +53,42 @@ async function save() {
 <template>
   <div class="page-head">
     <div>
-      <h1>My Profile</h1>
-      <p>Update the name and email shown across the admin dashboard.</p>
+      <h1>{{ t('prof.title') }}</h1>
+      <p>{{ t('prof.subtitle') }}</p>
     </div>
   </div>
 
-  <div v-if="loading" class="empty"><p>Loading profile…</p></div>
+  <div v-if="loading" class="empty"><p>{{ t('common.loading') }}</p></div>
   <div v-else class="cg-card">
     <div class="cg-head">
       <div class="cg-avatar" :style="{ background: avaColor(preview()) }">{{ initials(preview()) }}</div>
       <div>
-        <div class="cg-title">{{ fullName || 'Your name' }}</div>
+        <div class="cg-title">{{ fullName || t('prof.yourName') }}</div>
         <div class="cg-sub">{{ phone }}</div>
       </div>
     </div>
 
-    <div class="cg-section">Your details</div>
+    <div class="cg-section">{{ t('prof.details') }}</div>
     <div class="field">
-      <label>Full name</label>
+      <label>{{ t('prof.fullName') }}</label>
       <div class="inp filled"><input v-model="fullName" placeholder="Jane Doe" @keyup.enter="save" /></div>
     </div>
     <div class="field">
-      <label>Email <span class="opt">(optional)</span></label>
+      <label>{{ t('struct.email') }} <span class="opt">({{ t('prof.optional') }})</span></label>
       <div class="inp filled"><input v-model="email" type="email" placeholder="jane@example.com" @keyup.enter="save" /></div>
     </div>
     <div class="field">
-      <label>Phone number</label>
+      <label>{{ t('auth.phone') }}</label>
       <div class="inp filled"><input :value="phone" disabled /></div>
-      <div class="hint">This is your login number — it can't be changed here.</div>
+      <div class="hint">{{ t('prof.phoneHint') }}</div>
     </div>
 
     <div v-if="error" style="color: var(--danger); font-size: 13px; margin: 8px 0">{{ error }}</div>
-    <div v-if="saved" style="color: var(--green-600); font-size: 13px; margin: 8px 0">Profile saved.</div>
+    <div v-if="saved" style="color: var(--green-600); font-size: 13px; margin: 8px 0">{{ t('prof.saved') }}</div>
 
     <div class="cg-actions">
       <button class="btn btn-primary" :disabled="saving" @click="save">
-        {{ saving ? 'Saving…' : 'Save changes' }}
+        {{ saving ? t('struct.saving') : t('cg.saveChanges') }}
       </button>
     </div>
   </div>

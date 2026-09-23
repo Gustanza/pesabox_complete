@@ -1,27 +1,45 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import Svgs from './Svgs.vue'
-import { NAV_ITEMS, initials, avaColor } from '../data/mock.js'
+import { initials, avaColor } from '../data/mock.js'
 import { logout as logoutRequest, currentUser } from '@/api/auth'
+import { access, can, clearAccess, loadAccess } from '@/api/access'
 import { setLocale } from '@/i18n'
 
 const { t, te, locale } = useI18n()
 function roleText(role) {
-  return te('roles.' + role) ? t('roles.' + role) : role || t('roles.user')
+  return te('roles.' + role) ? t('roles.' + role) : t('roles.user')
 }
 
 const route = useRoute()
 const router = useRouter()
+
+// Sidebar entries, each shown only when the role has the permission
+// (server/access.go). The server enforces the same rules on every request.
+const NAV = [
+  { key: 'dashboard', icon: 'dash', route: '/dashboard', perm: 'dashboard.view' },
+  { key: 'groups', icon: 'groups', route: '/groups', perm: 'dashboard.view' },
+  { key: 'structure', icon: 'chart', route: '/structure', perm: 'structure.view' },
+  { key: 'users', icon: 'user', route: '/users', perm: 'platform.manage' },
+  { key: 'reports', icon: 'rep', route: '/reports', perm: 'reports.view' },
+  { key: 'sms', icon: 'sms', route: '/sms', perm: 'sms.view' },
+  { key: 'audit', icon: 'audit', route: '/audit', perm: 'audit.view' },
+  { key: 'settings', icon: 'settings', route: '/settings', perm: 'platform.manage' }
+]
+const navItems = computed(() => (access.loaded ? NAV.filter((n) => can(n.perm)) : []))
 
 const me = ref(null)
 const meName = computed(() => {
   if (!me.value) return ''
   return [me.value.firstName, me.value.lastName].filter(Boolean).join(' ') || me.value.username
 })
+const role = computed(() => access.data?.role || '')
 
 async function loadMe() {
   me.value = await currentUser()
+  loadAccess()
 }
 
 onMounted(loadMe)
@@ -32,14 +50,8 @@ watch(() => route.path, loadMe)
 
 const activeKey = computed(() => {
   const path = route.path
-  if (path.startsWith('/groups')) return 'groups'
-  if (path.startsWith('/users')) return 'users'
-  if (path.startsWith('/finance')) return 'finance'
-  if (path.startsWith('/sms')) return 'sms'
-  if (path.startsWith('/reports')) return 'reports'
-  if (path.startsWith('/audit')) return 'audit'
-  if (path.startsWith('/settings')) return 'settings'
-  return 'dashboard'
+  const hit = NAV.find((n) => n.key !== 'dashboard' && path.startsWith(n.route))
+  return hit ? hit.key : 'dashboard'
 })
 
 async function logout() {
@@ -48,6 +60,7 @@ async function logout() {
   } catch (e) {
     // Even if the request fails, still send the user back to login.
   }
+  clearAccess()
   router.push('/login')
 }
 </script>
@@ -56,27 +69,23 @@ async function logout() {
   <div class="app">
     <div class="sidebar">
       <div class="sb-brand">
-        <div class="mark">P</div>
+        <div class="mark">{{ t('app.name').charAt(0) }}</div>
         <div>
-          <span>PesaBox <span class="accent">Admin</span></span>
-          <small>{{ t('layout.superAdmin') }}</small>
+          <span>{{ t('app.name') }} <span class="accent">Admin</span></span>
+          <small>{{ role ? roleText(role).toUpperCase() : '' }}</small>
         </div>
       </div>
       <router-link
-        v-for="item in NAV_ITEMS"
+        v-for="item in navItems"
         :key="item.key"
         :to="item.route"
         class="sb-item"
         :class="{ active: activeKey === item.key }"
       >
         <Svgs :name="item.icon" />
-        <span>{{ te('nav.' + item.key) ? t('nav.' + item.key) : item.label }}</span>
+        <span>{{ t('nav.' + item.key) }}</span>
       </router-link>
       <div class="sb-foot">
-        <router-link to="/settings" class="sb-item">
-          <Svgs name="settings" />
-          <span>{{ t('nav.help') }}</span>
-        </router-link>
         <button class="sb-item" @click="logout">
           <Svgs name="logout" />
           <span>{{ t('nav.logout') }}</span>
@@ -94,15 +103,11 @@ async function logout() {
               @click="setLocale(l)"
             >{{ l.toUpperCase() }}</button>
           </div>
-          <div class="icon-circle">
-            <Svgs name="bell" />
-            <span class="dot"></span>
-          </div>
           <router-link to="/profile" class="admin-chip" v-if="me">
             <div class="av" :style="{ background: avaColor(meName) }">{{ initials(meName) }}</div>
             <div>
               <div class="nm">{{ meName }}</div>
-              <div class="rl">{{ roleText(me.role) }}</div>
+              <div class="rl">{{ roleText(role) }}</div>
             </div>
           </router-link>
         </div>

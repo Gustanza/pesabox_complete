@@ -1,4 +1,120 @@
 {
+    "Partners": {
+        "name": {
+            "type": "String",
+            "default": null,
+            "required": true
+        },
+        "type": {
+            "type": "String",
+            "default": "NGO",
+            "required": false,
+            "options": [
+                "NGO",
+                "Government",
+                "Bank",
+                "Other"
+            ]
+        },
+        "contactPerson": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "phone": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "email": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "regions": {
+            "type": "Any",
+            "default": [],
+            "required": false
+        },
+        "status": {
+            "type": "String",
+            "default": "active",
+            "required": false,
+            "options": [
+                "active",
+                "inactive"
+            ]
+        },
+        "createdBy": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "User.id"
+        },
+        "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        },
+        "updatedAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "Clusters": {
+        "name": {
+            "type": "String",
+            "default": null,
+            "required": true
+        },
+        "partnerId": {
+            "type": "ID",
+            "default": null,
+            "required": true,
+            "foreignKey": "Partner.id"
+        },
+        "region": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "district": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "ward": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "status": {
+            "type": "String",
+            "default": "active",
+            "required": false,
+            "options": [
+                "active",
+                "inactive"
+            ]
+        },
+        "createdBy": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "User.id"
+        },
+        "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        },
+        "updatedAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
     "Groups": {
         "groupId": {
             "type": "ID",
@@ -59,7 +175,11 @@
             "type": "String",
             "default": "Weekly",
             "required": false,
-            "options": ["Weekly", "Biweekly", "Monthly"]
+            "options": [
+                "Weekly",
+                "Biweekly",
+                "Monthly"
+            ]
         },
         "adminName": {
             "type": "String",
@@ -75,7 +195,11 @@
             "type": "String",
             "default": "Active",
             "required": false,
-            "options": ["Active", "Inactive", "Closed"]
+            "options": [
+                "Active",
+                "Inactive",
+                "Closed"
+            ]
         },
         "cycleCurrent": {
             "type": "Integer",
@@ -91,11 +215,22 @@
             "type": "String",
             "default": "Share-Based",
             "required": false,
-            "options": ["Share-Based", "Mandatory Savings", "Voluntary Savings", "Hybrid"]
+            "options": [
+                "Share-Based",
+                "Mandatory Savings",
+                "Voluntary Savings",
+                "Hybrid"
+            ]
         },
         "enabledServices": {
             "type": "Any",
-            "default": ["Shares", "Mandatory Savings", "Social Fund", "Loans", "Fines"],
+            "default": [
+                "Shares",
+                "Mandatory Savings",
+                "Social Fund",
+                "Loans",
+                "Fines"
+            ],
             "required": false
         },
         "shareValue": {
@@ -126,11 +261,26 @@
         "fineReasons": {
             "type": "Any",
             "default": [
-                { "reason": "Late Attendance", "amount": 1000 },
-                { "reason": "Absent", "amount": 2000 },
-                { "reason": "Missed Contribution", "amount": 1000 },
-                { "reason": "Late Loan Repayment", "amount": 2000 },
-                { "reason": "Other", "amount": 0 }
+                {
+                    "reason": "Late Attendance",
+                    "amount": 1000
+                },
+                {
+                    "reason": "Absent",
+                    "amount": 2000
+                },
+                {
+                    "reason": "Missed Contribution",
+                    "amount": 1000
+                },
+                {
+                    "reason": "Late Loan Repayment",
+                    "amount": 2000
+                },
+                {
+                    "reason": "Other",
+                    "amount": 0
+                }
             ],
             "required": false
         },
@@ -204,6 +354,12 @@
             "type": "Date",
             "default": "now",
             "required": false
+        },
+        "clusterId": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "Cluster.id"
         }
     },
     "Members": {
@@ -232,7 +388,10 @@
             "type": "String",
             "default": null,
             "required": false,
-            "options": ["Male", "Female"]
+            "options": [
+                "Male",
+                "Female"
+            ]
         },
         "memberNumber": {
             "type": "String",
@@ -243,7 +402,11 @@
             "type": "String",
             "default": "Active",
             "required": false,
-            "options": ["Active", "Inactive", "Suspended"]
+            "options": [
+                "Active",
+                "Inactive",
+                "Suspended"
+            ]
         },
         "joinedAt": {
             "type": "Date",
@@ -330,7 +493,12 @@
             "type": "String",
             "default": "upcoming",
             "required": false,
-            "options": ["upcoming", "in_progress", "completed", "cancelled"]
+            "options": [
+                "upcoming",
+                "in_progress",
+                "completed",
+                "cancelled"
+            ]
         },
         "notes": {
             "type": "String",
@@ -377,13 +545,25 @@
             "type": "String",
             "default": null,
             "required": true,
-            "options": ["contribution", "share", "loan_disbursement", "loan_repayment", "fine", "social_fund", "expense", "withdrawal"]
+            "options": [
+                "contribution",
+                "share",
+                "loan_disbursement",
+                "loan_repayment",
+                "fine",
+                "social_fund",
+                "expense",
+                "withdrawal"
+            ]
         },
         "direction": {
             "type": "String",
             "default": "in",
             "required": false,
-            "options": ["in", "out"]
+            "options": [
+                "in",
+                "out"
+            ]
         },
         "amount": {
             "type": "Float",
@@ -394,7 +574,11 @@
             "type": "String",
             "default": "Cash",
             "required": false,
-            "options": ["Cash", "Mobile Money", "Bank Transfer"]
+            "options": [
+                "Cash",
+                "Mobile Money",
+                "Bank Transfer"
+            ]
         },
         "reference": {
             "type": "String",
@@ -414,6 +598,28 @@
         "createdAt": {
             "type": "Date",
             "default": "now",
+            "required": false
+        },
+        "createdBy": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "User.id"
+        },
+        "reversedAt": {
+            "type": "Date",
+            "default": null,
+            "required": false
+        },
+        "reversedBy": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "User.id"
+        },
+        "reversalReason": {
+            "type": "String",
+            "default": null,
             "required": false
         }
     },
@@ -464,7 +670,12 @@
             "type": "String",
             "default": "active",
             "required": false,
-            "options": ["active", "repaid", "defaulted"]
+            "options": [
+                "active",
+                "repaid",
+                "defaulted",
+                "cancelled"
+            ]
         },
         "issuedMeetingId": {
             "type": "ID",
@@ -521,7 +732,11 @@
             "type": "String",
             "default": "pending",
             "required": false,
-            "options": ["pending", "paid", "waived"]
+            "options": [
+                "pending",
+                "paid",
+                "waived"
+            ]
         },
         "issuedAt": {
             "type": "Date",
@@ -540,6 +755,12 @@
         }
     },
     "MeetingAttendance": {
+        "groupId": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "Group.id"
+        },
         "meetingId": {
             "type": "ID",
             "default": null,
@@ -556,7 +777,12 @@
             "type": "String",
             "default": "present",
             "required": false,
-            "options": ["present", "late", "absent", "excused"]
+            "options": [
+                "present",
+                "late",
+                "absent",
+                "excused"
+            ]
         },
         "createdAt": {
             "type": "Date",
@@ -585,7 +811,10 @@
             "type": "String",
             "default": "normal",
             "required": false,
-            "options": ["normal", "urgent"]
+            "options": [
+                "normal",
+                "urgent"
+            ]
         },
         "createdBy": {
             "type": "ID",
@@ -621,7 +850,22 @@
             "type": "String",
             "default": "other",
             "required": false,
-            "options": ["login_otp", "member_otp", "member_joined", "fine", "contribution", "share", "social_fund", "loan_disbursement", "loan_repayment", "fine_payment", "meeting_reminder", "loan_due_soon", "loan_overdue", "other"]
+            "options": [
+                "login_otp",
+                "member_otp",
+                "member_joined",
+                "fine",
+                "contribution",
+                "share",
+                "social_fund",
+                "loan_disbursement",
+                "loan_repayment",
+                "fine_payment",
+                "meeting_reminder",
+                "loan_due_soon",
+                "loan_overdue",
+                "other"
+            ]
         },
         "message": {
             "type": "String",
@@ -632,7 +876,10 @@
             "type": "String",
             "default": "sent",
             "required": false,
-            "options": ["sent", "failed"]
+            "options": [
+                "sent",
+                "failed"
+            ]
         },
         "providerResponse": {
             "type": "String",
@@ -666,7 +913,10 @@
             "type": "String",
             "default": "sw",
             "required": false,
-            "options": ["sw", "en"]
+            "options": [
+                "sw",
+                "en"
+            ]
         },
         "body": {
             "type": "String",
@@ -707,6 +957,268 @@
             "required": false
         },
         "updatedAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "Assignments": {
+        "userId": {
+            "type": "ID",
+            "default": null,
+            "required": true,
+            "foreignKey": "User.id"
+        },
+        "scopeType": {
+            "type": "String",
+            "default": null,
+            "required": true,
+            "options": [
+                "all",
+                "partner",
+                "cluster",
+                "group"
+            ]
+        },
+        "scopeId": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "position": {
+            "type": "String",
+            "default": null,
+            "required": false,
+            "options": [
+                "mwenyekiti",
+                "katibu",
+                "mweka_hazina",
+                "committee"
+            ]
+        },
+        "createdBy": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "User.id"
+        },
+        "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "AccessProfiles": {
+        "userId": {
+            "type": "ID",
+            "default": null,
+            "required": true,
+            "foreignKey": "User.id"
+        },
+        "preset": {
+            "type": "String",
+            "default": "viewer",
+            "required": false,
+            "options": [
+                "viewer",
+                "support",
+                "operations"
+            ]
+        },
+        "updatedBy": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "User.id"
+        },
+        "updatedAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "AuditLogs": {
+        "userId": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "User.id"
+        },
+        "userName": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "role": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "action": {
+            "type": "String",
+            "default": null,
+            "required": true
+        },
+        "model": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "recordId": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "groupId": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "summary": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "changes": {
+            "type": "Any",
+            "default": null,
+            "required": false
+        },
+        "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "GovernmentLoans": {
+        "groupId": {
+            "type": "ID",
+            "default": null,
+            "required": true,
+            "foreignKey": "Group.id"
+        },
+        "lender": {
+            "type": "String",
+            "default": null,
+            "required": true
+        },
+        "programme": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "reference": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "amount": {
+            "type": "Float",
+            "default": 0,
+            "required": true
+        },
+        "amountRepaid": {
+            "type": "Float",
+            "default": 0,
+            "required": false
+        },
+        "interestRate": {
+            "type": "Float",
+            "default": 0,
+            "required": false
+        },
+        "termMonths": {
+            "type": "Integer",
+            "default": 0,
+            "required": false
+        },
+        "receivedDate": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        },
+        "dueDate": {
+            "type": "Date",
+            "default": null,
+            "required": false
+        },
+        "status": {
+            "type": "String",
+            "default": "active",
+            "required": false,
+            "options": [
+                "active",
+                "repaid",
+                "defaulted"
+            ]
+        },
+        "notes": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "createdBy": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "User.id"
+        },
+        "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        },
+        "updatedAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "GovernmentLoanRepayments": {
+        "groupId": {
+            "type": "ID",
+            "default": null,
+            "required": true,
+            "foreignKey": "Group.id"
+        },
+        "governmentLoanId": {
+            "type": "ID",
+            "default": null,
+            "required": true,
+            "foreignKey": "GovernmentLoan.id"
+        },
+        "amount": {
+            "type": "Float",
+            "default": 0,
+            "required": true
+        },
+        "date": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        },
+        "method": {
+            "type": "String",
+            "default": "Cash",
+            "required": false,
+            "options": [
+                "Cash",
+                "Mobile Money",
+                "Bank Transfer"
+            ]
+        },
+        "reference": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "createdBy": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "User.id"
+        },
+        "createdAt": {
             "type": "Date",
             "default": "now",
             "required": false

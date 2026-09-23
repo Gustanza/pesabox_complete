@@ -1,10 +1,11 @@
 // Every member-facing SMS (Joined, Fine, Transaction, Loan) is recorded in the
-// SmsLog model and served by server/main.go at /api/main/sms/activity. The
-// super-admin dashboard shows the full platform history; a group admin only
-// sees their own group's messages.
+// SmsLog model and served by server/main.go at /api/main/sms/activity.
+// scope=all asks for everything the signed-in role may see (every group for a
+// super admin, assigned partners/clusters/groups for staff and partners)
+// instead of just the caller's own group.
 import { apiFetch } from './http.js'
 
-const ENDPOINT = '/api/main/sms/activity'
+const ENDPOINT = '/api/main/sms/activity?scope=all'
 
 async function request() {
   const res = await apiFetch(ENDPOINT, {

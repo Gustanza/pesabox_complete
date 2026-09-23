@@ -8,7 +8,7 @@ const { t, te } = useI18n()
 
 // Static platform info (display only).
 const general = [
-  ['set.platformName', 'PesaBox'],
+  ['set.platformName', 'HelaBox'],
   ['set.currency', 'TZS'],
   ['set.timezone', 'Africa/Dar_es_Salaam']
 ]

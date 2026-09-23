@@ -35,6 +35,8 @@ type reportDataset struct {
 }
 
 var (
+	summaryCols = []string{"Name", "Groups", "Active Groups", "Members", "Female", "Male", "Savings", "Shares",
+		"Social Fund", "Loans Outstanding", "PAR 30 %", "Government Loans", "Attendance %"}
 	txCols   = []string{"Date", "Group", "Member", "Type", "Amount", "Direction"}
 	smsCols  = []string{"Date", "Group", "Phone", "Type", "Status"}
 	cycCols  = []string{"Group", "Cycle Current", "Cycle Total", "Meeting Frequency"}
@@ -44,13 +46,18 @@ var (
 // reportDatasets is the registry every report endpoint reads. New report
 // types agreed with GATA are added here plus one case in buildReport.
 var reportDatasets = []reportDataset{
-	{"group-performance", "Group", "Utendaji wa Kikundi", "Group Performance", []string{"Group", "Region", "Members", "Savings", "Shares", "Loans Outstanding", "Status"}, true},
+	{"summary-partner", "Programme", "Muhtasari kwa Mbia", "Summary by Partner", summaryCols, true},
+	{"summary-cluster", "Programme", "Muhtasari kwa Klasta", "Summary by Cluster", summaryCols, true},
+	{"summary-group", "Programme", "Muhtasari kwa Kikundi", "Summary by Group", summaryCols, true},
+	{"group-performance", "Group", "Utendaji wa Kikundi", "Group Performance", []string{"Group", "Partner", "Cluster", "Region", "Members", "Savings", "Shares", "Loans Outstanding", "PAR 30 %", "Attendance %", "Last Meeting", "Activity", "Status"}, true},
 	{"group-activity", "Group", "Shughuli za Kikundi", "Group Activity", txCols, true},
 	{"group-growth", "Group", "Ukuaji wa Kikundi", "Group Growth", []string{"Group", "Formed", "Members", "Cycle", "Meeting Frequency"}, true},
 	{"savings", "Financial", "Akiba", "Savings", txCols, true},
 	{"shares", "Financial", "Hisa", "Shares", txCols, true},
 	{"social-fund", "Financial", "Mfuko wa Jamii", "Social Fund", txCols, true},
 	{"loans", "Financial", "Mikopo", "Loans", loanCols, true},
+	{"portfolio-at-risk", "Financial", "Mikopo Hatarini (PAR 30)", "Portfolio at Risk (PAR 30)", []string{"Loan #", "Group", "Borrower", "Balance", "Due", "Days Overdue"}, true},
+	{"government-loans", "Financial", "Mikopo ya Serikali", "Government Loans", []string{"Group", "Lender", "Programme", "Reference", "Principal", "Interest %", "Total Due", "Repaid", "Balance", "Issued", "Due", "Status"}, true},
 	{"fines", "Financial", "Faini", "Fines", txCols, true},
 	{"transactions", "Financial", "Miamala Yote", "All Transactions", []string{"Date", "Group", "Member", "Type", "Amount", "Direction", "Method", "Reference"}, true},
 	{"meetings", "Operations", "Mikutano", "Meetings", []string{"Group", "Meeting #", "Title", "Date", "Status"}, true},
@@ -71,7 +78,7 @@ func findDataset(key string) *reportDataset {
 }
 
 var categorySw = map[string]string{
-	"Group": "Vikundi", "Financial": "Fedha", "Operations": "Uendeshaji", "Communication": "Mawasiliano",
+	"Programme": "Programu", "Group": "Vikundi", "Financial": "Fedha", "Operations": "Uendeshaji", "Communication": "Mawasiliano",
 }
 
 var columnSw = map[string]string{
@@ -83,6 +90,11 @@ var columnSw = map[string]string{
 	"Balance": "Salio", "Issued": "Ilitolewa", "Due": "Tarehe ya Kulipa", "Meeting #": "Mkutano #",
 	"Title": "Kichwa", "Recorded": "Ilirekodiwa", "Phone": "Simu", "Name": "Jina", "Gender": "Jinsia",
 	"Member #": "Namba ya Mwanachama", "Joined": "Alijiunga", "Method": "Njia", "Reference": "Kumbukumbu",
+	"Partner": "Mbia", "Cluster": "Klasta", "Groups": "Vikundi", "Active Groups": "Vikundi Hai",
+	"Female": "Wanawake", "Male": "Wanaume", "Social Fund": "Mfuko wa Jamii", "PAR 30 %": "PAR 30 %",
+	"Government Loans": "Mikopo ya Serikali", "Attendance %": "Mahudhurio %", "Last Meeting": "Mkutano wa Mwisho",
+	"Activity": "Shughuli", "Days Overdue": "Siku za Kuchelewa", "Lender": "Mkopeshaji", "Programme": "Programu",
+	"Interest %": "Riba %", "Total Due": "Jumla Inayodaiwa",
 }
 
 // valueSw translates the stored enum-like cell values (statuses, transaction
@@ -96,9 +108,10 @@ var valueSw = map[string]string{
 	"present": "Amehudhuria", "late": "Amechelewa", "absent": "Hayupo", "excused": "Ameomba udhuru",
 	"upcoming": "Inakuja", "in_progress": "Inaendelea", "completed": "Imekamilika", "cancelled": "Imeghairiwa",
 	"sent": "Imetumwa", "failed": "Imeshindwa", "in": "Ndani", "out": "Nje", "Male": "Mwanamume", "Female": "Mwanamke",
+	"Inactive (no meeting in 30 days)": "Haifanyi kazi (hakuna mkutano siku 30)",
 }
 
-var dateColumns = map[string]bool{"Date": true, "Formed": true, "Issued": true, "Due": true, "Recorded": true, "Joined": true}
+var dateColumns = map[string]bool{"Date": true, "Formed": true, "Issued": true, "Due": true, "Recorded": true, "Joined": true, "Last Meeting": true}
 
 func normLang(l string) string {
 	if strings.EqualFold(l, "en") {
@@ -141,7 +154,7 @@ func reportRange(from, to string) (time.Time, time.Time) {
 // buildReport is the single source for both the live preview
 // (GET /api/admin/reports) and every export. It returns rows keyed by the
 // dataset's registry columns; ok is false for an unknown key.
-func buildReport(app *yekonga.YekongaData, key, groupFilter string, fromDate, toDate time.Time) ([]datatype.DataMap, bool) {
+func buildReport(app *yekonga.YekongaData, key string, groupSet map[string]bool, fromDate, toDate time.Time) ([]datatype.DataMap, bool) {
 	inRange := func(t time.Time) bool {
 		if !fromDate.IsZero() && t.Before(fromDate) {
 			return false
@@ -158,7 +171,7 @@ func buildReport(app *yekonga.YekongaData, key, groupFilter string, fromDate, to
 	if groups != nil {
 		for _, g := range *groups {
 			id := helper.GetValueOfString(g, "id")
-			if groupFilter != "" && id != groupFilter {
+			if groupSet != nil && !groupSet[id] {
 				continue
 			}
 			groupById[id] = g
@@ -188,14 +201,74 @@ func buildReport(app *yekonga.YekongaData, key, groupFilter string, fromDate, to
 	rows := []datatype.DataMap{}
 
 	switch key {
-	case "group-performance":
-		for _, id := range groupIds {
-			g := groupById[id]
+	case "summary-partner", "summary-cluster", "summary-group":
+		level := strings.TrimPrefix(key, "summary-")
+		for _, r := range rollup(app, computeGroupKPIs(app, groupSet), level) {
 			rows = append(rows, datatype.DataMap{
-				"Group": helper.GetValueOfString(g, "name"), "Region": helper.GetValueOfString(g, "region"),
-				"Members": helper.GetValueOfInt(g, "memberCount"), "Savings": helper.GetValueOfFloat(g, "totalSavings"),
-				"Shares": helper.GetValueOfFloat(g, "totalShares"), "Loans Outstanding": helper.GetValueOfFloat(g, "totalLoans"),
-				"Status": helper.GetValueOfString(g, "status"),
+				"Name": r["name"], "Groups": r["groups"], "Active Groups": r["activeGroups"], "Members": r["members"],
+				"Female": r["femaleMembers"], "Male": r["maleMembers"], "Savings": r["savings"], "Shares": r["shares"],
+				"Social Fund": r["socialFund"], "Loans Outstanding": r["loansOutstanding"], "PAR 30 %": r["par30Rate"],
+				"Government Loans": r["govLoansOutstanding"], "Attendance %": r["attendanceRate"],
+			})
+		}
+
+	case "group-performance":
+		partnerNames := map[string]string{}
+		for _, p := range listAll(app, "Partner") {
+			partnerNames[helper.GetValueOfString(p, "id")] = helper.GetValueOfString(p, "name")
+		}
+		clusterNames := map[string]string{}
+		for _, c := range listAll(app, "Cluster") {
+			clusterNames[helper.GetValueOfString(c, "id")] = helper.GetValueOfString(c, "name")
+		}
+		for _, k := range computeGroupKPIs(app, groupSet) {
+			g := groupById[k.GroupID]
+			activity := "Active"
+			if !k.Active {
+				activity = "Inactive (no meeting in 30 days)"
+			}
+			var last interface{}
+			if !k.LastMeeting.IsZero() {
+				last = k.LastMeeting
+			}
+			rows = append(rows, datatype.DataMap{
+				"Group": k.Name, "Partner": partnerNames[k.PartnerID], "Cluster": clusterNames[k.ClusterID],
+				"Region": helper.GetValueOfString(g, "region"), "Members": k.Members, "Savings": k.Savings,
+				"Shares": k.Shares, "Loans Outstanding": k.LoansOutstanding, "PAR 30 %": pct(k.PAR, k.LoansOutstanding),
+				"Attendance %": pct(float64(k.AttendancePresent), float64(k.AttendanceRows)),
+				"Last Meeting": last, "Activity": activity, "Status": k.Status,
+			})
+		}
+
+	case "portfolio-at-risk":
+		now := time.Now()
+		for _, l := range listAll(app, "Loan") {
+			if !inGroupFilter(helper.GetValueOfString(l, "groupId")) || helper.GetValueOfString(l, "status") != "active" {
+				continue
+			}
+			due := helper.GetValueOfDate(l, "dueDate")
+			if due.IsZero() || now.Sub(due) <= parDays*24*time.Hour {
+				continue
+			}
+			rows = append(rows, datatype.DataMap{
+				"Loan #": helper.GetValueOfString(l, "loanNumber"), "Group": groupName(helper.GetValueOfString(l, "groupId")),
+				"Borrower": memberName(helper.GetValueOfString(l, "memberId")),
+				"Balance":  helper.GetValueOfFloat(l, "amount") - helper.GetValueOfFloat(l, "amountRepaid"),
+				"Due":      l["dueDate"], "Days Overdue": int(now.Sub(due).Hours() / 24),
+			})
+		}
+
+	case "government-loans":
+		for _, l := range govLoansFor(app, groupSet) {
+			if !inRange(helper.GetTimestamp(l["receivedDate"])) {
+				continue
+			}
+			rows = append(rows, datatype.DataMap{
+				"Group": l["groupName"], "Lender": helper.GetValueOfString(l, "lender"),
+				"Programme": helper.GetValueOfString(l, "programme"), "Reference": helper.GetValueOfString(l, "reference"),
+				"Principal": helper.GetValueOfFloat(l, "amount"), "Interest %": helper.GetValueOfFloat(l, "interestRate"),
+				"Total Due": l["totalDue"], "Repaid": helper.GetValueOfFloat(l, "amountRepaid"), "Balance": l["outstanding"],
+				"Issued": l["receivedDate"], "Due": l["dueDate"], "Status": helper.GetValueOfString(l, "status"),
 			})
 		}
 
@@ -249,6 +322,9 @@ func buildReport(app *yekonga.YekongaData, key, groupFilter string, fromDate, to
 				}
 				amt := helper.GetValueOfFloat(l, "amount")
 				repaid := helper.GetValueOfFloat(l, "amountRepaid")
+				if helper.GetValueOfString(l, "status") == "cancelled" {
+					repaid = amt // a cancelled (reversed) loan owes nothing
+				}
 				rows = append(rows, datatype.DataMap{
 					"Loan #": helper.GetValueOfString(l, "loanNumber"), "Group": groupName(helper.GetValueOfString(l, "groupId")),
 					"Borrower": memberName(helper.GetValueOfString(l, "memberId")), "Principal": amt, "Repaid": repaid, "Balance": amt - repaid,
@@ -280,7 +356,10 @@ func buildReport(app *yekonga.YekongaData, key, groupFilter string, fromDate, to
 		}
 		if att := app.ModelQuery("MeetingAttendance").SkipBeforeCommit().Find(nil); att != nil {
 			for _, a := range *att {
-				gid := meetingGroup[helper.GetValueOfString(a, "meetingId")]
+				gid := helper.GetValueOfString(a, "groupId")
+				if gid == "" {
+					gid = meetingGroup[helper.GetValueOfString(a, "meetingId")]
+				}
 				if !inGroupFilter(gid) {
 					continue
 				}
@@ -308,7 +387,9 @@ func buildReport(app *yekonga.YekongaData, key, groupFilter string, fromDate, to
 		if logs := app.ModelQuery("SmsLog").SkipBeforeCommit().OrderBy("sentAt", "desc").Find(nil); logs != nil {
 			for _, l := range *logs {
 				gid := helper.GetValueOfString(l, "groupId")
-				if groupFilter != "" && gid != "" && !inGroupFilter(gid) {
+				// Scoped reports only show their groups' messages (OTP logs carry
+				// no group and are only in the organisation-wide view).
+				if groupSet != nil && !inGroupFilter(gid) {
 					continue
 				}
 				if !inRange(helper.GetTimestamp(l["sentAt"])) {
@@ -329,26 +410,62 @@ func buildReport(app *yekonga.YekongaData, key, groupFilter string, fromDate, to
 	return rows, true
 }
 
-// reportScope decides which group a request may report on. The super admin
-// may pick any group (or "" for all); anyone else is pinned to the group they
-// administer. ok is false (403 already written) when they administer none.
-func reportScope(app *yekonga.YekongaData, req *yekonga.Request, res *yekonga.Response, adminGroup func(*yekonga.Request) *datatype.DataMap, requested string) (string, bool) {
-	auth := req.Auth()
-	if auth == nil {
-		res.Status(401)
-		res.Json(map[string]string{"error": "unauthorized"})
-		return "", false
+// reportScope decides which groups a request may report on (nil = every
+// group). Filters ("partnerId", "clusterId", "groupId") narrow it; the result
+// is always limited to what the caller's role can see. Someone who only runs
+// a group (Group Admin / Officer) is pinned to that group. label names the
+// narrowest filter used, for report headers. ok is false when an error
+// response was already written.
+func reportScope(app *yekonga.YekongaData, req *yekonga.Request, res *yekonga.Response, filters map[string]string) (map[string]bool, string, bool) {
+	a := requireActor(app, req, res)
+	if a == nil {
+		return nil, "", false
 	}
-	if isPlatformAdmin(sessionRole(app, auth.ID)) {
-		return requested, true
+	if !a.Can(PermReports) {
+		if a.HomeGroupID != "" && a.HomePerms[PermReports] {
+			return map[string]bool{a.HomeGroupID: true}, scopeName(app, "group", a.HomeGroupID), true
+		}
+		deny(res, 403, "your role does not allow reports")
+		return nil, "", false
 	}
-	g := adminGroup(req)
-	if g == nil {
-		res.Status(403)
-		res.Json(map[string]string{"error": "no group assigned to this account"})
-		return "", false
+
+	var set map[string]bool // nil = everything
+	if !a.All {
+		set = map[string]bool{}
+		for _, id := range a.VisibleGroupIDs() {
+			set[id] = true
+		}
 	}
-	return helper.GetValueOfString(*g, "id"), true
+	narrow := func(keep func(g datatype.DataMap) bool) {
+		next := map[string]bool{}
+		for _, g := range listAll(app, "Group") {
+			id := helper.GetValueOfString(g, "id")
+			if (set == nil || set[id]) && keep(g) {
+				next[id] = true
+			}
+		}
+		set = next
+	}
+	label := ""
+	if pid := filters["partnerId"]; pid != "" {
+		clusters := map[string]bool{}
+		for _, c := range listAll(app, "Cluster") {
+			if helper.GetValueOfString(c, "partnerId") == pid {
+				clusters[helper.GetValueOfString(c, "id")] = true
+			}
+		}
+		narrow(func(g datatype.DataMap) bool { return clusters[helper.GetValueOfString(g, "clusterId")] })
+		label = scopeName(app, "partner", pid)
+	}
+	if cid := filters["clusterId"]; cid != "" {
+		narrow(func(g datatype.DataMap) bool { return helper.GetValueOfString(g, "clusterId") == cid })
+		label = scopeName(app, "cluster", cid)
+	}
+	if gid := filters["groupId"]; gid != "" {
+		narrow(func(g datatype.DataMap) bool { return helper.GetValueOfString(g, "id") == gid })
+		label = scopeName(app, "group", gid)
+	}
+	return set, label, true
 }
 
 // cellText renders a row value for CSV/PDF. Date columns are formatted from
@@ -506,13 +623,13 @@ func exportPDF(lang, groupLabel, period string, sets []exportSet) ([]byte, error
 		p.SetY(-10)
 		p.SetFont("Helvetica", "", 8)
 		p.SetTextColor(120, 120, 120)
-		p.CellFormat(0, 6, tr(fmt.Sprintf("PesaBox  |  %s %d", pageLabel, p.PageNo())), "", 0, "C", false, 0, "")
+		p.CellFormat(0, 6, tr(fmt.Sprintf("%s  |  %s %d", brandName, pageLabel, p.PageNo())), "", 0, "C", false, 0, "")
 	})
 	p.AddPage()
 
 	loc := map[string]map[string]string{
-		"sw": {"title": "Ripoti ya PesaBox", "group": "Kikundi", "period": "Kipindi", "gen": "Imetengenezwa", "none": "Hakuna data kwa vigezo hivi.", "all": "Vikundi vyote", "any": "Muda wote"},
-		"en": {"title": "PesaBox Report", "group": "Group", "period": "Period", "gen": "Generated", "none": "No data for these filters.", "all": "All groups", "any": "All time"},
+		"sw": {"title": "Ripoti ya " + brandName, "group": "Kikundi", "period": "Kipindi", "gen": "Imetengenezwa", "none": "Hakuna data kwa vigezo hivi.", "all": "Vikundi vyote", "any": "Muda wote"},
+		"en": {"title": brandName + " Report", "group": "Group", "period": "Period", "gen": "Generated", "none": "No data for these filters.", "all": "All groups", "any": "All time"},
 	}[lang]
 	if groupLabel == "" {
 		groupLabel = loc["all"]
@@ -610,9 +727,11 @@ func strList(v interface{}) []string {
 //	POST /api/admin/reports/export                     download chosen datasets
 //
 // Register after adminGroup is defined; it is passed in for group scoping.
-func registerReports(app *yekonga.YekongaData, adminGroup func(*yekonga.Request) *datatype.DataMap) {
+func registerReports(app *yekonga.YekongaData) {
 	app.Get("/api/admin/reports", func(req *yekonga.Request, res *yekonga.Response) {
-		groupFilter, ok := reportScope(app, req, res, adminGroup, req.Query("groupId"))
+		groupSet, _, ok := reportScope(app, req, res, map[string]string{
+			"partnerId": req.Query("partnerId"), "clusterId": req.Query("clusterId"), "groupId": req.Query("groupId"),
+		})
 		if !ok {
 			return
 		}
@@ -623,7 +742,7 @@ func registerReports(app *yekonga.YekongaData, adminGroup func(*yekonga.Request)
 			return
 		}
 		from, to := reportRange(req.Query("from"), req.Query("to"))
-		rows, _ := buildReport(app, ds.Key, groupFilter, from, to)
+		rows, _ := buildReport(app, ds.Key, groupSet, from, to)
 		res.Json(datatype.DataMap{"columns": ds.Columns, "rows": rows})
 	})
 
@@ -657,7 +776,11 @@ func registerReports(app *yekonga.YekongaData, adminGroup func(*yekonga.Request)
 
 	app.Post("/api/admin/reports/export", func(req *yekonga.Request, res *yekonga.Response) {
 		body := bodyMap(req)
-		groupFilter, ok := reportScope(app, req, res, adminGroup, helper.GetValueOfString(body, "groupId"))
+		groupSet, groupLabel, ok := reportScope(app, req, res, map[string]string{
+			"partnerId": helper.GetValueOfString(body, "partnerId"),
+			"clusterId": helper.GetValueOfString(body, "clusterId"),
+			"groupId":   helper.GetValueOfString(body, "groupId"),
+		})
 		if !ok {
 			return
 		}
@@ -711,19 +834,13 @@ func registerReports(app *yekonga.YekongaData, adminGroup func(*yekonga.Request)
 					return
 				}
 			}
-			rows, _ := buildReport(app, k, groupFilter, from, to)
+			rows, _ := buildReport(app, k, groupSet, from, to)
 			if len(rows) > maxExportRows {
 				rows = rows[:maxExportRows]
 			}
 			sets = append(sets, exportSet{ds: ds, cols: cols, rows: rows})
 		}
 
-		groupLabel := ""
-		if groupFilter != "" {
-			if g := app.ModelQuery("Group").SkipBeforeCommit().Where("id", groupFilter).First(nil); g != nil {
-				groupLabel = helper.GetValueOfString(*g, "name")
-			}
-		}
 		period := ""
 		if fromS != "" || toS != "" {
 			period = strings.TrimSpace(fromS + " → " + toS)
@@ -750,7 +867,7 @@ func registerReports(app *yekonga.YekongaData, adminGroup func(*yekonga.Request)
 			return
 		}
 
-		name := fmt.Sprintf("pesabox-report-%s.%s", time.Now().Format("20060102-1504"), ext)
+		name := fmt.Sprintf("%s-report-%s.%s", strings.ToLower(brandName), time.Now().Format("20060102-1504"), ext)
 		res.SetHeader("Content-Type", ctype)
 		res.SetHeader("Content-Disposition", `attachment; filename="`+name+`"`)
 		res.Byte(data)

@@ -21,6 +21,7 @@ import (
 //
 //	{JINA} member name   {KIKUNDI} group name   {KIASI} amount (TZS)
 //	{TAREHE} date        {SABABU} fine reason   {IDADI} number of shares
+//	{BRAND} the product name in capitals (every template)
 //	{CODE} one-time code (OTP templates only)
 type smsTemplateDef struct {
 	Type     string
@@ -33,60 +34,60 @@ type smsTemplateDef struct {
 
 var smsTemplateDefs = []smsTemplateDef{
 	{"login_otp", "OTP", "Nambari ya Kuingia (OTP)", "Login Code (OTP)", []string{"CODE"}, map[string]string{
-		"sw": "PESABOX: Nambari yako ya kuingia ni {CODE}. Usimpe mtu yeyote.",
-		"en": "PESABOX: Your login code is {CODE}. Do not share it with anyone.",
+		"sw": "{BRAND}: Nambari yako ya kuingia ni {CODE}. Usimpe mtu yeyote.",
+		"en": "{BRAND}: Your login code is {CODE}. Do not share it with anyone.",
 	}},
 	{"member_otp", "OTP", "Nambari ya Kuthibitisha Mwanachama", "Member Verification Code", []string{"CODE"}, map[string]string{
-		"sw": "PESABOX: Nambari yako ya kuthibitisha ni {CODE}. Usimpe mtu yeyote.",
-		"en": "PESABOX: Your verification code is {CODE}. Do not share it with anyone.",
+		"sw": "{BRAND}: Nambari yako ya kuthibitisha ni {CODE}. Usimpe mtu yeyote.",
+		"en": "{BRAND}: Your verification code is {CODE}. Do not share it with anyone.",
 	}},
 	{"member_joined", "Members", "Mwanachama Amejiunga", "Member Joined", []string{"JINA", "KIKUNDI"}, map[string]string{
-		"sw": "PESABOX: Habari {JINA}, umethibitishwa kuwa mwanachama wa {KIKUNDI}. Karibu kwenye kikundi.",
-		"en": "PESABOX: Hello {JINA}, you are confirmed as a member of {KIKUNDI}. Welcome to the group.",
+		"sw": "{BRAND}: Habari {JINA}, umethibitishwa kuwa mwanachama wa {KIKUNDI}. Karibu kwenye kikundi.",
+		"en": "{BRAND}: Hello {JINA}, you are confirmed as a member of {KIKUNDI}. Welcome to the group.",
 	}},
 	{"contribution", "Financial", "Mchango wa Lazima", "Mandatory Savings", []string{"JINA", "KIKUNDI", "KIASI", "TAREHE"}, map[string]string{
-		"sw": "PESABOX: Habari {JINA}, umethibitishwa kuwa umechangia {KIASI} kama Mandatory Savings kwenye kikao cha {KIKUNDI} cha tarehe {TAREHE}. Asante.",
-		"en": "PESABOX: Hello {JINA}, your mandatory savings of {KIASI} at the {KIKUNDI} meeting on {TAREHE} is confirmed. Thank you.",
+		"sw": "{BRAND}: Habari {JINA}, umethibitishwa kuwa umechangia {KIASI} kama Mandatory Savings kwenye kikao cha {KIKUNDI} cha tarehe {TAREHE}. Asante.",
+		"en": "{BRAND}: Hello {JINA}, your mandatory savings of {KIASI} at the {KIKUNDI} meeting on {TAREHE} is confirmed. Thank you.",
 	}},
 	{"share", "Financial", "Ununuzi wa Hisa", "Share Purchase", []string{"JINA", "KIKUNDI", "KIASI", "IDADI", "TAREHE"}, map[string]string{
-		"sw": "PESABOX: Habari {JINA}, umethibitishwa kununua shares {IDADI} zenye thamani ya {KIASI} kwenye {KIKUNDI} tarehe {TAREHE}. Asante.",
-		"en": "PESABOX: Hello {JINA}, your purchase of {IDADI} share(s) worth {KIASI} in {KIKUNDI} on {TAREHE} is confirmed. Thank you.",
+		"sw": "{BRAND}: Habari {JINA}, umethibitishwa kununua shares {IDADI} zenye thamani ya {KIASI} kwenye {KIKUNDI} tarehe {TAREHE}. Asante.",
+		"en": "{BRAND}: Hello {JINA}, your purchase of {IDADI} share(s) worth {KIASI} in {KIKUNDI} on {TAREHE} is confirmed. Thank you.",
 	}},
 	{"social_fund", "Financial", "Mfuko wa Jamii", "Social Fund", []string{"JINA", "KIKUNDI", "KIASI", "TAREHE"}, map[string]string{
-		"sw": "PESABOX: Habari {JINA}, umethibitishwa kuwa umechangia {KIASI} kama Social Fund kwenye kikao cha {KIKUNDI} cha tarehe {TAREHE}. Asante.",
-		"en": "PESABOX: Hello {JINA}, your social fund contribution of {KIASI} at the {KIKUNDI} meeting on {TAREHE} is confirmed. Thank you.",
+		"sw": "{BRAND}: Habari {JINA}, umethibitishwa kuwa umechangia {KIASI} kama Social Fund kwenye kikao cha {KIKUNDI} cha tarehe {TAREHE}. Asante.",
+		"en": "{BRAND}: Hello {JINA}, your social fund contribution of {KIASI} at the {KIKUNDI} meeting on {TAREHE} is confirmed. Thank you.",
 	}},
 	{"loan_disbursement", "Loans", "Mkopo Umetolewa", "Loan Disbursed", []string{"JINA", "KIKUNDI", "KIASI", "TAREHE"}, map[string]string{
-		"sw": "PESABOX: Habari {JINA}, umethibitishwa kupokea mkopo wa {KIASI} kutoka {KIKUNDI} tarehe {TAREHE}. Mrejesho ni kulingana na mkataba wa kikundi.",
-		"en": "PESABOX: Hello {JINA}, you have received a loan of {KIASI} from {KIKUNDI} on {TAREHE}. Repayment follows the group agreement.",
+		"sw": "{BRAND}: Habari {JINA}, umethibitishwa kupokea mkopo wa {KIASI} kutoka {KIKUNDI} tarehe {TAREHE}. Mrejesho ni kulingana na mkataba wa kikundi.",
+		"en": "{BRAND}: Hello {JINA}, you have received a loan of {KIASI} from {KIKUNDI} on {TAREHE}. Repayment follows the group agreement.",
 	}},
 	{"loan_repayment", "Loans", "Marejesho ya Mkopo", "Loan Repayment", []string{"JINA", "KIKUNDI", "KIASI", "TAREHE"}, map[string]string{
-		"sw": "PESABOX: Habari {JINA}, umethibitishwa kulipa {KIASI} kama malipo ya mkopo kwenye {KIKUNDI} tarehe {TAREHE}. Asante.",
-		"en": "PESABOX: Hello {JINA}, your loan repayment of {KIASI} in {KIKUNDI} on {TAREHE} is confirmed. Thank you.",
+		"sw": "{BRAND}: Habari {JINA}, umethibitishwa kulipa {KIASI} kama malipo ya mkopo kwenye {KIKUNDI} tarehe {TAREHE}. Asante.",
+		"en": "{BRAND}: Hello {JINA}, your loan repayment of {KIASI} in {KIKUNDI} on {TAREHE} is confirmed. Thank you.",
 	}},
 	{"fine_issued", "Financial", "Faini Imetolewa", "Fine Issued", []string{"JINA", "KIKUNDI", "KIASI", "SABABU", "TAREHE"}, map[string]string{
-		"sw": "PESABOX: Habari {JINA}, umepewa faini ya {KIASI} kutokana na {SABABU} kwenye kikao cha {KIKUNDI} cha tarehe {TAREHE}.",
-		"en": "PESABOX: Hello {JINA}, you have been fined {KIASI} for {SABABU} at the {KIKUNDI} meeting on {TAREHE}.",
+		"sw": "{BRAND}: Habari {JINA}, umepewa faini ya {KIASI} kutokana na {SABABU} kwenye kikao cha {KIKUNDI} cha tarehe {TAREHE}.",
+		"en": "{BRAND}: Hello {JINA}, you have been fined {KIASI} for {SABABU} at the {KIKUNDI} meeting on {TAREHE}.",
 	}},
 	{"fine", "Financial", "Faini Imelipwa", "Fine Paid", []string{"JINA", "KIKUNDI", "KIASI", "TAREHE"}, map[string]string{
-		"sw": "PESABOX: Habari {JINA}, umelipa faini ya {KIASI} kwenye {KIKUNDI} tarehe {TAREHE}. Asante.",
-		"en": "PESABOX: Hello {JINA}, your fine payment of {KIASI} in {KIKUNDI} on {TAREHE} is confirmed. Thank you.",
+		"sw": "{BRAND}: Habari {JINA}, umelipa faini ya {KIASI} kwenye {KIKUNDI} tarehe {TAREHE}. Asante.",
+		"en": "{BRAND}: Hello {JINA}, your fine payment of {KIASI} in {KIKUNDI} on {TAREHE} is confirmed. Thank you.",
 	}},
 	{"generic", "Financial", "Muamala Mwingine", "Other Transaction", []string{"JINA", "KIKUNDI", "KIASI", "TAREHE"}, map[string]string{
-		"sw": "PESABOX: Habari {JINA}, umethibitishwa kuchangia {KIASI} kwenye {KIKUNDI} tarehe {TAREHE}. Asante.",
-		"en": "PESABOX: Hello {JINA}, your payment of {KIASI} in {KIKUNDI} on {TAREHE} is confirmed. Thank you.",
+		"sw": "{BRAND}: Habari {JINA}, umethibitishwa kuchangia {KIASI} kwenye {KIKUNDI} tarehe {TAREHE}. Asante.",
+		"en": "{BRAND}: Hello {JINA}, your payment of {KIASI} in {KIKUNDI} on {TAREHE} is confirmed. Thank you.",
 	}},
 	{"meeting_reminder", "Reminders", "Kikumbusho cha Mkutano", "Meeting Reminder", []string{"JINA", "KIKUNDI", "TAREHE"}, map[string]string{
-		"sw": "PESABOX: Habari {JINA}, tunakukumbusha kikao cha {KIKUNDI} kitafanyika kesho, tarehe {TAREHE}. Karibu.",
-		"en": "PESABOX: Hello {JINA}, a reminder that the {KIKUNDI} meeting is tomorrow, {TAREHE}. See you there.",
+		"sw": "{BRAND}: Habari {JINA}, tunakukumbusha kikao cha {KIKUNDI} kitafanyika kesho, tarehe {TAREHE}. Karibu.",
+		"en": "{BRAND}: Hello {JINA}, a reminder that the {KIKUNDI} meeting is tomorrow, {TAREHE}. See you there.",
 	}},
 	{"loan_due_soon", "Reminders", "Mkopo Unakaribia Kuisha", "Loan Due Soon", []string{"JINA", "KIKUNDI", "KIASI", "TAREHE"}, map[string]string{
-		"sw": "PESABOX: Habari {JINA}, mkopo wako wa {KIKUNDI} wenye salio la {KIASI} unaisha tarehe {TAREHE}. Tafadhali lipa kwa wakati.",
-		"en": "PESABOX: Hello {JINA}, your {KIKUNDI} loan with a balance of {KIASI} is due on {TAREHE}. Please pay on time.",
+		"sw": "{BRAND}: Habari {JINA}, mkopo wako wa {KIKUNDI} wenye salio la {KIASI} unaisha tarehe {TAREHE}. Tafadhali lipa kwa wakati.",
+		"en": "{BRAND}: Hello {JINA}, your {KIKUNDI} loan with a balance of {KIASI} is due on {TAREHE}. Please pay on time.",
 	}},
 	{"loan_overdue", "Reminders", "Mkopo Umechelewa", "Loan Overdue", []string{"JINA", "KIKUNDI", "KIASI", "TAREHE"}, map[string]string{
-		"sw": "PESABOX: Habari {JINA}, mkopo wako wa {KIKUNDI} wenye salio la {KIASI} ulipaswa kulipwa tarehe {TAREHE}. Tafadhali lipa haraka.",
-		"en": "PESABOX: Hello {JINA}, your {KIKUNDI} loan with a balance of {KIASI} was due on {TAREHE}. Please pay as soon as possible.",
+		"sw": "{BRAND}: Habari {JINA}, mkopo wako wa {KIKUNDI} wenye salio la {KIASI} ulipaswa kulipwa tarehe {TAREHE}. Tafadhali lipa haraka.",
+		"en": "{BRAND}: Hello {JINA}, your {KIKUNDI} loan with a balance of {KIASI} was due on {TAREHE}. Please pay as soon as possible.",
 	}},
 }
 
@@ -176,12 +177,29 @@ func smsTemplateBody(typ, lang string) string {
 	return ""
 }
 
+// fillSms replaces {PLACEHOLDERS}. {BRAND} is always available: the product
+// name in capitals (e.g. "HELABOX") — see brand.go.
 func fillSms(body string, vars map[string]string) string {
-	pairs := make([]string, 0, len(vars)*2)
+	pairs := make([]string, 0, len(vars)*2+2)
 	for k, v := range vars {
 		pairs = append(pairs, "{"+k+"}", v)
 	}
+	if _, ok := vars["BRAND"]; !ok {
+		pairs = append(pairs, "{BRAND}", strings.ToUpper(brandName))
+	}
 	return strings.NewReplacer(pairs...).Replace(body)
+}
+
+// migrateSmsBrand rewrites admin-saved templates that still start with the
+// old hard-coded "PESABOX:" so they follow the brand setting too.
+func migrateSmsBrand(app *yekonga.YekongaData) {
+	for _, t := range listAll(app, "SmsTemplate") {
+		body := helper.GetValueOfString(t, "body")
+		if strings.HasPrefix(body, "PESABOX:") {
+			app.ModelQuery("SmsTemplate").SkipBeforeCommit().Where("id", helper.GetValueOfString(t, "id")).
+				Update(datatype.DataMap{"body": "{BRAND}:" + strings.TrimPrefix(body, "PESABOX:")}, nil)
+		}
+	}
 }
 
 // renderSms builds the final message text for a template type in the
@@ -333,7 +351,7 @@ func runReminders(app *yekonga.YekongaData, now time.Time) {
 }
 
 // startSmsReminders runs the reminder pass every 30 minutes. It is opt-in
-// (PESABOX_REMINDERS=1): with a real SMTZ key it texts real members, so it must
+// (PESABOX_REMINDERS=1): with real Beem keys it texts real members, so it must
 // never start by accident — e.g. when a developer runs the server against a
 // copy of production data.
 func startSmsReminders(app *yekonga.YekongaData) {
@@ -421,7 +439,7 @@ func registerSmsAdmin(app *yekonga.YekongaData) {
 				}
 				out = append(out, datatype.DataMap{
 					"type": d.Type, "category": d.Category, "sw": d.Sw, "en": d.En, "language": lang,
-					"body": body, "defaultBody": d.Body[lang], "custom": custom, "active": active, "variables": d.Vars,
+					"body": body, "defaultBody": d.Body[lang], "custom": custom, "active": active, "variables": append([]string{"BRAND"}, d.Vars...),
 				})
 			}
 		}

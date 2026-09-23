@@ -57,6 +57,8 @@ const GROUP_FIELDS = `
   totalLoans
   mandatorySavingsAmount
   fineReasons
+  clusterId
+  createdBy
   createdAt
   updatedAt
 `
@@ -90,9 +92,7 @@ export function updateGroup(id, input) {
   ).then((data) => data.updateGroup)
 }
 
-export function deleteGroup(id) {
-  return gql(
-    `mutation($where: WhereGroupInput){ deleteGroup(where: $where) { success message } }`,
-    { where: { id: { equalTo: id } } }
-  ).then((data) => data.deleteGroup)
-}
+// Groups are deleted through the REST route, which only allows it while the
+// group has no financial records (TODO.md D5) — otherwise close it instead.
+// (GraphQL deletes of business data are blocked on the server.)
+export { deleteGroupSafe as deleteGroup } from './admin.js'

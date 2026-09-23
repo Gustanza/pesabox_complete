@@ -5,6 +5,8 @@ import { useI18n } from 'vue-i18n'
 import { createGroup, updateGroup, getGroup } from '../api/groups.js'
 import { currentUser } from '../api/auth.js'
 import { initials, avaColor } from '../data/mock.js'
+import { listClusters } from '../api/admin.js'
+import { access, can } from '../api/access.js'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -32,8 +34,16 @@ const form = ref({
   meetingFrequency: 'Weekly',
   adminName: route.query.adminName || '',
   adminPhone: route.query.adminPhone || '',
-  projectedEndDate: ''
+  projectedEndDate: '',
+  clusterId: route.query.clusterId || ''
 })
+
+// Every group sits in one cluster (TODO.md D7). Staff limited to some
+// clusters must pick one of theirs; a super admin may leave it for the
+// server to place in the default cluster. Moving an existing group is done
+// from its details page.
+const clusters = ref([])
+const clusterRequired = computed(() => !access.data?.all)
 
 const loading = ref(isEdit)
 const existingCycleTotal = ref(0)
@@ -45,6 +55,14 @@ function toDateInput(value) {
 }
 
 onMounted(async () => {
+  if (!isEdit && can('structure.view')) {
+    try {
+      clusters.value = (await listClusters()).filter((c) => c.status !== 'inactive')
+      if (!form.value.clusterId && clusters.value.length === 1) form.value.clusterId = clusters.value[0].id
+    } catch {
+      // cluster picker just stays empty
+    }
+  }
   if (isEdit) {
     try {
       const g = await getGroup(editingId)
@@ -110,6 +128,10 @@ async function submit() {
     error.value = t('cg.nameRequired')
     return
   }
+  if (!isEdit && clusterRequired.value && !form.value.clusterId) {
+    error.value = t('cgx.clusterRequired')
+    return
+  }
 
   saving.value = true
   error.value = ''
@@ -117,6 +139,7 @@ async function submit() {
   try {
     const input = { ...form.value }
     delete input.projectedEndDate
+    if (isEdit || !input.clusterId) delete input.clusterId
     if (!input.formationDate) delete input.formationDate
     if (cycleTotal.value) input.cycleTotal = cycleTotal.value
 
@@ -171,6 +194,15 @@ async function submit() {
       </div>
 
       <div class="cg-section">{{ t('cg.details') }}</div>
+      <div v-if="!isEdit && clusters.length" class="field">
+        <label>{{ t('struct.cluster') }} <span v-if="!clusterRequired" class="opt">{{ t('cg.optional') }}</span></label>
+        <div class="inp filled">
+          <select v-model="form.clusterId">
+            <option value="">{{ clusterRequired ? t('ur.choose') : t('cgx.defaultCluster') }}</option>
+            <option v-for="c in clusters" :key="c.id" :value="c.id">{{ c.name }} — {{ c.partnerName }}</option>
+          </select>
+        </div>
+      </div>
       <div class="field">
         <label>{{ t('cg.name') }}</label>
         <div class="inp filled"><input v-model="form.name" :placeholder="t('cg.namePh')" /></div>

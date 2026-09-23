@@ -319,17 +319,6 @@ func (y *YekongaData) setTrigger(model string, action TriggerAction, accessRole 
 
 // AddCloudFunction registers a new cloud function
 func (y *YekongaData) triggerCallback(model string, action TriggerAction, ctxRequest *RequestContext, ctxQuery *QueryContext) (interface{}, error) {
-	y.mut.RLock()
-	defer y.mut.RUnlock()
-
-	if y.triggerFunctions[model] == nil {
-		return nil, fmt.Errorf("%v model not exists, action %v", model, string(action))
-	}
-
-	if y.triggerFunctions[model][action] == nil {
-		return nil, fmt.Errorf("%v -> %v action not exists", model, action)
-	}
-
 	actionAccess := ctxQuery.AccessRole
 
 	if helper.IsEmpty(actionAccess) {
@@ -340,11 +329,32 @@ func (y *YekongaData) triggerCallback(model string, action TriggerAction, ctxReq
 
 	actionAccess = helper.ToSlug(actionAccess)
 
-	if _, exists := y.triggerFunctions[model][action][actionAccess]; exists {
+	// Look the function up under the lock but call it without holding it:
+	// triggers run their own queries, which re-enter trigger dispatch, and a
+	// recursive RLock deadlocks as soon as a writer (findRoute takes the write
+	// lock on every request) is queued in between.
+	y.mut.RLock()
+	modelTriggers := y.triggerFunctions[model]
+	var actionTriggers map[string]TriggerFunction
+	if modelTriggers != nil {
+		actionTriggers = modelTriggers[action]
+	}
+	fn, exists := actionTriggers[actionAccess]
+	y.mut.RUnlock()
+
+	if modelTriggers == nil {
+		return nil, fmt.Errorf("%v model not exists, action %v", model, string(action))
+	}
+
+	if actionTriggers == nil {
+		return nil, fmt.Errorf("%v -> %v action not exists", model, action)
+	}
+
+	if exists {
 		var result interface{}
 		var err error
 
-		result, err = y.triggerFunctions[model][action][actionAccess](ctxRequest, ctxQuery)
+		result, err = fn(ctxRequest, ctxQuery)
 
 		if err != nil {
 			console.Error("Error:triggerCallback", model, action, actionAccess, err.Error())
@@ -377,16 +387,13 @@ func (y *YekongaData) setAuthTrigger(action TriggerAction, fn TriggerFunction) e
 
 // AddCloudFunction registers a new cloud function
 func (y *YekongaData) authTriggerCallback(action TriggerAction, ctxRequest *RequestContext, ctxQuery *QueryContext) (interface{}, error) {
+	// Called without holding the lock — see triggerCallback.
 	y.mut.RLock()
-	defer y.mut.RUnlock()
+	fn, exists := y.authTriggerFunctions[action]
+	y.mut.RUnlock()
 
-	if _, exists := y.authTriggerFunctions[action]; exists {
-		var result interface{}
-		var err error
-
-		result, err = y.authTriggerFunctions[action](ctxRequest, ctxQuery)
-
-		return result, err
+	if exists {
+		return fn(ctxRequest, ctxQuery)
 	}
 
 	return nil, errors.New("not exists")
@@ -414,22 +421,16 @@ func (y *YekongaData) setTriggerAll(action TriggerAction, fn TriggerAllFunction)
 
 // AddCloudFunction registers a new cloud function
 func (y *YekongaData) triggerAllCallback(action TriggerAction, model *DataModel, ctxRequest *RequestContext, ctxQuery *QueryContext) (interface{}, error) {
+	// Called without holding the lock — see triggerCallback.
 	y.mut.RLock()
-	defer y.mut.RUnlock()
+	fn := y.triggerAllFunctions[action]
+	y.mut.RUnlock()
 
-	if y.triggerAllFunctions[action] == nil {
+	if fn == nil {
 		return nil, fmt.Errorf("%v -> action not exists", action)
 	}
 
-	if _, exists := y.triggerAllFunctions[action]; exists {
-		var result interface{}
-		var err error
-		result, err = y.triggerAllFunctions[action](model, ctxRequest, ctxQuery)
-
-		return result, err
-	}
-
-	return nil, errors.New("not exists")
+	return fn(model, ctxRequest, ctxQuery)
 }
 
 // AddCloudFunction registers a new cloud function

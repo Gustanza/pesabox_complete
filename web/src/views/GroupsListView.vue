@@ -1,19 +1,28 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Svgs from '../components/Svgs.vue'
 import { initials, avaColor } from '../data/mock.js'
 import { listGroups, deleteGroup } from '../api/groups.js'
+import { listClusters } from '../api/admin.js'
+import { can } from '../api/access.js'
 
 const router = useRouter()
+const route = useRoute()
+const PAGE_SIZE = 8
 const { t, te } = useI18n()
 const statusText = (st) => (te('grp.st.' + st) ? t('grp.st.' + st) : st)
 const search = ref('')
 // '' means "all" — filters hold stable values, never translated text.
 const region = ref('')
 const status = ref('')
+const clusterId = ref(route.query.clusterId || '')
 const page = ref(1)
+const clusters = ref([])
+const canCreate = computed(() => can('groups.create'))
+const canDelete = computed(() => can('group.settings'))
+const clusterName = (id) => clusters.value.find((c) => c.id === id)?.name || '—'
 
 const groups = ref([])
 const loading = ref(true)
@@ -24,6 +33,7 @@ async function load() {
   error.value = ''
   try {
     groups.value = await listGroups()
+    if (can('structure.view')) clusters.value = await listClusters().catch(() => [])
   } catch (e) {
     error.value = e.message || t('grp.loadFailed')
   } finally {
@@ -46,11 +56,16 @@ const filtered = computed(() => {
       g.region?.toLowerCase().includes(q)
     const matchR = !region.value || g.region === region.value
     const matchS = !status.value || g.status === status.value
-    return matchQ && matchR && matchS
+    const matchC = !clusterId.value || g.clusterId === clusterId.value
+    return matchQ && matchR && matchS && matchC
   })
 })
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / 8)))
+const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PAGE_SIZE)))
+const pageRows = computed(() => filtered.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE))
+watch([search, region, status, clusterId], () => {
+  page.value = 1
+})
 
 function go(id) {
   router.push('/groups/' + id)
@@ -75,7 +90,7 @@ async function remove(g, event) {
         <h1>{{ t('grp.title') }}</h1>
         <p>{{ t('grp.subtitle') }}</p>
       </div>
-      <div class="page-actions">
+      <div v-if="canCreate" class="page-actions">
         <button class="btn btn-primary" @click="router.push('/groups/create')">
           <Svgs name="plus" /> {{ t('grp.create') }}
         </button>
@@ -96,6 +111,10 @@ async function remove(g, event) {
           <option value="">{{ t('grp.allRegions') }}</option>
           <option v-for="r in regions" :key="r" :value="r">{{ r }}</option>
         </select>
+        <select v-if="clusters.length" v-model="clusterId" class="filter-select">
+          <option value="">{{ t('struct.allClusters') }}</option>
+          <option v-for="c in clusters" :key="c.id" :value="c.id">{{ c.name }}</option>
+        </select>
         <select v-model="status" class="filter-select">
           <option value="">{{ t('grp.allStatuses') }}</option>
           <option v-for="s in statuses" :key="s" :value="s">{{ statusText(s) }}</option>
@@ -113,6 +132,7 @@ async function remove(g, event) {
           <thead>
             <tr>
               <th>{{ t('grp.group') }}</th>
+              <th v-if="clusters.length">{{ t('struct.cluster') }}</th>
               <th>{{ t('grp.admin') }}</th>
               <th>{{ t('grp.members') }}</th>
               <th>{{ t('grp.cycle') }}</th>
@@ -121,7 +141,7 @@ async function remove(g, event) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="g in filtered" :key="g.id" class="clickable" @click="go(g.id)">
+            <tr v-for="g in pageRows" :key="g.id" class="clickable" @click="go(g.id)">
               <td>
                 <div class="tname">
                   <div class="tav" :style="{ background: avaColor(g.name) }">{{ initials(g.name) }}</div>
@@ -131,6 +151,7 @@ async function remove(g, event) {
                   </div>
                 </div>
               </td>
+              <td v-if="clusters.length" class="cell-muted">{{ clusterName(g.clusterId) }}</td>
               <td class="cell-muted">{{ g.adminName || '—' }}</td>
               <td>{{ g.memberCount }}</td>
               <td class="cell-muted">{{ g.cycleCurrent }}/{{ g.cycleTotal }}</td>
@@ -138,7 +159,7 @@ async function remove(g, event) {
                 <span class="badge" :class="g.status === 'Active' ? 'green' : 'grey'">{{ statusText(g.status) }}</span>
               </td>
               <td>
-                <button class="btn btn-ghost btn-sm" @click="remove(g, $event)">{{ t('common.delete') }}</button>
+                <button v-if="canDelete" class="btn btn-ghost btn-sm" @click="remove(g, $event)">{{ t('common.delete') }}</button>
               </td>
             </tr>
           </tbody>

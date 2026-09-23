@@ -48,7 +48,7 @@ async function signIn() {
   <div class="login-split">
     <div class="login-left">
       <div class="login-shield"><Svgs name="shield" width="60" height="60" /></div>
-      <h1>PesaBox <span>Admin</span></h1>
+      <h1>{{ t('app.name') }} <span>Admin</span></h1>
       <p class="sub">{{ t('login.tagline') }}</p>
       <div class="login-feature"><div class="fi"><Svgs name="chart" /></div><span>{{ t('login.f1') }}</span></div>
       <div class="login-feature"><div class="fi"><Svgs name="doc" /></div><span>{{ t('login.f2') }}</span></div>
