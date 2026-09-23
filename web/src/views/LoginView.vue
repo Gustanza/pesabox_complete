@@ -85,10 +85,6 @@ async function signIn() {
           {{ loading ? t('auth.sendingCode') : t('login.continue') }}
         </button>
 
-        <div class="link">
-          {{ t('auth.noAccount') }} <router-link to="/register">{{ t('auth.register') }}</router-link>
-        </div>
-
         <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 26px; color: var(--ink-400); font-size: 12.5px">
           <Svgs name="shield" width="14" height="14" /> {{ t('login.logged') }}
         </div>

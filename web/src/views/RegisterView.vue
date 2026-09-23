@@ -7,8 +7,6 @@ import { requestOtp } from '@/api/auth'
 import Svgs from '../components/Svgs.vue'
 
 const router = useRouter()
-const { t, locale } = useI18n()
-const name = ref('')
 const phone = ref('')
 const loading = ref(false)
 const error = ref('')
@@ -34,7 +32,7 @@ async function register() {
     }
     router.push({
       path: '/otp',
-      query: { mode: 'register', username: phone.value, name: name.value }
+      query: { mode: 'register', username: phone.value }
     })
   } catch (e) {
     error.value = e.message
@@ -62,10 +60,7 @@ async function register() {
         <h1>{{ t('auth.createAccount') }}</h1>
         <div class="sub">{{ t('auth.getStarted') }}</div>
 
-        <label class="field-label">{{ t('auth.fullName') }}</label>
-        <input v-model="name" type="text" placeholder="Jane Doe" style="margin-bottom: 18px" />
-
-        <label class="field-label">{{ t('auth.phone') }}</label>
+        <label class="field-label">Phone number</label>
         <input
           v-model="phone"
           type="tel"

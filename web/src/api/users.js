@@ -2,11 +2,12 @@
 // queries (it carries password/token/otp fields), so this talks to the
 // dedicated sanitized admin routes registered in server/main.go instead of
 // the auto-generated CRUD API used by groups.js.
+import { apiFetch } from './http.js'
+
 const ENDPOINT = '/api/admin/users'
 
 async function request(path, options) {
-  const res = await fetch(ENDPOINT + path, {
-    credentials: 'include',
+  const res = await apiFetch(ENDPOINT + path, {
     headers: { 'Content-Type': 'application/json' },
     ...options
   })

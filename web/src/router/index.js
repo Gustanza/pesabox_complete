@@ -18,6 +18,11 @@ const routes = [
     component: () => import('@/views/OtpView.vue')
   },
   {
+    path: '/complete-profile',
+    name: 'complete-profile',
+    component: () => import('@/views/CompleteProfileView.vue')
+  },
+  {
     path: '/',
     component: () => import('@/components/AppLayout.vue'),
     children: [
@@ -76,6 +81,11 @@ const routes = [
         path: 'settings',
         name: 'settings',
         component: () => import('@/views/SettingsView.vue')
+      },
+      {
+        path: 'profile',
+        name: 'profile',
+        component: () => import('@/views/ProfileView.vue')
       }
     ]
   },
@@ -112,6 +122,19 @@ router.beforeEach(async (to) => {
 
   if ((to.path === '/login' || to.path === '/register') && isAuthenticated) {
     return '/'
+  }
+
+  // The OTP login auto-creates a User with no name (see server/main.go's
+  // /api/me comment) — herd anyone in that state to complete-profile before
+  // they can reach the rest of the app, and away from it once they're done.
+  if (isAuthenticated) {
+    const profileIncomplete = !user.firstName
+    if (profileIncomplete && to.path !== '/complete-profile') {
+      return '/complete-profile'
+    }
+    if (!profileIncomplete && to.path === '/complete-profile') {
+      return '/'
+    }
   }
 })
 
