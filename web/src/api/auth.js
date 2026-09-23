@@ -3,6 +3,8 @@
 // then complete registration/login with the same code via verifyOtp(). The
 // server sets httpOnly session cookies on success, so there is no token to
 // store here.
+import { apiFetch } from './http.js'
+
 const AUTH_ENDPOINT = '/graphql/auth'
 
 async function gql(query, variables) {
@@ -48,8 +50,10 @@ export function currentUser() {
   // Never let this reject — it runs on every route change (see the router's
   // navigation guard), and an unhandled rejection there silently cancels the
   // navigation, leaving the user stuck on whatever page they were trying to
-  // leave with no error shown.
-  return fetch('/me', { credentials: 'include' })
+  // leave with no error shown. apiFetch already retries once through
+  // /refresh on a 401 (the access token only lives 15 minutes), so this only
+  // comes back null once the refresh token itself is dead too.
+  return apiFetch('/me')
     .then((res) => (res.ok ? res.json() : null))
     .catch(() => null)
 }
@@ -58,9 +62,8 @@ export function currentUser() {
 // auto-created by the OTP login (see server/main.go's /api/me) — the phone
 // number used to sign in stays the login identifier and is never touched here.
 export function updateProfile(changes) {
-  return fetch('/api/me', {
+  return apiFetch('/api/me', {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(changes)
   }).then(async (res) => {

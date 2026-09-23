@@ -1,12 +1,13 @@
 // CRUD for the Group model against the main (authenticated) GraphQL endpoint.
 // Schema: server/database.json -> "Groups".
+import { apiFetch } from './http.js'
+
 const ENDPOINT = '/graphql'
 
 async function gql(query, variables) {
-  const res = await fetch(ENDPOINT, {
+  const res = await apiFetch(ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
     body: JSON.stringify({ query, variables })
   })
 
