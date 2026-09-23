@@ -1724,5 +1724,36 @@ func main() {
 		res.Json(map[string]bool{"success": true})
 	})
 
-	app.Start(8090)
+	// Serves the built web app (web/dist, copied to server/public — see
+	// deployment notes) from the same port as the API, so production needs
+	// no reverse proxy and no CORS: JS/CSS/etc. match by extension via
+	// Static, and any other unmatched GET (e.g. a client-side route like
+	// /groups hit directly, or on refresh) falls through to Catch, which
+	// hands back index.html so vue-router's history-mode routing works.
+	// Both are no-ops (skipped, logged once) when ./public doesn't exist,
+	// so local dev without a built web app is unaffected.
+	if _, err := os.Stat("./public/index.html"); err == nil {
+		if err := app.Static(yekonga.StaticConfig{
+			Directory:  "./public",
+			PathPrefix: "/",
+		}); err != nil {
+			fmt.Println("Static file serving not enabled:", err.Error())
+		}
+		app.Catch(func(req *yekonga.Request, res *yekonga.Response) (int, error) {
+			res.File("./public/index.html")
+			return 200, nil
+		})
+	} else {
+		fmt.Println("./public/index.html not found — running API-only (no web app being served).")
+	}
+
+	port := 8090
+	if p := os.Getenv("PORT"); p != "" {
+		if n, err := strconv.Atoi(p); err == nil {
+			port = n
+		} else {
+			fmt.Printf("Invalid PORT %q, falling back to %d\n", p, port)
+		}
+	}
+	app.Start(port)
 }
