@@ -1,14 +1,18 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import Svgs from '../components/Svgs.vue'
 import { initials, avaColor } from '../data/mock.js'
 import { listGroups, deleteGroup } from '../api/groups.js'
 
 const router = useRouter()
+const { t, te } = useI18n()
+const statusText = (st) => (te('grp.st.' + st) ? t('grp.st.' + st) : st)
 const search = ref('')
-const region = ref('All Regions')
-const status = ref('All Statuses')
+// '' means "all" — filters hold stable values, never translated text.
+const region = ref('')
+const status = ref('')
 const page = ref(1)
 
 const groups = ref([])
@@ -21,7 +25,7 @@ async function load() {
   try {
     groups.value = await listGroups()
   } catch (e) {
-    error.value = e.message || 'Failed to load groups'
+    error.value = e.message || t('grp.loadFailed')
   } finally {
     loading.value = false
   }
@@ -29,14 +33,8 @@ async function load() {
 
 onMounted(load)
 
-const regions = computed(() => [
-  'All Regions',
-  ...new Set(groups.value.map((g) => g.region).filter(Boolean))
-])
-const statuses = computed(() => [
-  'All Statuses',
-  ...new Set(groups.value.map((g) => g.status).filter(Boolean))
-])
+const regions = computed(() => [...new Set(groups.value.map((g) => g.region).filter(Boolean))])
+const statuses = computed(() => [...new Set(groups.value.map((g) => g.status).filter(Boolean))])
 
 const filtered = computed(() => {
   return groups.value.filter((g) => {
@@ -46,8 +44,8 @@ const filtered = computed(() => {
       g.name?.toLowerCase().includes(q) ||
       g.adminName?.toLowerCase().includes(q) ||
       g.region?.toLowerCase().includes(q)
-    const matchR = region.value === 'All Regions' || g.region === region.value
-    const matchS = status.value === 'All Statuses' || g.status === status.value
+    const matchR = !region.value || g.region === region.value
+    const matchS = !status.value || g.status === status.value
     return matchQ && matchR && matchS
   })
 })
@@ -60,12 +58,12 @@ function go(id) {
 
 async function remove(g, event) {
   event.stopPropagation()
-  if (!confirm(`Delete "${g.name}"? This cannot be undone.`)) return
+  if (!confirm(t('grp.confirmDelete', { name: g.name }))) return
   try {
     await deleteGroup(g.id)
     groups.value = groups.value.filter((x) => x.id !== g.id)
   } catch (e) {
-    alert(e.message || 'Failed to delete group')
+    alert(e.message || t('grp.deleteFailed'))
   }
 }
 </script>
@@ -74,12 +72,12 @@ async function remove(g, event) {
   <div>
     <div class="page-head">
       <div>
-        <h1>Groups</h1>
-        <p>Savings groups registered on PesaBox.</p>
+        <h1>{{ t('grp.title') }}</h1>
+        <p>{{ t('grp.subtitle') }}</p>
       </div>
       <div class="page-actions">
         <button class="btn btn-primary" @click="router.push('/groups/create')">
-          <Svgs name="plus" /> Create Group
+          <Svgs name="plus" /> {{ t('grp.create') }}
         </button>
       </div>
     </div>
@@ -92,31 +90,33 @@ async function remove(g, event) {
       <div class="toolbar">
         <div class="search-input">
           <Svgs name="search" />
-          <input v-model="search" type="search" placeholder="Search groups..." />
+          <input v-model="search" type="search" :placeholder="t('grp.search')" />
         </div>
         <select v-model="region" class="filter-select">
+          <option value="">{{ t('grp.allRegions') }}</option>
           <option v-for="r in regions" :key="r" :value="r">{{ r }}</option>
         </select>
         <select v-model="status" class="filter-select">
-          <option v-for="s in statuses" :key="s" :value="s">{{ s }}</option>
+          <option value="">{{ t('grp.allStatuses') }}</option>
+          <option v-for="s in statuses" :key="s" :value="s">{{ statusText(s) }}</option>
         </select>
       </div>
       <div style="overflow-x: auto">
         <div v-if="loading" class="empty">
-          <p>Loading groups…</p>
+          <p>{{ t('grp.loadingGroups') }}</p>
         </div>
         <div v-else-if="!filtered.length" class="empty">
           <div class="ic">&#128203;</div>
-          <p>No groups found. Create your first group to get started.</p>
+          <p>{{ t('grp.empty') }}</p>
         </div>
         <table v-else class="dtable">
           <thead>
             <tr>
-              <th>Group</th>
-              <th>Admin</th>
-              <th>Members</th>
-              <th>Cycle</th>
-              <th>Status</th>
+              <th>{{ t('grp.group') }}</th>
+              <th>{{ t('grp.admin') }}</th>
+              <th>{{ t('grp.members') }}</th>
+              <th>{{ t('grp.cycle') }}</th>
+              <th>{{ t('common.status') }}</th>
               <th></th>
             </tr>
           </thead>
@@ -135,10 +135,10 @@ async function remove(g, event) {
               <td>{{ g.memberCount }}</td>
               <td class="cell-muted">{{ g.cycleCurrent }}/{{ g.cycleTotal }}</td>
               <td>
-                <span class="badge" :class="g.status === 'Active' ? 'green' : 'grey'">{{ g.status }}</span>
+                <span class="badge" :class="g.status === 'Active' ? 'green' : 'grey'">{{ statusText(g.status) }}</span>
               </td>
               <td>
-                <button class="btn btn-ghost btn-sm" @click="remove(g, $event)">Delete</button>
+                <button class="btn btn-ghost btn-sm" @click="remove(g, $event)">{{ t('common.delete') }}</button>
               </td>
             </tr>
           </tbody>

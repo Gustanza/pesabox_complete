@@ -91,7 +91,9 @@ export const AUDIT = [
 export const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', icon: 'dash', route: '/dashboard' },
   { key: 'groups', label: 'Groups', icon: 'groups', route: '/groups' },
-  { key: 'users', label: 'Users', icon: 'user', route: '/users' }
+  { key: 'users', label: 'Users', icon: 'user', route: '/users' },
+  { key: 'reports', label: 'Reports', icon: 'rep', route: '/reports' },
+  { key: 'sms', label: 'SMS', icon: 'sms', route: '/sms' }
 ]
 
 export function findGroupById(id) {

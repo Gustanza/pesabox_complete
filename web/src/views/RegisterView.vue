@@ -1,10 +1,13 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { setLocale } from '@/i18n'
 import { requestOtp } from '@/api/auth'
 import Svgs from '../components/Svgs.vue'
 
 const router = useRouter()
+const { t, locale } = useI18n()
 const name = ref('')
 const phone = ref('')
 const loading = ref(false)
@@ -16,7 +19,7 @@ function isPhoneLike(value) {
 
 async function register() {
   if (!isPhoneLike(phone.value)) {
-    error.value = 'Enter a valid phone number, e.g. 0712 345 678'
+    error.value = t('auth.phoneInvalid')
     return
   }
 
@@ -26,7 +29,7 @@ async function register() {
   try {
     const result = await requestOtp(phone.value)
     if (!result?.status) {
-      error.value = result?.message || 'Unable to send a code right now'
+      error.value = result?.message || t('login.unable')
       return
     }
     router.push({
@@ -46,20 +49,23 @@ async function register() {
     <div class="login-left">
       <div class="login-shield"><Svgs name="shield" width="60" height="60" /></div>
       <h1>PesaBox <span>Admin</span></h1>
-      <p class="sub">One account to manage every savings group on the platform.</p>
-      <div class="login-feature"><div class="fi"><Svgs name="chart" /></div><span>Real-time group oversight</span></div>
-      <div class="login-feature"><div class="fi"><Svgs name="doc" /></div><span>Deep financial reports</span></div>
-      <div class="login-feature"><div class="fi"><Svgs name="shield" /></div><span>Enterprise-grade security</span></div>
+      <p class="sub">{{ t('auth.registerTagline') }}</p>
+      <div class="login-feature"><div class="fi"><Svgs name="chart" /></div><span>{{ t('login.f1') }}</span></div>
+      <div class="login-feature"><div class="fi"><Svgs name="doc" /></div><span>{{ t('login.f2') }}</span></div>
+      <div class="login-feature"><div class="fi"><Svgs name="shield" /></div><span>{{ t('login.f3') }}</span></div>
     </div>
     <div class="login-right">
       <div class="login-form">
-        <h1>Create your account</h1>
-        <div class="sub">Get started with PesaBox</div>
+        <div class="lang-switch" style="float: right; margin: 0">
+          <button v-for="l in ['sw', 'en']" :key="l" :class="{ active: locale === l }" @click="setLocale(l)">{{ l.toUpperCase() }}</button>
+        </div>
+        <h1>{{ t('auth.createAccount') }}</h1>
+        <div class="sub">{{ t('auth.getStarted') }}</div>
 
-        <label class="field-label">Full name</label>
+        <label class="field-label">{{ t('auth.fullName') }}</label>
         <input v-model="name" type="text" placeholder="Jane Doe" style="margin-bottom: 18px" />
 
-        <label class="field-label">Phone number</label>
+        <label class="field-label">{{ t('auth.phone') }}</label>
         <input
           v-model="phone"
           type="tel"
@@ -74,11 +80,11 @@ async function register() {
         </div>
 
         <button class="btn btn-primary btn-block" :disabled="loading" @click="register">
-          {{ loading ? 'Sending code…' : 'Send me a code' }}
+          {{ loading ? t('auth.sendingCode') : t('auth.sendCode') }}
         </button>
 
         <div class="link">
-          Already have an account? <router-link to="/login">Sign in</router-link>
+          {{ t('auth.haveAccount') }} <router-link to="/login">{{ t('auth.signIn') }}</router-link>
         </div>
       </div>
     </div>

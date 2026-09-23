@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { requestOtp, verifyOtp } from '@/api/auth'
 
 const router = useRouter()
+const { t } = useI18n()
 const route = useRoute()
 
 const username = route.query.username || ''
@@ -70,7 +72,7 @@ async function resend() {
 
 async function verify() {
   if (code.value.length < CODE_LENGTH) {
-    error.value = `Enter the ${CODE_LENGTH}-digit code`
+    error.value = t('auth.enterDigits', { n: CODE_LENGTH })
     return
   }
 
@@ -81,7 +83,7 @@ async function verify() {
     await verifyOtp(username, code.value)
     router.push('/')
   } catch (e) {
-    error.value = e.message || 'Invalid or expired code'
+    error.value = e.message || t('auth.invalidCode')
   } finally {
     loading.value = false
   }
@@ -92,9 +94,9 @@ async function verify() {
   <div class="login-wrap">
     <div class="login-card" style="text-align: center">
       <div class="login-mark">P</div>
-      <h2>Verify your identity</h2>
+      <h2>{{ t('auth.verifyTitle') }}</h2>
       <div class="sub">
-        Enter the {{ CODE_LENGTH }}-digit code texted to <strong>{{ username }}</strong
+        {{ t('auth.enterCode', { n: CODE_LENGTH }) }} <strong>{{ username }}</strong
         >.
       </div>
       <div class="otp-row">
@@ -112,17 +114,17 @@ async function verify() {
       </div>
       <div style="font-size: 12px; color: var(--ink-400); margin-bottom: 18px;">
         <template v-if="seconds > 0">
-          Didn't receive it? Resend code in {{ String(seconds).padStart(2, '0') }}
+          {{ t('auth.didntReceive') }} {{ t('auth.resendIn', { s: String(seconds).padStart(2, '0') }) }}
         </template>
         <template v-else>
-          Didn't receive it? <a href="#" @click.prevent="resend">Resend code</a>
+          {{ t('auth.didntReceive') }} <a href="#" @click.prevent="resend">{{ t('auth.resend') }}</a>
         </template>
       </div>
       <div v-if="error" style="color: var(--danger); font-size: 13px; margin-bottom: 18px">
         {{ error }}
       </div>
       <button class="btn btn-primary btn-block" :disabled="loading" @click="verify">
-        {{ loading ? 'Verifying…' : 'Verify' }}
+        {{ loading ? t('auth.verifying') : t('auth.verify') }}
       </button>
     </div>
   </div>

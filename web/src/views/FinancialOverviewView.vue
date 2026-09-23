@@ -1,28 +1,32 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { LOANS } from '../data/mock.js'
 
+const { t, te } = useI18n()
+
 const activeTab = ref('savings')
-const tabs = [
-  ['Savings', 'savings'],
-  ['Shares', 'shares'],
-  ['Social Fund', 'social'],
-  ['Loans', 'loans'],
-  ['Fines', 'fines']
-]
+const tabs = computed(() => [
+  [t('fin.tabSavings'), 'savings'],
+  [t('fin.tabShares'), 'shares'],
+  [t('fin.tabSocial'), 'social'],
+  [t('fin.tabLoans'), 'loans'],
+  [t('fin.tabFines'), 'fines']
+])
+const statusText = (st) => (te('fin.st.' + st) ? t('fin.st.' + st) : st)
 
 const kpis = {
-  savings: ['Total Savings', 'TZS 1,245,000,000', '+ TZS 84,500,000'],
-  shares: ['Total Shares', 'TZS 845,000,000', '+ TZS 32,100,000'],
-  social: ['Social Fund Balance', 'TZS 185,000,000', '+ TZS 9,400,000'],
-  fines: ['Total Fines Collected', 'TZS 21,300,000', '+ TZS 1,200,000']
+  savings: ['fin.totalSavings', 'TZS 1,245,000,000', '+ TZS 84,500,000'],
+  shares: ['fin.totalShares', 'TZS 845,000,000', '+ TZS 32,100,000'],
+  social: ['fin.socialBalance', 'TZS 185,000,000', '+ TZS 9,400,000'],
+  fines: ['fin.finesCollected', 'TZS 21,300,000', '+ TZS 1,200,000']
 }
 
 const loansKpis = [
-  { l: 'Active Loans', v: 'TZS 210M', d: '' },
-  { l: 'Outstanding', v: 'TZS 145M', d: '' },
-  { l: 'Paid This Month', v: 'TZS 65M', d: '' },
-  { l: 'Overdue', v: 'TZS 18M', d: '', dir: 'down' }
+  { l: 'fin.activeLoans', v: 'TZS 210M', d: '' },
+  { l: 'fin.outstanding', v: 'TZS 145M', d: '' },
+  { l: 'fin.paidMonth', v: 'TZS 65M', d: '' },
+  { l: 'fin.overdue', v: 'TZS 18M', d: '', dir: 'down' }
 ]
 </script>
 
@@ -30,8 +34,8 @@ const loansKpis = [
   <div>
     <div class="page-head">
       <div>
-        <h1>Finance</h1>
-        <p>Platform-wide monitoring — not a place to edit group rules.</p>
+        <h1>{{ t('fin.title') }}</h1>
+        <p>{{ t('fin.subtitle') }}</p>
       </div>
     </div>
 
@@ -44,7 +48,7 @@ const loansKpis = [
     <template v-if="activeTab === 'loans'">
       <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);">
         <div v-for="k in loansKpis" :key="k.l" class="kpi-card">
-          <div class="l">{{ k.l }}</div>
+          <div class="l">{{ t(k.l) }}</div>
           <div class="v">{{ k.v }}</div>
           <div v-if="k.d" class="d" :class="k.dir || ''">{{ k.d }}</div>
         </div>
@@ -52,7 +56,13 @@ const loansKpis = [
       <div class="panel">
         <table class="dtable">
           <thead>
-            <tr><th>Group</th><th>Borrower</th><th>Principal</th><th>Balance</th><th>Status</th></tr>
+            <tr>
+              <th>{{ t('fin.group') }}</th>
+              <th>{{ t('fin.borrower') }}</th>
+              <th>{{ t('fin.principal') }}</th>
+              <th>{{ t('fin.balance') }}</th>
+              <th>{{ t('common.status') }}</th>
+            </tr>
           </thead>
           <tbody>
             <tr v-for="(l, i) in LOANS" :key="l.group + l.borrower">
@@ -61,7 +71,7 @@ const loansKpis = [
               <td>TZS {{ l.principal }}</td>
               <td>TZS {{ l.balance }}</td>
               <td>
-                <span class="badge" :class="l.status === 'Overdue' ? 'red' : 'green'">{{ l.status }}</span>
+                <span class="badge" :class="l.status === 'Overdue' ? 'red' : 'green'">{{ statusText(l.status) }}</span>
               </td>
             </tr>
           </tbody>
@@ -72,13 +82,13 @@ const loansKpis = [
     <template v-else>
       <div class="grid2">
         <div class="card">
-          <div class="card-head"><h3>{{ kpis[activeTab][0] }}</h3></div>
+          <div class="card-head"><h3>{{ t(kpis[activeTab][0]) }}</h3></div>
           <div style="font-size:30px;font-weight:800;">{{ kpis[activeTab][1] }}</div>
-          <div style="font-size:12.5px;color:var(--green-600);font-weight:700;margin-top:6px;">{{ kpis[activeTab][2] }} this month</div>
+          <div style="font-size:12.5px;color:var(--green-600);font-weight:700;margin-top:6px;">{{ kpis[activeTab][2] }} {{ t('fin.thisMonth') }}</div>
         </div>
         <div class="card">
-          <div class="kv"><span class="k">Groups Contributing</span><span class="v">1,103</span></div>
-          <div class="kv"><span class="k">Average / Group</span><span class="v">TZS 1,128,740</span></div>
+          <div class="kv"><span class="k">{{ t('fin.groupsContributing') }}</span><span class="v">1,103</span></div>
+          <div class="kv"><span class="k">{{ t('fin.avgGroup') }}</span><span class="v">TZS 1,128,740</span></div>
         </div>
       </div>
     </template>

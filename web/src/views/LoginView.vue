@@ -1,10 +1,13 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { setLocale } from '@/i18n'
 import { requestOtp } from '@/api/auth'
 import Svgs from '../components/Svgs.vue'
 
 const router = useRouter()
+const { t, locale } = useI18n()
 const phone = ref('')
 const remember = ref(false)
 const loading = ref(false)
@@ -16,7 +19,7 @@ function isPhoneLike(value) {
 
 async function signIn() {
   if (!isPhoneLike(phone.value)) {
-    error.value = 'Enter a valid phone number, e.g. 0712 345 678'
+    error.value = t('auth.phoneInvalid')
     return
   }
 
@@ -26,7 +29,7 @@ async function signIn() {
   try {
     const result = await requestOtp(phone.value)
     if (!result?.status) {
-      error.value = result?.message || 'Unable to send a code right now'
+      error.value = result?.message || t('login.unable')
       return
     }
     router.push({
@@ -46,17 +49,20 @@ async function signIn() {
     <div class="login-left">
       <div class="login-shield"><Svgs name="shield" width="60" height="60" /></div>
       <h1>PesaBox <span>Admin</span></h1>
-      <p class="sub">Oversee every savings group, member and transaction on one platform.</p>
-      <div class="login-feature"><div class="fi"><Svgs name="chart" /></div><span>Real-time group oversight</span></div>
-      <div class="login-feature"><div class="fi"><Svgs name="doc" /></div><span>Deep financial reports</span></div>
-      <div class="login-feature"><div class="fi"><Svgs name="shield" /></div><span>Enterprise-grade security</span></div>
+      <p class="sub">{{ t('login.tagline') }}</p>
+      <div class="login-feature"><div class="fi"><Svgs name="chart" /></div><span>{{ t('login.f1') }}</span></div>
+      <div class="login-feature"><div class="fi"><Svgs name="doc" /></div><span>{{ t('login.f2') }}</span></div>
+      <div class="login-feature"><div class="fi"><Svgs name="shield" /></div><span>{{ t('login.f3') }}</span></div>
     </div>
     <div class="login-right">
       <div class="login-form">
-        <h1>Welcome back</h1>
-        <div class="sub">Sign in to your admin account</div>
+        <div class="lang-switch" style="float: right; margin: 0">
+          <button v-for="l in ['sw', 'en']" :key="l" :class="{ active: locale === l }" @click="setLocale(l)">{{ l.toUpperCase() }}</button>
+        </div>
+        <h1>{{ t('login.welcome') }}</h1>
+        <div class="sub">{{ t('login.sub') }}</div>
 
-        <label class="field-label">Phone number</label>
+        <label class="field-label">{{ t('auth.phone') }}</label>
         <input
           v-model="phone"
           type="tel"
@@ -72,19 +78,19 @@ async function signIn() {
 
         <div class="chk-row">
           <input v-model="remember" type="checkbox" />
-          Remember this device
+          {{ t('auth.remember') }}
         </div>
 
         <button class="btn btn-primary btn-block" :disabled="loading" @click="signIn">
-          {{ loading ? 'Sending code…' : 'Continue' }}
+          {{ loading ? t('auth.sendingCode') : t('login.continue') }}
         </button>
 
         <div class="link">
-          No account? <router-link to="/register">Register</router-link>
+          {{ t('auth.noAccount') }} <router-link to="/register">{{ t('auth.register') }}</router-link>
         </div>
 
         <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 26px; color: var(--ink-400); font-size: 12.5px">
-          <Svgs name="shield" width="14" height="14" /> Access is logged for security purposes
+          <Svgs name="shield" width="14" height="14" /> {{ t('login.logged') }}
         </div>
       </div>
     </div>

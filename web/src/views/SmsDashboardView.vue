@@ -1,42 +1,33 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Svgs from '../components/Svgs.vue'
-import { listSmsActivity } from '../api/sms.js'
+import { intlLocale } from '../i18n'
+import { listSmsActivity, listSmsTemplates, saveSmsTemplate } from '../api/sms.js'
+
+const { t, te, locale } = useI18n()
 
 const activeTab = ref('dashboard')
-const tabs = [
-  ['Overview', 'dashboard'],
-  ['Logs', 'logs'],
-  ['Templates', 'templates']
-]
+const tabs = computed(() => [
+  [t('sms.tabOverview'), 'dashboard'],
+  [t('sms.tabLogs'), 'logs'],
+  [t('sms.tabTemplates'), 'templates']
+])
 
 const logs = ref([])
 const loading = ref(true)
 const error = ref('')
 
-const TYPE_LABELS = {
-  member_otp: 'Member OTP',
-  member_joined: 'Joined Group',
-  contribution: 'Mandatory Savings',
-  share: 'Shares',
-  social_fund: 'Social Fund',
-  loan_disbursement: 'Loan Disbursement',
-  loan_repayment: 'Loan Repayment',
-  fine: 'Fine Issued',
-  fine_payment: 'Fine Payment',
-  login_otp: 'Login OTP',
-  other: 'Other'
-}
-
-function typeLabel(t) {
-  return TYPE_LABELS[t] || t || 'Other'
+function typeLabel(type) {
+  const key = 'smsd.types.' + (type || 'other')
+  return te(key) ? t(key) : type || t('smsd.types.other')
 }
 
 onMounted(async () => {
   try {
     logs.value = await listSmsActivity()
   } catch (e) {
-    error.value = e.message || 'Failed to load SMS activity'
+    error.value = e.message || t('smsd.loadFailed')
   } finally {
     loading.value = false
   }
@@ -45,17 +36,17 @@ onMounted(async () => {
 const kpis = computed(() => {
   const now = new Date()
   const today = logs.value.filter((l) => {
-    const t = new Date(l.sentAt || l.createdAt)
-    return !isNaN(t) && t.toDateString() === now.toDateString()
+    const d = new Date(l.sentAt || l.createdAt)
+    return !isNaN(d) && d.toDateString() === now.toDateString()
   })
   const failed = today.filter((l) => l.status === 'failed').length
   const delivered = today.length - failed
   const rate = today.length ? Math.round((delivered / today.length) * 1000) / 10 : 0
   return [
-    { l: 'Sent Today', v: today.length.toLocaleString(), d: '' },
-    { l: 'Delivered', v: delivered.toLocaleString(), d: '' },
-    { l: 'Failed', v: failed.toLocaleString(), d: '' },
-    { l: 'Delivery Rate', v: rate + '%', d: '' }
+    { l: t('smsd.kpiSentToday'), v: today.length.toLocaleString(intlLocale()), d: '' },
+    { l: t('smsd.kpiDelivered'), v: delivered.toLocaleString(intlLocale()), d: '' },
+    { l: t('smsd.kpiFailed'), v: failed.toLocaleString(intlLocale()), d: '' },
+    { l: t('smsd.kpiRate'), v: rate + '%', d: '' }
   ]
 })
 
@@ -64,16 +55,16 @@ const delivery = computed(() => {
   const delivered = logs.value.filter((l) => l.status === 'sent').length
   const failed = logs.value.filter((l) => l.status === 'failed').length
   return [
-    { lbl: 'Delivered', v: delivered, max: total, color: 'var(--green-600)' },
-    { lbl: 'Failed', v: failed, max: total, color: 'var(--danger)' }
+    { lbl: t('smsd.kpiDelivered'), v: delivered, max: total, color: 'var(--green-600)' },
+    { lbl: t('smsd.kpiFailed'), v: failed, max: total, color: 'var(--danger)' }
   ]
 })
 
 const logSearch = ref('')
-const logStatus = ref('All statuses')
+const logStatus = ref('all') // 'all' | 'sent' | 'failed' — stable values, not display text
 
 function logStatusLabel(l) {
-  return l.status === 'sent' ? 'Delivered' : 'Failed'
+  return l.status === 'sent' ? t('smsd.kpiDelivered') : t('smsd.kpiFailed')
 }
 
 const filteredLogs = computed(() => {
@@ -81,30 +72,82 @@ const filteredLogs = computed(() => {
   return logs.value.filter((l) => {
     const haystack = [l.phone, l.memberName, l.groupName, typeLabel(l.messageType)].filter(Boolean).join(' ').toLowerCase()
     const matchQ = !q || haystack.includes(q)
-    const matchS = logStatus.value === 'All statuses' || logStatusLabel(l) === logStatus.value
+    const matchS = logStatus.value === 'all' || l.status === logStatus.value
     return matchQ && matchS
   })
 })
 
 function timeOf(l) {
-  const t = l.sentAt || l.createdAt
-  if (!t) return '—'
-  const d = new Date(t)
-  return isNaN(d) ? String(t) : d.toLocaleString()
+  const ts = l.sentAt || l.createdAt
+  if (!ts) return '—'
+  const d = new Date(ts)
+  return isNaN(d) ? String(ts) : d.toLocaleString(intlLocale())
 }
 
 function recipientOf(l) {
   return [l.memberName, l.phone].filter(Boolean).join(' · ') || '—'
 }
 
-const templates = [
-  { name: 'Contribution Recorded', cat: 'Financial' },
-  { name: 'Meeting Reminder', cat: 'Meeting' },
-  { name: 'Loan Repayment', cat: 'Loan' },
-  { name: 'Fine Notification', cat: 'Financial' },
-  { name: 'Meeting Closed', cat: 'Meeting' }
-]
-const message = ref('Ndugu {JINA}, umeweka mchango wa TZS {KIASI} katika {TUKIO}.')
+// ---- Templates -------------------------------------------------------------
+const templates = ref([])
+const templatesLoaded = ref(false)
+const tplLang = ref(locale.value) // language of the message being edited
+const selectedType = ref('')
+const draft = ref('')
+const saving = ref(false)
+const saveMsg = ref('')
+const saveErr = ref('')
+
+async function loadTemplates() {
+  try {
+    templates.value = await listSmsTemplates()
+    templatesLoaded.value = true
+    if (!selectedType.value && templates.value.length) selectedType.value = templates.value[0].type
+  } catch (e) {
+    saveErr.value = e.message || t('common.requestFailed')
+  }
+}
+
+watch(activeTab, (tab) => {
+  if (tab === 'templates' && !templatesLoaded.value) loadTemplates()
+})
+
+const rows = computed(() => templates.value.filter((x) => x.language === tplLang.value))
+const current = computed(() => rows.value.find((x) => x.type === selectedType.value) || null)
+
+watch([current], () => {
+  draft.value = current.value ? current.value.body : ''
+  saveMsg.value = ''
+  saveErr.value = ''
+})
+
+function tplName(x) {
+  return locale.value === 'sw' ? x.sw : x.en
+}
+
+function insertVar(v) {
+  draft.value += (draft.value && !draft.value.endsWith(' ') ? ' ' : '') + '{' + v + '}'
+}
+
+async function save(restore = false) {
+  if (!current.value) return
+  saving.value = true
+  saveMsg.value = ''
+  saveErr.value = ''
+  try {
+    await saveSmsTemplate({
+      type: current.value.type,
+      language: tplLang.value,
+      body: restore ? '' : draft.value
+    })
+    await loadTemplates()
+    saveMsg.value = restore ? t('sms.restoreDefault') + ' ✓' : t('sms.saved')
+  } catch (e) {
+    saveErr.value = /only the super admin/i.test(e.message || '') ? t('sms.onlySuperAdmin') : e.message || t('sms.templateSaveFailed')
+  } finally {
+    saving.value = false
+  }
+}
 
 function barWidth(v, max) {
   return Math.round((v / max) * 100) + '%'
@@ -115,8 +158,8 @@ function barWidth(v, max) {
   <div>
     <div class="page-head">
       <div>
-        <h1>SMS Management</h1>
-        <p>Outgoing messages, delivery and templates.</p>
+        <h1>{{ t('sms.title') }}</h1>
+        <p>{{ t('sms.subtitle') }}</p>
       </div>
     </div>
 
@@ -134,23 +177,29 @@ function barWidth(v, max) {
         <div class="toolbar">
           <div class="search-input">
             <Svgs name="search" />
-            <input v-model="logSearch" type="search" placeholder="Search recipient..." />
+            <input v-model="logSearch" type="search" :placeholder="t('smsd.searchRecipient')" />
           </div>
           <select v-model="logStatus" class="filter-select">
-            <option>All statuses</option>
-            <option>Delivered</option>
-            <option>Failed</option>
+            <option value="all">{{ t('smsd.allStatuses') }}</option>
+            <option value="sent">{{ t('smsd.kpiDelivered') }}</option>
+            <option value="failed">{{ t('smsd.kpiFailed') }}</option>
           </select>
         </div>
-        <div v-if="loading" class="empty"><p>Loading…</p></div>
+        <div v-if="loading" class="empty"><p>{{ t('common.loading') }}</p></div>
         <div v-else-if="!filteredLogs.length" class="empty">
           <div class="ic">&#128227;</div>
-          <p>No member-facing SMS recorded yet.</p>
+          <p>{{ t('smsd.noneRecorded') }}</p>
         </div>
         <div v-else style="overflow-x:auto;">
           <table class="dtable">
             <thead>
-              <tr><th>Time</th><th>Recipient</th><th>Group</th><th>Type</th><th>Status</th></tr>
+              <tr>
+                <th>{{ t('smsd.time') }}</th>
+                <th>{{ t('smsd.recipient') }}</th>
+                <th>{{ t('smsd.group') }}</th>
+                <th>{{ t('smsd.type') }}</th>
+                <th>{{ t('common.status') }}</th>
+              </tr>
             </thead>
             <tbody>
               <tr v-for="(l, i) in filteredLogs" :key="l.id || i">
@@ -167,32 +216,60 @@ function barWidth(v, max) {
     </template>
 
     <template v-else-if="activeTab === 'templates'">
+      <div style="display: flex; gap: 8px; margin-bottom: 14px">
+        <button
+          v-for="[code, label] in [['sw', t('sms.langSw')], ['en', t('sms.langEn')]]"
+          :key="code"
+          class="btn btn-sm"
+          :class="tplLang === code ? 'btn-primary' : 'btn-outline'"
+          @click="tplLang = code"
+        >{{ label }}</button>
+      </div>
       <div class="panel">
-        <table class="dtable">
+        <div v-if="!templatesLoaded && !saveErr" class="empty"><p>{{ t('common.loading') }}</p></div>
+        <table v-else class="dtable">
           <thead>
-            <tr><th>Template</th><th>Category</th><th>Status</th></tr>
+            <tr><th>{{ t('sms.template') }}</th><th>{{ t('sms.category') }}</th><th>{{ t('common.status') }}</th></tr>
           </thead>
           <tbody>
-            <tr v-for="t in templates" :key="t.name">
-              <td class="cell-main">{{ t.name }}</td>
-              <td>{{ t.cat }}</td>
-              <td><span class="badge green">Active</span></td>
+            <tr
+              v-for="x in rows"
+              :key="x.type"
+              style="cursor: pointer"
+              :style="x.type === selectedType ? 'background: var(--green-100)' : ''"
+              @click="selectedType = x.type"
+            >
+              <td class="cell-main">{{ tplName(x) }}</td>
+              <td>{{ x.category }}</td>
+              <td>
+                <span class="badge" :class="x.custom ? 'gold' : 'green'">{{ x.custom ? t('sms.custom') : t('sms.builtin') }}</span>
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <div class="card">
-        <div class="card-head"><h3>Contribution Recorded</h3></div>
+      <div v-if="current" class="card">
+        <div class="card-head"><h3>{{ tplName(current) }}</h3></div>
         <div class="field">
-          <label>Message</label>
+          <label>{{ t('sms.message') }}</label>
           <div class="inp" style="align-items:flex-start;padding:12px;">
-            <textarea v-model="message" rows="3" style="border:none;outline:none;flex:1;font-family:'Inter';font-size:13px;background:transparent;resize:none;"></textarea>
+            <textarea v-model="draft" rows="4" maxlength="480" style="border:none;outline:none;flex:1;font-family:'Inter';font-size:13px;background:transparent;resize:none;"></textarea>
           </div>
         </div>
         <div style="font-size:11.5px;color:var(--ink-400);margin-bottom:14px;">
-          Variables: {JINA} {TUKIO} {KIASI} {SALIO} {TAREHE}
+          {{ t('sms.variables') }}:
+          <a v-for="v in current.variables" :key="v" href="#" style="margin-right: 8px" @click.prevent="insertVar(v)">{{ '{' + v + '}' }}</a>
         </div>
-        <button class="btn btn-outline">Save template</button>
+        <div v-if="saveErr" style="color: var(--danger); font-size: 13px; margin-bottom: 10px">{{ saveErr }}</div>
+        <div v-if="saveMsg" style="color: var(--green-600); font-size: 13px; margin-bottom: 10px">{{ saveMsg }}</div>
+        <div style="display: flex; gap: 10px">
+          <button class="btn btn-primary" :disabled="saving || !draft.trim()" @click="save(false)">
+            {{ saving ? t('sms.saving') : t('sms.saveTemplate') }}
+          </button>
+          <button v-if="current.custom" class="btn btn-outline" :disabled="saving" @click="save(true)">
+            {{ t('sms.restoreDefault') }}
+          </button>
+        </div>
       </div>
     </template>
 
@@ -205,7 +282,7 @@ function barWidth(v, max) {
         </div>
       </div>
       <div class="card">
-        <div class="card-head"><h3>Delivery</h3></div>
+        <div class="card-head"><h3>{{ t('smsd.delivery') }}</h3></div>
         <div v-for="d in delivery" :key="d.lbl" class="chartbar-row">
           <div class="lbl">{{ d.lbl }}</div>
           <div class="bar"><div :style="{ width: barWidth(d.v, d.max), background: d.color }"></div></div>

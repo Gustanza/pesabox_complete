@@ -1,11 +1,13 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { initials, avaColor } from '../data/mock.js'
 import { listUsers, updateUser, deleteUser, ROLES } from '../api/users.js'
 import { listGroups } from '../api/groups.js'
 
 const router = useRouter()
+const { t } = useI18n()
 const activeTab = ref('users')
 
 const users = ref([])
@@ -19,7 +21,7 @@ async function load() {
   try {
     ;[users.value, groups.value] = await Promise.all([listUsers(), listGroups()])
   } catch (e) {
-    error.value = e.message || 'Failed to load users'
+    error.value = e.message || t('users.loadFailed')
   } finally {
     loading.value = false
   }
@@ -58,7 +60,7 @@ async function changeRole(u, event) {
     await updateUser(u.id, { role })
     u.role = role
   } catch (e) {
-    error.value = e.message || 'Failed to update role'
+    error.value = e.message || t('usr.roleFailed')
     load()
   }
 }
@@ -70,17 +72,17 @@ async function toggleStatus(u) {
     u.status = status
     u.isActive = status === 'active'
   } catch (e) {
-    error.value = e.message || 'Failed to update status'
+    error.value = e.message || t('users.statusFailed')
   }
 }
 
 async function remove(u) {
-  if (!confirm(`Delete "${displayName(u)}"? This cannot be undone.`)) return
+  if (!confirm(t('users.confirmDelete', { name: displayName(u) }))) return
   try {
     await deleteUser(u.id)
     users.value = users.value.filter((x) => x.id !== u.id)
   } catch (e) {
-    error.value = e.message || 'Failed to delete user'
+    error.value = e.message || t('users.deleteFailed')
   }
 }
 </script>
@@ -89,15 +91,15 @@ async function remove(u) {
   <div>
     <div class="page-head">
       <div>
-        <h1>Users</h1>
-        <p>Manage every account on the platform.</p>
+        <h1>{{ t('users.title') }}</h1>
+        <p>{{ t('users.subtitle') }}</p>
       </div>
     </div>
 
     <div class="dtabs">
-      <button class="dtab" :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">Users</button>
+      <button class="dtab" :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">{{ t('users.title') }}</button>
       <button class="dtab" :class="{ active: activeTab === 'pending' }" @click="activeTab = 'pending'">
-        Pending Admins ({{ pendingAdmins.length }})
+        {{ t('usr.pendingTab', { n: pendingAdmins.length }) }}
       </button>
     </div>
 
@@ -107,18 +109,22 @@ async function remove(u) {
 
     <template v-if="activeTab === 'pending'">
       <p style="font-size: 12.5px; color: var(--ink-600); margin-bottom: 14px; line-height: 1.5">
-        Users promoted to Group Admin (see the Users tab) who don't have a group yet.
-        Create a group and assign it to them below.
+        {{ t('usr.pendingNote') }}
       </p>
       <div class="panel">
-        <div v-if="loading" class="empty"><p>Loading…</p></div>
+        <div v-if="loading" class="empty"><p>{{ t('common.loading') }}</p></div>
         <div v-else-if="!pendingAdmins.length" class="empty">
           <div class="ic">&#128100;</div>
-          <p>No admins waiting for a group.</p>
+          <p>{{ t('usr.noPending') }}</p>
         </div>
         <table v-else class="dtable">
           <thead>
-            <tr><th>Admin</th><th>Registered</th><th>Status</th><th></th></tr>
+            <tr>
+              <th>{{ t('usr.admin') }}</th>
+              <th>{{ t('usr.registered') }}</th>
+              <th>{{ t('common.status') }}</th>
+              <th></th>
+            </tr>
           </thead>
           <tbody>
             <tr v-for="a in pendingAdmins" :key="a.id">
@@ -132,9 +138,9 @@ async function remove(u) {
                 </div>
               </td>
               <td>{{ a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—' }}</td>
-              <td><span class="badge gold">No group yet</span></td>
+              <td><span class="badge gold">{{ t('usr.noGroupYet') }}</span></td>
               <td>
-                <button class="btn btn-primary btn-sm" @click="goCreateGroup(a)">+ Create Group</button>
+                <button class="btn btn-primary btn-sm" @click="goCreateGroup(a)">{{ t('usr.createGroup') }}</button>
               </td>
             </tr>
           </tbody>
@@ -144,18 +150,23 @@ async function remove(u) {
 
     <template v-else>
       <p style="font-size: 12.5px; color: var(--ink-600); margin-bottom: 14px; line-height: 1.5">
-        Everyone registered on PesaBox. Promote a user to Group Admin, then create their group from the
-        Pending Admins tab.
+        {{ t('usr.everyoneNote') }}
       </p>
       <div class="panel">
-        <div v-if="loading" class="empty"><p>Loading…</p></div>
+        <div v-if="loading" class="empty"><p>{{ t('common.loading') }}</p></div>
         <div v-else-if="!users.length" class="empty">
           <div class="ic">&#128100;</div>
-          <p>No users registered yet.</p>
+          <p>{{ t('users.empty') }}</p>
         </div>
         <table v-else class="dtable">
           <thead>
-            <tr><th>Name</th><th>Role</th><th>Group</th><th>Status</th><th></th></tr>
+            <tr>
+              <th>{{ t('users.name') }}</th>
+              <th>{{ t('users.role') }}</th>
+              <th>{{ t('users.group') }}</th>
+              <th>{{ t('common.status') }}</th>
+              <th></th>
+            </tr>
           </thead>
           <tbody>
             <tr v-for="u in users" :key="u.id">
@@ -170,7 +181,7 @@ async function remove(u) {
               </td>
               <td>
                 <select :value="u.role" @change="changeRole(u, $event)" class="role-select">
-                  <option v-for="r in ROLES" :key="r.value" :value="r.value">{{ r.label }}</option>
+                  <option v-for="r in ROLES" :key="r.value" :value="r.value">{{ t('roles.' + r.value) }}</option>
                 </select>
               </td>
               <td>{{ groupOf(u.id)?.name || '—' }}</td>
@@ -179,10 +190,10 @@ async function remove(u) {
                   class="badge clickable"
                   :class="u.status === 'active' ? 'green' : 'grey'"
                   @click="toggleStatus(u)"
-                >{{ u.status === 'active' ? 'Active' : 'Inactive' }}</span>
+                >{{ u.status === 'active' ? t('users.active') : t('users.inactive') }}</span>
               </td>
               <td>
-                <button class="btn btn-ghost btn-sm" @click="remove(u)">Delete</button>
+                <button class="btn btn-ghost btn-sm" @click="remove(u)">{{ t('common.delete') }}</button>
               </td>
             </tr>
           </tbody>

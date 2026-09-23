@@ -621,7 +621,7 @@
             "type": "String",
             "default": "other",
             "required": false,
-            "options": ["login_otp", "member_otp", "member_joined", "fine", "contribution", "share", "social_fund", "loan_disbursement", "loan_repayment", "fine_payment", "other"]
+            "options": ["login_otp", "member_otp", "member_joined", "fine", "contribution", "share", "social_fund", "loan_disbursement", "loan_repayment", "fine_payment", "meeting_reminder", "loan_due_soon", "loan_overdue", "other"]
         },
         "message": {
             "type": "String",
@@ -651,6 +651,62 @@
             "foreignKey": "User.id"
         },
         "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "SmsTemplates": {
+        "type": {
+            "type": "String",
+            "default": null,
+            "required": true
+        },
+        "language": {
+            "type": "String",
+            "default": "sw",
+            "required": false,
+            "options": ["sw", "en"]
+        },
+        "body": {
+            "type": "String",
+            "default": null,
+            "required": true
+        },
+        "active": {
+            "type": "Boolean",
+            "default": true,
+            "required": false
+        },
+        "updatedBy": {
+            "type": "ID",
+            "default": null,
+            "required": false,
+            "foreignKey": "User.id"
+        },
+        "createdAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        },
+        "updatedAt": {
+            "type": "Date",
+            "default": "now",
+            "required": false
+        }
+    },
+    "PlatformSettings": {
+        "key": {
+            "type": "String",
+            "default": null,
+            "required": true
+        },
+        "value": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
+        "updatedAt": {
             "type": "Date",
             "default": "now",
             "required": false

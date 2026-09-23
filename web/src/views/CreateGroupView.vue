@@ -1,10 +1,12 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { createGroup, updateGroup, getGroup } from '../api/groups.js'
 import { currentUser } from '../api/auth.js'
 import { initials, avaColor } from '../data/mock.js'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
@@ -59,7 +61,7 @@ onMounted(async () => {
         existingCycleTotal.value = g.cycleTotal || 0
       }
     } catch (e) {
-      error.value = e.message || 'Failed to load group'
+      error.value = e.message || t('cg.loadFailed')
     } finally {
       loading.value = false
     }
@@ -72,7 +74,7 @@ onMounted(async () => {
   }
 })
 
-const preview = computed(() => form.value.name.trim() || 'New Group')
+const preview = computed(() => form.value.name.trim() || t('cg.newGroup'))
 
 // Cycle length (number of meetings) is derived from formation date ->
 // projected end date at the chosen meeting frequency, rather than typed in
@@ -105,7 +107,7 @@ function backBreadcrumb() {
 
 async function submit() {
   if (!form.value.name.trim()) {
-    error.value = 'Group name is required'
+    error.value = t('cg.nameRequired')
     return
   }
 
@@ -121,7 +123,7 @@ async function submit() {
     if (isEdit) {
       const result = await updateGroup(editingId, input)
       if (!result?.success) {
-        error.value = result?.message || 'Failed to save changes'
+        error.value = result?.message || t('cg.saveFailed')
         return
       }
       router.push('/groups/' + editingId)
@@ -129,13 +131,13 @@ async function submit() {
       if (createdBy) input.createdBy = createdBy
       const result = await createGroup(input)
       if (!result?.success) {
-        error.value = result?.message || 'Failed to create group'
+        error.value = result?.message || t('cg.createFailed')
         return
       }
       router.push('/groups/' + result.data.id)
     }
   } catch (e) {
-    error.value = e.message || 'Failed to save group'
+    error.value = e.message || t('cg.saveGroupFailed')
   } finally {
     saving.value = false
   }
@@ -145,12 +147,12 @@ async function submit() {
 <template>
   <div>
     <div class="crumb">
-      <b @click="backBreadcrumb">{{ isEdit ? preview : 'Groups' }}</b> / {{ isEdit ? 'Edit' : 'Create Group' }}
+      <b @click="backBreadcrumb">{{ isEdit ? preview : t('cg.groups') }}</b> / {{ isEdit ? t('cg.edit') : t('cg.create') }}
     </div>
     <div class="page-head">
       <div>
-        <h1>{{ isEdit ? 'Edit Group' : 'Create Group' }}</h1>
-        <p>{{ isEdit ? "Update this group's basic details." : 'Set up a new savings group.' }}</p>
+        <h1>{{ isEdit ? t('cg.editTitle') : t('cg.create') }}</h1>
+        <p>{{ isEdit ? t('cg.editSub') : t('cg.createSub') }}</p>
       </div>
     </div>
 
@@ -158,86 +160,86 @@ async function submit() {
       {{ error }}
     </div>
 
-    <div v-if="loading" class="empty"><p>Loading group…</p></div>
+    <div v-if="loading" class="empty"><p>{{ t('cg.loading') }}</p></div>
     <div v-else class="cg-card">
       <div class="cg-head">
         <div class="cg-avatar" :style="{ background: avaColor(preview) }">{{ initials(preview) }}</div>
         <div>
           <div class="cg-title">{{ preview }}</div>
-          <div class="cg-sub">{{ [form.village, form.district, form.region].filter(Boolean).join(', ') || 'Location not set yet' }}</div>
+          <div class="cg-sub">{{ [form.village, form.district, form.region].filter(Boolean).join(', ') || t('cg.locationUnset') }}</div>
         </div>
       </div>
 
-      <div class="cg-section">Group details</div>
+      <div class="cg-section">{{ t('cg.details') }}</div>
       <div class="field">
-        <label>Group name</label>
-        <div class="inp filled"><input v-model="form.name" placeholder="e.g. Upendo Vikoba" /></div>
+        <label>{{ t('cg.name') }}</label>
+        <div class="inp filled"><input v-model="form.name" :placeholder="t('cg.namePh')" /></div>
       </div>
       <div class="field-row">
         <div class="field">
-          <label>Region</label>
-          <div class="inp filled"><input v-model="form.region" placeholder="e.g. Dar es Salaam" /></div>
+          <label>{{ t('cg.region') }}</label>
+          <div class="inp filled"><input v-model="form.region" :placeholder="t('cg.regionPh')" /></div>
         </div>
         <div class="field">
-          <label>District</label>
-          <div class="inp filled"><input v-model="form.district" placeholder="e.g. Ilala" /></div>
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <label>Ward <span class="opt">(optional)</span></label>
-          <div class="inp filled"><input v-model="form.ward" placeholder="e.g. Kariakoo" /></div>
-        </div>
-        <div class="field">
-          <label>Village / Street <span class="opt">(optional)</span></label>
-          <div class="inp filled"><input v-model="form.village" placeholder="e.g. Mchikichini" /></div>
+          <label>{{ t('cg.district') }}</label>
+          <div class="inp filled"><input v-model="form.district" :placeholder="t('cg.districtPh')" /></div>
         </div>
       </div>
       <div class="field-row">
         <div class="field">
-          <label>Formation date</label>
+          <label>{{ t('cg.ward') }} <span class="opt">{{ t('cg.optional') }}</span></label>
+          <div class="inp filled"><input v-model="form.ward" :placeholder="t('cg.wardPh')" /></div>
+        </div>
+        <div class="field">
+          <label>{{ t('cg.village') }} <span class="opt">{{ t('cg.optional') }}</span></label>
+          <div class="inp filled"><input v-model="form.village" :placeholder="t('cg.villagePh')" /></div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>{{ t('cg.formation') }}</label>
           <div class="inp filled"><input v-model="form.formationDate" type="date" /></div>
         </div>
         <div class="field">
-          <label>Meeting frequency</label>
+          <label>{{ t('cg.frequency') }}</label>
           <div class="inp filled">
             <select v-model="form.meetingFrequency">
-              <option>Weekly</option>
-              <option>Biweekly</option>
-              <option>Monthly</option>
+              <option value="Weekly">{{ t('cg.freq.Weekly') }}</option>
+              <option value="Biweekly">{{ t('cg.freq.Biweekly') }}</option>
+              <option value="Monthly">{{ t('cg.freq.Monthly') }}</option>
             </select>
           </div>
         </div>
       </div>
       <div class="field">
-        <label>Projected end date <span class="opt">(optional)</span></label>
+        <label>{{ t('cg.endDate') }} <span class="opt">{{ t('cg.optional') }}</span></label>
         <div class="inp filled"><input v-model="form.projectedEndDate" type="date" /></div>
         <div class="hint">
-          <template v-if="cycleTotal">≈ {{ cycleTotal }} meetings in this cycle</template>
+          <template v-if="cycleTotal">{{ t('cg.approxMeetings', { n: cycleTotal }) }}</template>
           <template v-else-if="isEdit && existingCycleTotal">
-            Current cycle length is {{ existingCycleTotal }} meetings — set an end date to change it
+            {{ t('cg.currentLength', { n: existingCycleTotal }) }}
           </template>
-          <template v-else>Set an end date to work out the cycle length automatically</template>
+          <template v-else>{{ t('cg.setEndDate') }}</template>
         </div>
       </div>
 
-      <div class="cg-section">Responsible officer</div>
+      <div class="cg-section">{{ t('offc.officer') }}</div>
       <div class="field-row">
         <div class="field">
-          <label>Admin / Chairperson name</label>
-          <div class="inp filled"><input v-model="form.adminName" placeholder="e.g. Neema Joseph" /></div>
+          <label>{{ t('offc.chairName') }}</label>
+          <div class="inp filled"><input v-model="form.adminName" :placeholder="t('offc.chairPh')" /></div>
         </div>
         <div class="field">
-          <label>Admin phone</label>
+          <label>{{ t('cg.adminPhone') }}</label>
           <div class="inp filled"><input v-model="form.adminPhone" type="tel" placeholder="0712 345 678" /></div>
         </div>
       </div>
 
       <div class="cg-actions">
         <button class="btn btn-primary" :disabled="saving" @click="submit">
-          {{ saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create group' }}
+          {{ saving ? t('cg.saving') : isEdit ? t('cg.saveChanges') : t('cg.createBtn') }}
         </button>
-        <button class="btn btn-ghost" @click="backBreadcrumb">Cancel</button>
+        <button class="btn btn-ghost" @click="backBreadcrumb">{{ t('cg.cancel') }}</button>
       </div>
     </div>
   </div>
