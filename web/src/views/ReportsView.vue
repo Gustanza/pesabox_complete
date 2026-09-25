@@ -143,19 +143,27 @@ function fmtCell(type, v) {
       return map[v] ?? String(v)
     }
     default:
-      return String(v)
+      // The server's label for groups with no cluster / partner.
+      return v === 'Not assigned' ? t('kpi.notAssigned') : String(v)
   }
 }
 
 const isNumeric = (type) => ['money', 'count', 'int', 'rate'].includes(type)
 const colType = (c) => lastReport.value?.types?.[c] || 'text'
 
-// Where the footer's TOTAL label goes: the first column without a total.
+// Where the footer's TOTAL label goes: the first column without a total, or
+// (if every column carries a total) the first column, as "TOTAL · value".
 const totalsLabelCol = computed(() => {
   const r = lastReport.value
   if (!r?.totals) return null
-  return r.columns.find((c) => !(c in r.totals)) ?? null
+  return r.columns.find((c) => !(c in r.totals)) ?? r.columns[0] ?? null
 })
+function footerCell(c) {
+  const r = lastReport.value
+  const value = c in r.totals ? fmtCell(colType(c), r.totals[c]) : ''
+  if (c !== totalsLabelCol.value) return value
+  return value ? t('reports.total') + ' · ' + value : t('reports.total')
+}
 
 const shownRows = computed(() => {
   const rows = lastReport.value?.rows || []
@@ -382,8 +390,7 @@ async function printPreview() {
           <tfoot v-if="lastReport.totals">
             <tr class="totals-row">
               <td v-for="c in lastReport.columns" :key="c" :style="isNumeric(colType(c)) ? 'text-align: right; white-space: nowrap' : ''">
-                <template v-if="c === totalsLabelCol">{{ t('reports.total') }}</template>
-                <template v-else-if="c in lastReport.totals">{{ fmtCell(colType(c), lastReport.totals[c]) }}</template>
+                {{ footerCell(c) }}
               </td>
             </tr>
           </tfoot>

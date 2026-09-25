@@ -41,18 +41,22 @@ var exportText = map[string]map[string]string{
 	"sw": {
 		"title": "Ripoti ya " + brandName, "scope": "Wigo", "period": "Kipindi", "gen": "Imetengenezwa",
 		"none": "Hakuna data kwa vigezo hivi.", "all": "Vikundi vyote", "any": "Muda wote", "total": "JUMLA",
-		"asAt":     "Hali kufikia %s (hali ya sasa; kipindi cha tarehe hakihusiki).",
-		"balances": "Salio ni kufikia %s; safu za \"(kipindi)\" ni za %s.",
-		"cut":      "Safu %s za kwanza tu kati ya %s ndizo zimejumuishwa.",
-		"page":     "Ukurasa",
+		"asAt":        "Hali kufikia %s (hali ya sasa; kipindi cha tarehe hakihusiki).",
+		"balances":    "Salio ni kufikia %s; safu za \"(kipindi)\" ni za %s.",
+		"cut":         "Safu %s za kwanza tu kati ya %s ndizo zimejumuishwa.",
+		"meetingRule": "Miamala iliyorekodiwa bila mkutano imehesabiwa kwenye mkutano pekee (usioghairiwa) wa kikundi siku hiyo hiyo (saa za Afrika Mashariki).",
+		"readme":      "Maelezo ya faili hizi",
+		"page":        "Ukurasa",
 	},
 	"en": {
 		"title": brandName + " Report", "scope": "Scope", "period": "Period", "gen": "Generated",
 		"none": "No data for these filters.", "all": "All groups", "any": "All time", "total": "TOTAL",
-		"asAt":     "As at %s (current position; the date range does not apply).",
-		"balances": "Balances as at %s; \"(period)\" columns cover %s.",
-		"cut":      "Only the first %s of %s rows are included.",
-		"page":     "Page",
+		"asAt":        "As at %s (current position; the date range does not apply).",
+		"balances":    "Balances as at %s; \"(period)\" columns cover %s.",
+		"cut":         "Only the first %s of %s rows are included.",
+		"meetingRule": "Money recorded without a meeting is credited to the group's only (not cancelled) meeting on the same day (East Africa Time).",
+		"readme":      "Notes for these files",
+		"page":        "Page",
 	},
 }
 
@@ -82,10 +86,29 @@ func (m exportMeta) notes(s exportSet) []string {
 	if s.ds.Balances {
 		out = append(out, fmt.Sprintf(m.text("balances"), m.asAt, m.period()))
 	}
+	if s.ds.Key == "meeting-collections" {
+		out = append(out, m.text("meetingRule"))
+	}
 	if s.truncated() {
 		out = append(out, fmt.Sprintf(m.text("cut"), commaInt(int64(len(s.rows))), commaInt(int64(s.total))))
 	}
 	return out
+}
+
+// withLabelCol makes sure a set with a TOTAL row has somewhere to write the
+// label: if the column picker left only totalled columns, the dataset's
+// first label-able column (Name, Group, Date, ...) is put back in front.
+func withLabelCol(s exportSet) exportSet {
+	if s.totals == nil || totalsLabelCol(s) != "" {
+		return s
+	}
+	for _, c := range s.ds.Columns {
+		if _, has := s.totals[c]; !has {
+			s.cols = append([]string{c}, s.cols...)
+			return s
+		}
+	}
+	return s
 }
 
 // ---------------------------------------------------------------------------
@@ -147,6 +170,9 @@ func cellText(lang, typ string, v interface{}, pretty bool) string {
 		}
 		n := num(v)
 		if !pretty {
+			if typ == "rate" {
+				return strconv.FormatFloat(n, 'f', -1, 64)
+			}
 			return plainNumber(n)
 		}
 		if typ == "rate" {
@@ -163,6 +189,11 @@ func cellText(lang, typ string, v interface{}, pretty bool) string {
 	}
 	if f, ok := v.(float64); ok {
 		return plainNumber(f)
+	}
+	if str, ok := v.(string); ok && normLang(lang) == "sw" {
+		if t, ok := textSw[str]; ok {
+			return t
+		}
 	}
 	return fmt.Sprint(v)
 }
@@ -182,9 +213,17 @@ func totalsLabelCol(s exportSet) string {
 // CSV
 // ---------------------------------------------------------------------------
 
-func csvBytes(m exportMeta, s exportSet) []byte {
+// csvBytes writes one dataset. withNotes puts the notes (as-at, truncation,
+// ...) as "#" lines before the header; a zip carries them in README.txt.
+func csvBytes(m exportMeta, s exportSet, withNotes bool) []byte {
+	s = withLabelCol(s)
 	var buf bytes.Buffer
 	buf.WriteString("\xEF\xBB\xBF") // BOM so Excel opens UTF-8 correctly
+	if withNotes {
+		for _, n := range m.notes(s) {
+			buf.WriteString("# " + n + "\r\n")
+		}
+	}
 	w := csv.NewWriter(&buf)
 	head := make([]string, len(s.cols))
 	for i, c := range s.cols {
@@ -211,24 +250,37 @@ func csvBytes(m exportMeta, s exportSet) []byte {
 		_ = w.Write(rec)
 	}
 	w.Flush()
-	for _, n := range m.notes(s) {
-		buf.WriteString("# " + n + "\r\n")
-	}
 	return buf.Bytes()
 }
 
 func exportCSV(m exportMeta, sets []exportSet) ([]byte, string, error) {
 	if len(sets) == 1 {
-		return csvBytes(m, sets[0]), "csv", nil
+		return csvBytes(m, sets[0], true), "csv", nil
 	}
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
+	var readme strings.Builder
 	for _, s := range sets {
 		w, err := zw.Create(s.ds.Key + ".csv")
 		if err != nil {
 			return nil, "", err
 		}
-		_, _ = w.Write(csvBytes(m, s))
+		_, _ = w.Write(csvBytes(m, s, false))
+		if notes := m.notes(s); len(notes) > 0 {
+			readme.WriteString(s.ds.Key + ".csv (" + dsLabel(m.lang, s.ds) + ")\r\n")
+			for _, n := range notes {
+				readme.WriteString("  - " + n + "\r\n")
+			}
+			readme.WriteString("\r\n")
+		}
+	}
+	if readme.Len() > 0 {
+		w, err := zw.Create("README.txt")
+		if err != nil {
+			return nil, "", err
+		}
+		head := m.text("readme") + " - " + brandName + "\r\n" + m.text("period") + ": " + m.period() + "\r\n\r\n"
+		_, _ = w.Write([]byte(head + readme.String()))
 	}
 	if err := zw.Close(); err != nil {
 		return nil, "", err
@@ -379,6 +431,7 @@ func exportXLSX(m exportMeta, sets []exportSet) ([]byte, error) {
 	}
 	used := map[string]bool{}
 	for i, s := range sets {
+		s = withLabelCol(s)
 		name := xlsxSheetName(dsLabel(m.lang, s.ds), used)
 		if i == 0 {
 			if err := f.SetSheetName("Sheet1", name); err != nil {
@@ -387,6 +440,23 @@ func exportXLSX(m exportMeta, sets []exportSet) ([]byte, error) {
 		} else if _, err := f.NewSheet(name); err != nil {
 			return nil, err
 		}
+		// Printed page header: dataset, scope/period and the "as at" date.
+		scope := m.scope
+		if scope == "" {
+			scope = m.text("all")
+		}
+		right := m.text("period") + ": " + m.period()
+		if s.ds.PointInTime {
+			right = fmt.Sprintf(m.text("asAt"), m.asAt)
+		} else if s.ds.Balances {
+			right = fmt.Sprintf(m.text("balances"), m.asAt, m.period())
+		}
+		esc := strings.NewReplacer("&", "&&")
+		// (set before streaming: the stream writer keeps it, a later call is lost)
+		_ = f.SetHeaderFooter(name, &excelize.HeaderFooterOptions{
+			OddHeader: "&L" + esc.Replace(brandName+" - "+dsLabel(m.lang, s.ds)+" - "+scope) + "&R" + esc.Replace(right),
+			OddFooter: "&C" + esc.Replace(m.text("page")) + " &P / &N",
+		})
 		sw, err := f.NewStreamWriter(name)
 		if err != nil {
 			return nil, err
@@ -459,20 +529,6 @@ func exportXLSX(m exportMeta, sets []exportSet) ([]byte, error) {
 		if err := sw.Flush(); err != nil {
 			return nil, err
 		}
-		// Printed page header: dataset, scope/period and the "as at" date.
-		scope := m.scope
-		if scope == "" {
-			scope = m.text("all")
-		}
-		right := m.text("period") + ": " + m.period()
-		if s.ds.PointInTime || s.ds.Balances {
-			right = fmt.Sprintf(m.text("asAt"), m.asAt)
-		}
-		esc := strings.NewReplacer("&", "&&")
-		_ = f.SetHeaderFooter(name, &excelize.HeaderFooterOptions{
-			OddHeader: "&L" + esc.Replace(brandName+" - "+dsLabel(m.lang, s.ds)+" - "+scope) + "&R" + esc.Replace(right),
-			OddFooter: "&C" + esc.Replace(m.text("page")) + " &P / &N",
-		})
 	}
 	var buf bytes.Buffer
 	if err := f.Write(&buf); err != nil {
@@ -657,6 +713,7 @@ func exportPDF(m exportMeta, sets []exportSet) ([]byte, error) {
 	p.Ln(4)
 
 	for _, s := range sets {
+		s = withLabelCol(s)
 		room(30)
 		p.SetFont("Helvetica", "B", 13)
 		p.SetTextColor(15, 110, 86)

@@ -178,6 +178,9 @@ const chartLine = computed(() => {
 // Drill down: partner row -> its clusters, cluster row -> its groups,
 // group row -> the group page. The breadcrumb chips go back up.
 function openRow(r) {
+  // Groups with no cluster / partner have no level to drill into (an empty
+  // filter would mean "everything").
+  if (r.unassigned || !r.id) return
   if (level.value === 'group') {
     router.push('/groups/' + r.id)
   } else if (level.value === 'cluster') {
@@ -306,10 +309,22 @@ function goCrumb(key) {
           </thead>
           <tbody>
             <tr v-if="!loading && !(rollup?.rows || []).length"><td colspan="8" class="cell-muted">{{ t('kpi.noRows') }}</td></tr>
-            <tr v-for="r in rollup?.rows || []" :key="r.id" class="clickable" @click="openRow(r)">
+            <tr
+              v-for="r in rollup?.rows || []"
+              :key="r.id || 'unassigned'"
+              :class="{ clickable: !r.unassigned && r.id }"
+              @click="openRow(r)"
+            >
               <td class="cell-strong">
-                {{ r.name }}
-                <span v-if="level === 'group' && !r.activeGroups" class="badge grey" style="margin-left: 6px">{{ t('kpi.inactive') }}</span>
+                <template v-if="r.unassigned">
+                  <span class="cell-muted">{{ t('kpi.notAssigned') }}</span>
+                </template>
+                <template v-else>{{ r.name }}</template>
+                <span
+                  v-if="(level === 'group' && !r.activeGroups) || (level !== 'group' && r.status === 'Inactive')"
+                  class="badge grey"
+                  style="margin-left: 6px"
+                >{{ t('kpi.inactive') }}</span>
               </td>
               <td v-if="level !== 'group'">{{ r.groups }} <span class="cell-sub">({{ t('kpi.activeN', { n: r.activeGroups }) }})</span></td>
               <td>{{ num(r.members) }} <span class="cell-sub">{{ t('kpi.fm', { f: r.femaleMembers, m: r.maleMembers }) }}</span></td>

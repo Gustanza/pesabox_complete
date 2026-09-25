@@ -347,7 +347,7 @@ func runReminders(app *yekonga.YekongaData, now time.Time) {
 			if _, gok := groups[gid]; !gok || !ok {
 				continue
 			}
-			balance := helper.GetValueOfFloat(l, "amount") - helper.GetValueOfFloat(l, "amountRepaid")
+			balance := loanBalance(l) // total due (principal + interest) - repaid
 			due := helper.GetTimestamp(l["dueDate"])
 			if balance <= 0 || due.IsZero() {
 				continue

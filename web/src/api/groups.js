@@ -48,9 +48,7 @@ const GROUP_FIELDS = `
   socialFundContribution
   loanInterestRate
   maxLoanPeriodMonths
-  lateMeetingFine
-  absenceFine
-  lateLoanRepaymentFine
+  maxLoanMultiplier
   totalSavings
   totalShares
   totalSocialFund

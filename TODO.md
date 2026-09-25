@@ -119,6 +119,15 @@ Tick when GATA confirms (or note their change in the log).
   - **Group Members log in with phone + OTP** (same as admins today) — phase 3.
   *Why:* presets are easier to explain, test and support than per-permission switches.
 
+- [ ] **D10 Loan interest.** Loans store `interestRate` (10%) but repayments and balances use principal only.
+  *Our recommendation:* flat interest on principal, added to the amount due at disbursement
+  (total due = principal × (1 + rate)); PAR and balances use total due. Reports already show "Interest %".
+  **Needs GATA to confirm before we change balances.**
+
+- [x] **D11 Money recorded outside a meeting.** _Decided 2026-09-25 (user): yes — it counts toward that day's meeting (current behaviour kept)._ The "collections per meeting" report credits a payment
+  with no meeting to that day's meeting. *Our recommendation:* only money-in recorded in the app during the
+  meeting counts; mobile-money pay-ins outside it show as "between meetings". Needs GATA to confirm.
+
 - [ ] **D9 Still genuinely needed from the client** (can't be decided for them):
   - Real partner & cluster names and which groups go where (data to load).
   - Notes from the call with Winnie (to adjust D4).
@@ -200,6 +209,8 @@ Tick when GATA confirms (or note their change in the log).
 - [x] **P6** Portfolio at risk (PAR 30) + inactive-group detection — _portfolio-at-risk dataset + Activity column (no meeting in 30 days)_
 - [x] **P7** Reports respect role scope (U8)
 - [x] **P8** All reports in Swahili + English — _all new report columns/labels have Swahili_
+- [x] **P9** Reports hardening (review 2026-09-25, R1–R27 + V1–V8) — _date range on every dataset, EAT time zone, balances computed from non-reversed transactions (not stored totals), cancelled loans = 0, SMS reports need SMS permission, 400 on bad dates, 403 for out-of-scope filters, TOTAL rows, real Excel dates/number formats, PDF columns no longer cut, new datasets meeting-collections / fines-outstanding / expenses / gov-loan-repayments, dashboard drill-down, app statement + reports aligned with server. `GET /api/admin/totals-drift` (super admin) shows stored-vs-real total differences_
+- [ ] **P10** DB indexes on `groupId` + `createdAt` (Transactions, SmsLogs, MeetingAttendance) — before large data
 
 ---
 
@@ -216,11 +227,11 @@ Tick when GATA confirms (or note their change in the log).
 
 ---
 
-## 7. Government loans — `✅ DONE` (G3 group statement still to add)
+## 7. Government loans — `✅ DONE`
 
 - [x] **G1** `GovernmentLoans` + repayments model (D6 fields) — _GovernmentLoans + GovernmentLoanRepayments models, /api/main/gov-loans routes_
 - [x] **G2** Record receipt + repayments (web + mobile, Group Admin/Officer) — _app: Group → Government loans (record + repayments), web shows them read-only on the group page_
-- [ ] **G3** Show on group dashboard & group statement, separate from member savings — _web group page + app screen ✅ — not yet on the app's Group Statement PDF_
+- [x] **G3** Show on group dashboard & group statement, separate from member savings — _web group page + app screen + app Group Statement (screen + PDF)_
 - [x] **G4** Include in reports at all 4 levels (§5) and in SMS notifications (§8) — _all 4 report levels + government-loans dataset. No member SMS by design (the loan is to the group)_
 
 ---
@@ -276,3 +287,4 @@ Tick when GATA confirms (or note their change in the log).
 | 2026-09-23 | fixes | Claude | The merge had broken the web: AppLayout + RegisterView lost their `useI18n` import/call (runtime crash), Dashboard stat labels, fake pagination on Groups — all fixed |
 | 2026-09-25 | R3, R6, U19–U20, G2, L3, H4 (mobile) | Claude | HelaBox brand, role-aware app (/api/main/group), officers + government loans screens, real reversal screen, 79 Swahili strings, bundled fonts, expired session → login instead of 'waiting for group'. Checked on the emulator + flutter test 29/29 |
 | 2026-09-25 | settings, H1, H5 | Claude | Web Settings showed fake data (NextSMS, PESABOX, fake admins, dead 2FA toggles) — now real provider/sender/health/admins. Untracked node_modules + exe + log, added server/.env.example |
+| 2026-09-25 | P9, G3 (reports review) | Claude (reviewer + coder agents) | Reviewer found 27 report issues (3 high: date range ignored by 11 datasets, UTC dates, app counted cancelled loans) — all fixed; re-review found 8 small ones — fixed. go test 28/28, isolated e2e 131/131, web build + i18n parity 633/633, flutter test 35/35. D10 (interest) + D11 (meeting rule) added for GATA |

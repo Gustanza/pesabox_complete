@@ -118,7 +118,7 @@ REST and GraphQL requests both terminate in the same data layer: `ModelQuery` (f
 
 ### Reports & dashboard
 
-One KPI computation (`server/report_kpis.go`: `computeGroupKPIs` + `rollup`) feeds `/api/admin/dashboard`, `/api/admin/rollup?level=partner|cluster|group` and the `summary-*` report datasets. `reportScope` (`server/reports.go`) turns `partnerId`/`clusterId`/`groupId` filters into a group set, always clipped to the caller's scope. A new report = one entry in `reportDatasets` + one `case` in `buildReport` (+ Swahili labels in `columnSw`).
+One KPI computation (`server/report_kpis.go`: `computeGroupKPIs` + `rollup`) feeds `/api/admin/dashboard`, `/api/admin/rollup?level=partner|cluster|group` and the `summary-*` report datasets. `reportScope` (`server/reports.go`) turns `partnerId`/`clusterId`/`groupId` filters into a group set, always clipped to the caller's scope. A new report = one entry in `reportDatasets` (`server/reports.go`: label, column types, `Totals`/`pointInTime` flags) + one builder in `server/report_build.go` (uses the per-request `reportCtx` lookups) + Swahili labels in `columnSw`/`valueSw`. Exports live in `server/report_export.go`. Rules every report follows: dates parsed and printed in **EAT** (`to` inclusive), balances computed from non-reversed transactions and non-cancelled loans (never the stored `Group.total*` — `/api/admin/totals-drift` shows drift), SMS datasets need `PermSms` per group, bad dates → 400, out-of-scope filters from group roles → 403. Tests: `server/reports_test.go` (in-memory fixtures).
 
 ### Branding
 

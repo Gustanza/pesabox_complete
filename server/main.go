@@ -238,13 +238,13 @@ var defaultFineReasons = []datatype.DataMap{
 // groupFineReasons returns the group's configured fine reasons, falling back
 // to the platform defaults when the group hasn't set its own yet.
 func groupFineReasons(g datatype.DataMap) []datatype.DataMap {
-	raw := helper.GetValueOfList(g, "fineReasons")
+	raw := docList(g["fineReasons"])
 	if len(raw) == 0 {
 		return defaultFineReasons
 	}
 	out := []datatype.DataMap{}
 	for _, r := range raw {
-		m := helper.ToDataMap(r)
+		m := docMap(r)
 		if helper.GetValueOfString(m, "reason") != "" {
 			out = append(out, m)
 		}
@@ -686,6 +686,7 @@ func main() {
 
 	registerReports(app)
 	registerDashboard(app)
+	registerGroupRules(app)
 	registerSmsAdmin(app)
 	registerSmsSettings(app)
 	startSmsReminders(app)
@@ -883,9 +884,7 @@ func main() {
 		for _, l := range *loans {
 			mid := helper.GetValueOfString(l, "memberId")
 			loansTaken[mid]++
-			if helper.GetValueOfString(l, "status") == "active" {
-				outstanding[mid] += helper.GetValueOfFloat(l, "amount") - helper.GetValueOfFloat(l, "amountRepaid")
-			}
+			outstanding[mid] += loanBalance(l) // total due (principal + interest) - repaid
 		}
 
 		finesCharged := map[string]float64{}
@@ -1209,7 +1208,7 @@ func main() {
 		// Shares can be entered as a count ("3 shares"): total = count × value.
 		if typ == "share" && amount <= 0 {
 			if cnt := helper.GetValueOfInt(body, "shareCount"); cnt > 0 {
-				if sv := helper.GetValueOfFloat(*g, "shareValue"); sv > 0 {
+				if sv := ruleFloat(*g, "shareValue"); sv > 0 {
 					amount = float64(cnt) * sv
 				}
 			}
@@ -1220,19 +1219,32 @@ func main() {
 			return
 		}
 
-		// Rule validation (spec §15) — the admin configures rules on the group,
-		// and the server rejects transactions that violate them instead of
-		// silently recording an off-rule amount.
-		msa := helper.GetValueOfFloat(*g, "mandatorySavingsAmount")
-		if msa > 0 && typ == "contribution" && amount != msa {
+		// Rule validation (spec §15) — the group's rules (group_rules.go) decide
+		// which services are on and the fixed amounts; the server rejects
+		// transactions that break them instead of recording an off-rule amount.
+		if typ == "loan_disbursement" {
+			deny(res, 400, "issue loans with the Record Loan action, not as a plain transaction")
+			return
+		}
+		if msg := serviceOff(*g, typ); msg != "" {
+			deny(res, 400, msg)
+			return
+		}
+		msa := ruleFloat(*g, "mandatorySavingsAmount")
+		if msa > 0 && typ == "contribution" && serviceEnabled(*g, "Mandatory Savings") && amount != msa {
 			res.Status(400)
 			res.Json(map[string]string{"error": fmt.Sprintf("Mandatory Savings is %s per meeting", fmtTZS(msa))})
 			return
 		}
+		sfc := ruleFloat(*g, "socialFundContribution")
+		if sfc > 0 && typ == "social_fund" && amount != sfc {
+			deny(res, 400, fmt.Sprintf("Social Fund contribution is %s per meeting", fmtTZS(sfc)))
+			return
+		}
 		if typ == "share" {
-			sv := helper.GetValueOfFloat(*g, "shareValue")
-			mn := helper.GetValueOfInt(*g, "minShares")
-			mx := helper.GetValueOfInt(*g, "maxShares")
+			sv := ruleFloat(*g, "shareValue")
+			mn := int(ruleFloat(*g, "minShares"))
+			mx := int(ruleFloat(*g, "maxShares"))
 			if sv > 0 {
 				cnt := int(amount/sv + 0.5)
 				if math.Abs(amount-float64(cnt)*sv) > 0.01 {
@@ -1322,14 +1334,26 @@ func main() {
 		if meetingLocked(res, groupId, helper.GetValueOfString(body, "meetingId")) {
 			return
 		}
-		rate := helper.GetValueOfFloat(body, "interestRate")
-		if rate <= 0 {
-			rate = helper.GetValueOfFloat(*g, "loanInterestRate")
+		if msg := serviceOff(*g, "loan_disbursement"); msg != "" {
+			deny(res, 400, msg)
+			return
 		}
-		if rate <= 0 {
-			rate = 10
+		if ruleFloat(*g, "maxLoanMultiplier") > 0 {
+			txs := app.ModelQuery("Transaction").SkipBeforeCommit().Where("groupId", groupId).Where("memberId", memberId).Find(nil)
+			var list []datatype.DataMap
+			if txs != nil {
+				list = *txs
+			}
+			if msg := loanLimitError(*g, amount, memberSavingsShares(list, memberId)); msg != "" {
+				deny(res, 400, msg)
+				return
+			}
 		}
-		periodMonths := helper.GetValueOfInt(*g, "maxLoanPeriodMonths")
+		// Flat interest from the group's current rules, fixed on the loan now:
+		// later rule changes never touch an existing loan.
+		rate := ruleFloat(*g, "loanInterestRate")
+		interest, totalDue := loanTerms(amount, rate)
+		periodMonths := int(ruleFloat(*g, "maxLoanPeriodMonths"))
 		if periodMonths <= 0 {
 			periodMonths = 3
 		}
@@ -1341,6 +1365,8 @@ func main() {
 			"amount":          amount,
 			"amountRepaid":    0,
 			"interestRate":    rate,
+			"interestAmount":  interest,
+			"totalDue":        totalDue,
 			"issuedDate":      time.Now(),
 			"dueDate":         time.Now().AddDate(0, periodMonths, 0),
 			"status":          "active",
@@ -1408,17 +1434,10 @@ func main() {
 		if meetingLocked(res, groupId, helper.GetValueOfString(body, "meetingId")) {
 			return
 		}
-		loanAmt := helper.GetValueOfFloat(*loan, "amount")
-		repaid := helper.GetValueOfFloat(*loan, "amountRepaid")
-		if repaid+amount > loanAmt {
-			res.Status(400)
-			res.Json(map[string]string{"error": "repayment exceeds the remaining balance"})
+		repaid, status, msg := loanRepayment(*loan, amount)
+		if msg != "" {
+			deny(res, 400, msg)
 			return
-		}
-		repaid += amount
-		status := "active"
-		if repaid >= loanAmt {
-			status = "repaid"
 		}
 		updated := app.ModelQuery("Loan").SkipBeforeCommit().Where("id", req.Param("id")).Update(datatype.DataMap{
 			"amountRepaid": repaid,
@@ -1474,6 +1493,10 @@ func main() {
 		// (spec §12): "Late Attendance — TZS 1,000". An explicit typed amount
 		// still wins (used for the 'Other' reason where configured amount is 0).
 		amount = fineAmountFor(*g, reason, amount)
+		if !serviceEnabled(*g, "Fines") {
+			deny(res, 400, "Fines are switched off in this group's rules")
+			return
+		}
 
 		if memberId == "" || reason == "" || amount <= 0 {
 			res.Status(400)

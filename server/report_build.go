@@ -59,6 +59,9 @@ type reportCtx struct {
 	// fetch loads a model's records (already limited to set; dateField, when
 	// not empty, may also be limited to the range in the query).
 	fetch func(model, dateField string) []datatype.DataMap
+	// byIds loads records of model by id, whatever their group (a member who
+	// moved groups still has rows in the old group).
+	byIds func(model string, ids []string) []datatype.DataMap
 	// smsOK reports whether the caller may see SMS logs of a group.
 	smsOK func(groupId string) bool
 
@@ -81,9 +84,45 @@ func newReportCtx(app *yekonga.YekongaData, a *Actor, set map[string]bool, from,
 		}
 		return reportQuery(app, model, set, dateField, from, to)
 	}
+	c.byIds = func(model string, ids []string) []datatype.DataMap {
+		list := make([]interface{}, 0, len(ids))
+		for _, id := range ids {
+			list = append(list, id)
+		}
+		recs := app.ModelQuery(model).SkipBeforeCommit().Where("id", map[string]interface{}{"in": list}).Find(nil)
+		if recs == nil {
+			return nil
+		}
+		return *recs
+	}
 	c.smsOK = func(gid string) bool { return gid != "" && a.CanIn(PermSms, gid) }
 	c.init()
 	return c
+}
+
+// needMembers makes sure every member referenced by recs (memberId) can be
+// named — including members who have since moved to a group outside the
+// scope. One query for all the missing ids.
+func (c *reportCtx) needMembers(recs []datatype.DataMap) {
+	missing := map[string]bool{}
+	for _, r := range recs {
+		if id := helper.GetValueOfString(r, "memberId"); id != "" {
+			if _, ok := c.memberById[id]; !ok {
+				missing[id] = true
+			}
+		}
+	}
+	if len(missing) == 0 || c.byIds == nil {
+		return
+	}
+	for _, m := range c.byIds("Member", sortedKeys(missing)) {
+		c.memberById[helper.GetValueOfString(m, "id")] = m
+	}
+	for id := range missing { // unknown ids: don't ask again
+		if _, ok := c.memberById[id]; !ok {
+			c.memberById[id] = nil
+		}
+	}
 }
 
 func (c *reportCtx) init() {
@@ -160,7 +199,7 @@ func (c *reportCtx) groupName(id string) string {
 }
 
 func (c *reportCtx) memberName(id string) string {
-	if m, ok := c.memberById[id]; ok {
+	if m, ok := c.memberById[id]; ok && m != nil {
 		return memberFullName(m)
 	}
 	return "—"
@@ -280,14 +319,30 @@ func buildReport(c *reportCtx, key string) ([]datatype.DataMap, bool) {
 				names[k.GroupID] = k.Name
 			}
 		}
+		statuses := map[string]interface{}{}
+		switch level {
+		case "partner":
+			for id, p := range c.partnerById {
+				statuses[id] = unitStatus(p)
+			}
+		case "cluster":
+			for id, cl := range c.clusterById {
+				statuses[id] = unitStatus(cl)
+			}
+		default:
+			for _, k := range kpis {
+				statuses[k.GroupID] = k.Status
+			}
+		}
 		keys, totals := rollupTotals(kpis, level)
 		for _, id := range keys {
-			name := names[id]
-			if name == "" {
-				name = "—"
-			}
 			row := summaryRow(*totals[id])
-			row["Name"] = name
+			row["Name"] = names[id]
+			row["Status"] = statuses[id]
+			if id == "" || names[id] == "" {
+				// Groups with no cluster / partner: one honest row, no status.
+				row["Name"], row["Status"] = notAssigned, nil
+			}
 			row["_id"] = id
 			rows = append(rows, row)
 		}
@@ -316,6 +371,7 @@ func buildReport(c *reportCtx, key string) ([]datatype.DataMap, bool) {
 		sortByKeys(rows, "Group")
 
 	case "portfolio-at-risk":
+		c.needMembers(c.list("Loan"))
 		for _, l := range c.list("Loan") {
 			gid := helper.GetValueOfString(l, "groupId")
 			bal := loanBalance(l)
@@ -407,6 +463,7 @@ func buildReport(c *reportCtx, key string) ([]datatype.DataMap, bool) {
 			"savings": {"contribution": true}, "shares": {"share": true}, "social-fund": {"social_fund": true},
 			"fines": {"fine": true}, "expenses": {"expense": true, "withdrawal": true},
 		}[key]
+		c.needMembers(c.listInRange("Transaction", "createdAt"))
 		for _, t := range c.listInRange("Transaction", "createdAt") {
 			gid := helper.GetValueOfString(t, "groupId")
 			typ := helper.GetValueOfString(t, "type")
@@ -429,6 +486,7 @@ func buildReport(c *reportCtx, key string) ([]datatype.DataMap, bool) {
 		sortByTimeDesc(rows)
 
 	case "loans":
+		c.needMembers(c.list("Loan"))
 		for _, l := range c.list("Loan") {
 			gid := helper.GetValueOfString(l, "groupId")
 			issued := parseTimeOrZero(l["issuedDate"])
@@ -438,16 +496,20 @@ func buildReport(c *reportCtx, key string) ([]datatype.DataMap, bool) {
 			if !c.inScope(gid) || !c.inRange(issued) {
 				continue
 			}
-			// A cancelled loan owes nothing but keeps its real repaid amount.
+			// A cancelled loan owes nothing but keeps its real repaid amount; it
+			// was never lent, so it stays out of the totals.
 			rows = append(rows, datatype.DataMap{
 				"Loan #": helper.GetValueOfString(l, "loanNumber"), "Group": c.groupName(gid),
 				"Borrower":   c.memberName(helper.GetValueOfString(l, "memberId")),
 				"Principal":  helper.GetValueOfFloat(l, "amount"),
 				"Interest %": helper.GetValueOfFloat(l, "interestRate"),
-				"Repaid":     helper.GetValueOfFloat(l, "amountRepaid"), "Balance": loanBalance(l),
-				"Status": helper.GetValueOfString(l, "status"), "Issued": dateVal(issued),
+				"Interest":   loanInterest(l), "Total Due": loanTotalDue(l),
+				"Repaid": helper.GetValueOfFloat(l, "amountRepaid"), "Balance": loanBalance(l),
+				"Overpaid": loanOverpaid(l),
+				"Status":   helper.GetValueOfString(l, "status"), "Issued": dateVal(issued),
 				"Due": dateVal(parseTimeOrZero(l["dueDate"])),
 				"_t":  issued, "_id": helper.GetValueOfString(l, "id"),
+				"_noTotals": helper.GetValueOfString(l, "status") == "cancelled",
 			})
 		}
 		sortByTimeDesc(rows)
@@ -473,6 +535,7 @@ func buildReport(c *reportCtx, key string) ([]datatype.DataMap, bool) {
 
 	case "attendance":
 		meetings := c.meetings()
+		c.needMembers(c.list("MeetingAttendance"))
 		for _, a := range c.list("MeetingAttendance") {
 			mt := meetings[helper.GetValueOfString(a, "meetingId")]
 			if helper.GetValueOfString(mt, "status") == "cancelled" {
@@ -500,9 +563,9 @@ func buildReport(c *reportCtx, key string) ([]datatype.DataMap, bool) {
 		sortByKeys(rows, "Group", "_n", "Member")
 
 	case "members":
-		for _, m := range c.memberById {
+		for _, m := range c.list("Member") {
 			joined := memberJoined(m)
-			if !c.inRange(joined) {
+			if !c.inScope(helper.GetValueOfString(m, "groupId")) || !c.inRange(joined) {
 				continue
 			}
 			rows = append(rows, datatype.DataMap{
@@ -515,6 +578,7 @@ func buildReport(c *reportCtx, key string) ([]datatype.DataMap, bool) {
 		sortByKeys(rows, "Group", "Name")
 
 	case "fines-outstanding":
+		c.needMembers(c.list("Fine"))
 		for _, f := range c.list("Fine") {
 			gid := helper.GetValueOfString(f, "groupId")
 			when := parseTimeOrZero(f["issuedAt"])
@@ -543,6 +607,9 @@ func buildReport(c *reportCtx, key string) ([]datatype.DataMap, bool) {
 	case "sms-usage", "sms-delivery":
 		type agg struct{ sent, failed, other int }
 		byKey := map[[2]string]*agg{}
+		if key == "sms-usage" {
+			c.needMembers(c.listInRange("SmsLog", "sentAt"))
+		}
 		for _, l := range c.listInRange("SmsLog", "sentAt") {
 			gid := helper.GetValueOfString(l, "groupId")
 			// OTP and other groupless messages are never part of a report.
@@ -744,8 +811,16 @@ func num(v interface{}) float64 {
 
 // reportTotals is the TOTAL row of a dataset: money and counts are summed,
 // rates are recomputed from their summed parts (never summed themselves),
-// everything else is left empty. The label cell is added by the writer.
-func reportTotals(ds *reportDataset, rows []datatype.DataMap) datatype.DataMap {
+// everything else (dates, text, ids, a rate with no parts such as
+// Interest %) is left empty. Rows marked "_noTotals" (cancelled loans) are
+// left out. The label cell is added by the writer.
+func reportTotals(ds *reportDataset, all []datatype.DataMap) datatype.DataMap {
+	rows := make([]datatype.DataMap, 0, len(all))
+	for _, r := range all {
+		if skip, _ := r["_noTotals"].(bool); !skip {
+			rows = append(rows, r)
+		}
+	}
 	out := datatype.DataMap{}
 	for _, col := range ds.Columns {
 		switch colType(ds, col) {

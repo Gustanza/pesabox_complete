@@ -294,6 +294,11 @@
             "default": 3,
             "required": false
         },
+        "maxLoanMultiplier": {
+            "type": "Float",
+            "default": 0,
+            "required": false
+        },
         "lateMeetingFine": {
             "type": "Float",
             "default": 1000,
@@ -676,6 +681,16 @@
                 "defaulted",
                 "cancelled"
             ]
+        },
+        "interestAmount": {
+            "type": "Float",
+            "default": null,
+            "required": false
+        },
+        "totalDue": {
+            "type": "Float",
+            "default": null,
+            "required": false
         },
         "issuedMeetingId": {
             "type": "ID",

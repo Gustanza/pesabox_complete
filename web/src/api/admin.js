@@ -42,6 +42,12 @@ export const moveGroup = (groupId, clusterId) => call('POST', `/api/admin/groups
 // Only succeeds while the group has no financial records (otherwise close it).
 export const deleteGroupSafe = (groupId) => call('DELETE', '/api/admin/groups/' + groupId)
 
+// Group rules (the constitution, server/group_rules.go): { rules, canEdit,
+// services, note }. Saving sends only rule fields; the server validates and
+// answers { error } with a clear message. Changes apply to new records only.
+export const getGroupRules = (groupId) => call('GET', `/api/admin/groups/${groupId}/rules`)
+export const saveGroupRules = (groupId, rules) => call('PUT', `/api/admin/groups/${groupId}/rules`, rules)
+
 // ---- monitoring -----------------------------------------------------------
 export const getDashboard = (filters) => call('GET', '/api/admin/dashboard' + qs(filters))
 export const getRollup = (level, filters) => call('GET', '/api/admin/rollup' + qs({ level, ...filters }))

@@ -108,6 +108,19 @@ func testCtx(t *testing.T, fix map[string][]datatype.DataMap, set map[string]boo
 	}
 	c := &reportCtx{set: set, from: f, to: tt, now: testNow, smsOK: smsOK}
 	c.fetch = func(model, _ string) []datatype.DataMap { return fix[model] }
+	c.byIds = func(model string, ids []string) []datatype.DataMap {
+		want := map[string]bool{}
+		for _, id := range ids {
+			want[id] = true
+		}
+		out := []datatype.DataMap{}
+		for _, r := range fix[model] {
+			if want[toStr(r["id"])] {
+				out = append(out, r)
+			}
+		}
+		return out
+	}
 	c.init()
 	return c
 }
@@ -642,6 +655,9 @@ func TestExportXLSX(t *testing.T) {
 	if v, _ := f.GetCellValue("Akiba", "A3"); v != "" {
 		t.Errorf("nil date = %q, want an empty cell", v)
 	}
+	if hf, _ := f.GetHeaderFooter("Akiba"); hf == nil || !strings.Contains(hf.OddHeader, "HelaBox") {
+		t.Errorf("printed page header missing: %+v", hf)
+	}
 	panes, _ := f.GetPanes("Akiba")
 	if !panes.Freeze || panes.YSplit != 1 {
 		t.Errorf("header row must be frozen: %+v", panes)
@@ -711,5 +727,202 @@ func TestExportFilename(t *testing.T) {
 	}
 	if got := exportFilename("", []string{"savings", "loans"}, "", "", now, "zip"); got != "helabox-all-multi-start_2026-09-25.zip" {
 		t.Errorf("filename = %q", got)
+	}
+}
+
+// ---- follow-up round (V1–V8) -------------------------------------------------
+
+// V1: a TOTAL row always has a label, even when only totalled columns are picked.
+func TestTotalsLabelWithOnlyNumericColumns(t *testing.T) {
+	c := testCtx(t, reportFixture(), inScope, "", "", nil)
+	ds := findDataset("summary-group")
+	rows := mustBuild(t, c, ds.Key)
+	set := exportSet{ds: ds, cols: []string{"Savings Balance", "PAR 30 %"}, rows: rows, totals: reportTotals(ds, rows), total: len(rows)}
+	data, _, _ := exportCSV(exportMeta{lang: "sw", asAt: "2026-09-25"}, []exportSet{set})
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if last := strings.TrimSpace(lines[len(lines)-1]); last != "JUMLA,12100,75" {
+		t.Errorf("totals row = %q, want JUMLA,12100,75 (label column put back)", last)
+	}
+	if !strings.Contains(string(data), "Jina,Salio la Akiba,PAR 30 %") {
+		t.Errorf("the label column must be added in front: %q", data)
+	}
+	if _, err := exportXLSX(exportMeta{lang: "en"}, []exportSet{set}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := exportPDF(exportMeta{lang: "en"}, []exportSet{set}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// V2: a member who moved to another group is still named in the old group's rows.
+func TestMovedMemberStillNamed(t *testing.T) {
+	fix := reportFixture()
+	for _, m := range fix["Member"] {
+		if m["id"] == "m2" {
+			m["groupId"] = "g3" // John moved to Zeta, outside the scope
+		}
+	}
+	c := testCtx(t, fix, inScope, "", "", nil)
+	seen := 0
+	for _, r := range mustBuild(t, c, "loans") {
+		if r["_id"] == "l1" {
+			seen++
+			if r["Borrower"] != "John Mfinanga" {
+				t.Errorf("borrower of l1 = %v, want John Mfinanga", r["Borrower"])
+			}
+		}
+	}
+	for _, r := range mustBuild(t, c, "transactions") {
+		if r["_id"] == "t7" {
+			seen++
+			if r["Member"] != "John Mfinanga" {
+				t.Errorf("member of t7 = %v", r["Member"])
+			}
+		}
+	}
+	if seen != 2 {
+		t.Fatalf("rows l1/t7 missing (%d)", seen)
+	}
+	for _, r := range mustBuild(t, c, "members") {
+		if r["_id"] == "m2" {
+			t.Error("the members list shows members of the groups in scope only")
+		}
+	}
+}
+
+// V3: money lists have totals of their money columns only.
+func TestMoneyListTotals(t *testing.T) {
+	c := testCtx(t, reportFixture(), inScope, "", "", nil)
+	for _, key := range []string{"savings", "shares", "social-fund", "fines", "fines-outstanding", "expenses", "loans", "government-loans", "gov-loan-repayments"} {
+		ds := findDataset(key)
+		if !ds.Totals {
+			t.Errorf("%s should have a TOTAL row", key)
+			continue
+		}
+		tot := reportTotals(ds, mustBuild(t, c, key))
+		if len(tot) == 0 {
+			t.Errorf("%s has no totals", key)
+		}
+		for col := range tot {
+			if colType(ds, col) != "money" {
+				t.Errorf("%s totals %q (%s): only money columns are summed", key, col, colType(ds, col))
+			}
+		}
+	}
+	sav := reportTotals(findDataset("savings"), mustBuild(t, c, "savings"))
+	approx(t, "savings total", sav["Amount"], 13100) // 5000+5000+3000+100; reversed 7000 out
+	if _, ok := sav["Date"]; ok {
+		t.Error("dates are never totalled")
+	}
+	loans := reportTotals(findDataset("loans"), mustBuild(t, c, "loans"))
+	approx(t, "loans principal total (cancelled 20000 left out)", loans["Principal"], 88000)
+	approx(t, "loans balance total", loans["Balance"], 60000)
+	if _, ok := loans["Interest %"]; ok {
+		t.Error("an interest rate is not totalled")
+	}
+	fo := reportTotals(findDataset("fines-outstanding"), mustBuild(t, c, "fines-outstanding"))
+	approx(t, "fines outstanding total", fo["Outstanding"], 1000)
+}
+
+// V6: over-repaid loans are flagged.
+func TestOverpaidLoans(t *testing.T) {
+	c := testCtx(t, reportFixture(), inScope, "", "", nil)
+	for _, r := range mustBuild(t, c, "loans") {
+		want := 0.0
+		if r["_id"] == "l6" {
+			want = 1000
+		}
+		approx(t, "overpaid "+toStr(r["_id"]), r["Overpaid"], want)
+	}
+	fix := reportFixture()
+	over := overpaidLoans(fix["Loan"], indexById(fix["Group"]))
+	if len(over) != 1 || over[0]["loanId"] != "l6" || num(over[0]["overpaid"]) != 1000 || over[0]["groupName"] != "Umoja" {
+		t.Errorf("overpaid loans = %v", over)
+	}
+}
+
+// V7: status on summaries; groups with no cluster/partner are "Not assigned".
+func TestSummaryStatusAndUnassigned(t *testing.T) {
+	fix := reportFixture()
+	fix["Cluster"][1]["status"] = "inactive"
+	fix["Group"] = append(fix["Group"], datatype.DataMap{"id": "g4", "name": "Loose", "status": "Active"}) // no cluster
+	set := map[string]bool{"g1": true, "g2": true, "g4": true}
+	c := testCtx(t, fix, set, "", "", nil)
+	cl := mustBuild(t, c, "summary-cluster")
+	if r := byName(cl, "Name", "Moshi"); r == nil || r["Status"] != "Inactive" {
+		t.Errorf("inactive cluster status: %v", r)
+	}
+	if r := byName(cl, "Name", "Arusha"); r == nil || r["Status"] != "Active" {
+		t.Errorf("active cluster status: %v", r)
+	}
+	un := byName(cl, "Name", notAssigned)
+	if un == nil || un["Status"] != nil || num(un["Groups"]) != 1 {
+		t.Fatalf("unassigned row = %v", un)
+	}
+	if got := cellText("sw", "text", un["Name"], false); got != "Haijapangwa" {
+		t.Errorf("sw label = %q", got)
+	}
+	if got := cellText("sw", "enum", "Inactive", false); got != "Haifanyi kazi" {
+		t.Errorf("sw status = %q", got)
+	}
+	pr := mustBuild(t, c, "summary-partner")
+	if byName(pr, "Name", notAssigned) == nil || byName(pr, "Name", "GATA Partner")["Status"] != "Active" {
+		t.Errorf("summary-partner = %v", pr)
+	}
+	rows := rollupRows(c.groupKPIs(), "cluster", map[string]string{"c1": "Arusha", "c2": "Moshi"})
+	flagged := 0
+	for _, r := range rows {
+		if r["unassigned"] == true {
+			flagged++
+			if r["id"] != "" {
+				t.Errorf("unassigned row id = %v", r["id"])
+			}
+		}
+	}
+	if flagged != 1 {
+		t.Errorf("roll-up unassigned rows = %d, want 1", flagged)
+	}
+}
+
+// V8 / V5: CSV notes go before the header; a zip carries them in README.txt.
+func TestCSVNotesPlacement(t *testing.T) {
+	c := testCtx(t, reportFixture(), inScope, "", "", nil)
+	ds := findDataset("meeting-collections")
+	rows := mustBuild(t, c, ds.Key)
+	set := exportSet{ds: ds, cols: ds.Columns, rows: rows, totals: reportTotals(ds, rows), total: len(rows) + 5}
+	data, _, _ := exportCSV(exportMeta{lang: "en"}, []exportSet{set})
+	body := strings.TrimPrefix(string(data), "\xEF\xBB\xBF")
+	lines := strings.Split(body, "\r\n")
+	if !strings.HasPrefix(lines[0], "# Money recorded without a meeting") || !strings.HasPrefix(lines[1], "# Only the first") {
+		t.Errorf("notes must come first: %q", lines[:3])
+	}
+	if !strings.HasPrefix(lines[2], "Group,Meeting #") {
+		t.Errorf("header after the notes: %q", lines[2])
+	}
+	for _, l := range lines[3:] {
+		if strings.HasPrefix(l, "# ") {
+			t.Errorf("no notes after the data: %q", l)
+		}
+	}
+
+	zipped, ext, _ := exportCSV(exportMeta{lang: "en"}, []exportSet{set, sampleSets()[1]})
+	if ext != "zip" {
+		t.Fatal(ext)
+	}
+	zr, _ := zip.NewReader(bytes.NewReader(zipped), int64(len(zipped)))
+	var readme string
+	for _, f := range zr.File {
+		rc, _ := f.Open()
+		b := new(bytes.Buffer)
+		_, _ = b.ReadFrom(rc)
+		rc.Close()
+		if f.Name == "README.txt" {
+			readme = b.String()
+		} else if strings.Contains(b.String(), "\n# ") || strings.HasPrefix(strings.TrimPrefix(b.String(), "\xEF\xBB\xBF"), "# ") {
+			t.Errorf("%s must not carry # notes inside a zip", f.Name)
+		}
+	}
+	if !strings.Contains(readme, "meeting-collections.csv") || !strings.Contains(readme, "Only the first") || !strings.Contains(readme, "same day") {
+		t.Errorf("README.txt = %q", readme)
 	}
 }

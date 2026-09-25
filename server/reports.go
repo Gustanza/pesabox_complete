@@ -42,14 +42,14 @@ type reportDataset struct {
 }
 
 var (
-	summaryCols = []string{"Name", "Groups", "Active Groups", "Members (active)", "Members (total)", "Female", "Male",
+	summaryCols = []string{"Name", "Status", "Groups", "Active Groups", "Members (active)", "Members (total)", "Female", "Male",
 		"Savings Balance", "Shares Balance", "Social Fund Balance", "Loans Outstanding", "PAR 30 %", "Government Loans", "Attendance %",
 		"Savings (period)", "Shares (period)", "Social Fund (period)", "Fines (period)", "Loan Repayments (period)",
 		"Loans Disbursed (period)", "Expenses (period)", "Meetings Held (period)", "Attendance % (period)"}
 	txCols      = []string{"Date", "Group", "Member", "Type", "Amount", "Direction"}
 	smsCols     = []string{"Date", "Group", "Member", "Phone", "Message Type", "Status"}
 	cycCols     = []string{"Group", "Cycle Current", "Cycle Total", "Meeting Frequency"}
-	loanCols    = []string{"Loan #", "Group", "Borrower", "Principal", "Interest %", "Repaid", "Balance", "Status", "Issued", "Due"}
+	loanCols    = []string{"Loan #", "Group", "Borrower", "Principal", "Interest %", "Interest", "Total Due", "Repaid", "Balance", "Overpaid", "Status", "Issued", "Due"}
 	txDateTime  = map[string]string{"Date": "datetime"}
 	summaryDefs = func(key, sw, en string) reportDataset {
 		return reportDataset{Key: key, Category: "Programme", Sw: sw, En: en, Columns: summaryCols, Downloadable: true, Balances: true, Totals: true}
@@ -68,22 +68,22 @@ var reportDatasets = []reportDataset{
 			"Attendance % (period)", "Last Meeting", "Activity", "Status"}},
 	{Key: "group-growth", Category: "Group", Sw: "Ukuaji wa Kikundi", En: "Group Growth", Downloadable: true,
 		Columns: []string{"Group", "Formed", "Members (active)", "Members (total)", "New Members (period)", "Cycle", "Meeting Frequency"}},
-	{Key: "savings", Category: "Financial", Sw: "Akiba", En: "Savings", Columns: txCols, Downloadable: true, Types: txDateTime},
-	{Key: "shares", Category: "Financial", Sw: "Hisa", En: "Shares", Columns: txCols, Downloadable: true, Types: txDateTime},
-	{Key: "social-fund", Category: "Financial", Sw: "Mfuko wa Jamii", En: "Social Fund", Columns: txCols, Downloadable: true, Types: txDateTime},
-	{Key: "fines", Category: "Financial", Sw: "Malipo ya Faini", En: "Fine Payments", Columns: txCols, Downloadable: true, Types: txDateTime},
-	{Key: "fines-outstanding", Category: "Financial", Sw: "Faini Zilizotozwa na Madeni", En: "Fines Charged & Outstanding", Downloadable: true,
+	{Key: "savings", Totals: true, Category: "Financial", Sw: "Akiba", En: "Savings", Columns: txCols, Downloadable: true, Types: txDateTime},
+	{Key: "shares", Totals: true, Category: "Financial", Sw: "Hisa", En: "Shares", Columns: txCols, Downloadable: true, Types: txDateTime},
+	{Key: "social-fund", Totals: true, Category: "Financial", Sw: "Mfuko wa Jamii", En: "Social Fund", Columns: txCols, Downloadable: true, Types: txDateTime},
+	{Key: "fines", Totals: true, Category: "Financial", Sw: "Malipo ya Faini", En: "Fine Payments", Columns: txCols, Downloadable: true, Types: txDateTime},
+	{Key: "fines-outstanding", Totals: true, Category: "Financial", Sw: "Faini Zilizotozwa na Madeni", En: "Fines Charged & Outstanding", Downloadable: true,
 		Columns: []string{"Group", "Member", "Reason", "Date", "Charged", "Paid", "Outstanding", "Status"}},
-	{Key: "expenses", Category: "Financial", Sw: "Matumizi na Uondoaji", En: "Expenses & Withdrawals", Downloadable: true, Types: txDateTime,
+	{Key: "expenses", Totals: true, Category: "Financial", Sw: "Matumizi na Uondoaji", En: "Expenses & Withdrawals", Downloadable: true, Types: txDateTime,
 		Columns: []string{"Date", "Group", "Type", "Description", "Member", "Amount", "Method"}},
 	{Key: "transactions", Category: "Financial", Sw: "Miamala Yote", En: "All Transactions", Downloadable: true, Types: txDateTime,
 		Columns: []string{"Date", "Group", "Member", "Type", "Amount", "Direction", "Method", "Reference"}},
-	{Key: "loans", Category: "Financial", Sw: "Mikopo", En: "Loans", Columns: loanCols, Downloadable: true},
+	{Key: "loans", Totals: true, Category: "Financial", Sw: "Mikopo", En: "Loans", Columns: loanCols, Downloadable: true},
 	{Key: "portfolio-at-risk", Category: "Financial", Sw: "Mikopo Hatarini (PAR 30)", En: "Portfolio at Risk (PAR 30)", Downloadable: true, PointInTime: true,
 		Columns: []string{"Loan #", "Group", "Borrower", "Balance", "Due", "Days Overdue"}},
-	{Key: "government-loans", Category: "Financial", Sw: "Mikopo ya Serikali", En: "Government Loans", Downloadable: true,
+	{Key: "government-loans", Totals: true, Category: "Financial", Sw: "Mikopo ya Serikali", En: "Government Loans", Downloadable: true,
 		Columns: []string{"Group", "Lender", "Programme", "Reference", "Principal", "Interest %", "Total Due", "Repaid", "Balance", "Issued", "Due", "Status"}},
-	{Key: "gov-loan-repayments", Category: "Financial", Sw: "Marejesho ya Mikopo ya Serikali", En: "Government Loan Repayments", Downloadable: true,
+	{Key: "gov-loan-repayments", Totals: true, Category: "Financial", Sw: "Marejesho ya Mikopo ya Serikali", En: "Government Loan Repayments", Downloadable: true,
 		Columns: []string{"Date", "Group", "Lender", "Programme", "Loan Reference", "Amount", "Method", "Reference"}},
 	{Key: "meetings", Category: "Operations", Sw: "Mikutano", En: "Meetings", Downloadable: true,
 		Columns: []string{"Group", "Meeting #", "Title", "Date", "Status"}},
@@ -147,6 +147,7 @@ var columnSw = map[string]string{
 	"Description": "Maelezo", "Loan Reference": "Kumbukumbu ya Mkopo", "Reason": "Sababu", "Charged": "Faini Iliyotozwa",
 	"Paid": "Imelipwa", "Outstanding": "Inayodaiwa", "Message Type": "Aina ya Ujumbe", "Sent": "Zilizotumwa",
 	"Failed": "Zilizoshindwa", "Other": "Nyingine", "Total": "Jumla", "Delivery %": "Uwasilishaji %",
+	"Overpaid": "Imelipwa Zaidi", "Interest": "Riba",
 }
 
 // Column types drive formatting everywhere (web preview, CSV, PDF, XLSX):
@@ -167,6 +168,7 @@ var columnTypes = map[string]string{
 	"Loan Repayments (period)": "money", "Loans Disbursed (period)": "money", "Expenses (period)": "money",
 	"Fines": "money", "Loan Repayments": "money", "Loans Disbursed": "money", "Expenses": "money", "Withdrawals": "money",
 	"Total In": "money", "Total Out": "money", "Charged": "money", "Paid": "money", "Outstanding": "money",
+	"Overpaid": "money", "Interest": "money",
 
 	"Groups": "count", "Active Groups": "count", "Members": "count", "Members (active)": "count", "Members (total)": "count",
 	"Female": "count", "Male": "count", "Meetings Held (period)": "count", "New Members (period)": "count",
@@ -231,6 +233,10 @@ var valueEn = map[string]string{
 	"meeting_reminder": "Meeting reminder", "loan_due_soon": "Loan due soon", "loan_overdue": "Loan overdue",
 	"other": "Other", "expense": "Expense", "withdrawal": "Withdrawal",
 }
+
+// textSw translates the few fixed values the server itself writes into text
+// columns (user-entered text is never translated).
+var textSw = map[string]string{notAssigned: "Haijapangwa"}
 
 // enumLabel translates a stored enum value for lang.
 func enumLabel(lang, v string) string {

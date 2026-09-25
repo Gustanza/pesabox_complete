@@ -154,13 +154,31 @@ func loanOpen(l datatype.DataMap) bool {
 	return true
 }
 
-// loanBalance is what an open loan still owes (never negative); 0 for a
-// closed or cancelled one.
+// loanOverpaid is how much more than the total due was repaid (0 normally).
+// The balance is clamped at 0, so this is the only place it shows.
+func loanOverpaid(l datatype.DataMap) float64 {
+	return math.Max(0, helper.GetValueOfFloat(l, "amountRepaid")-loanTotalDue(l))
+}
+
+// notAssigned names the roll-up row of groups with no cluster / partner.
+const notAssigned = "Not assigned"
+
+// unitStatus is a partner's / cluster's status for reports (Active/Inactive).
+func unitStatus(u datatype.DataMap) string {
+	if strings.EqualFold(helper.GetValueOfString(u, "status"), "inactive") {
+		return "Inactive"
+	}
+	return "Active"
+}
+
+// loanBalance is what an open loan still owes: its total due (principal +
+// the flat interest fixed at issue; principal only for older loans) less
+// what was repaid, never negative; 0 for a closed or cancelled loan.
 func loanBalance(l datatype.DataMap) float64 {
 	if !loanOpen(l) {
 		return 0
 	}
-	return math.Max(0, helper.GetValueOfFloat(l, "amount")-helper.GetValueOfFloat(l, "amountRepaid"))
+	return math.Max(0, loanTotalDue(l)-helper.GetValueOfFloat(l, "amountRepaid"))
 }
 
 // txCounted is false for reversed transactions — they never count anywhere.
@@ -424,21 +442,51 @@ func groupTotalsDrift(g datatype.DataMap, k groupKPI) datatype.DataMap {
 	return out
 }
 
+// overpaidLoans lists loans repaid past their principal (shown with balance
+// 0 everywhere, so they would otherwise go unnoticed). Read-only.
+func overpaidLoans(loans []datatype.DataMap, groups map[string]datatype.DataMap) []datatype.DataMap {
+	out := []datatype.DataMap{}
+	for _, l := range loans {
+		if over := loanOverpaid(l); over > 0.005 {
+			gid := helper.GetValueOfString(l, "groupId")
+			out = append(out, datatype.DataMap{
+				"loanId": helper.GetValueOfString(l, "id"), "loanNumber": helper.GetValueOfString(l, "loanNumber"),
+				"groupId": gid, "groupName": helper.GetValueOfString(groups[gid], "name"),
+				"amount": helper.GetValueOfFloat(l, "amount"), "totalDue": loanTotalDue(l), "amountRepaid": helper.GetValueOfFloat(l, "amountRepaid"),
+				"overpaid": over, "status": helper.GetValueOfString(l, "status"),
+			})
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return lessFold(helper.GetValueOfString(out[i], "groupName"), helper.GetValueOfString(out[j], "groupName"),
+			helper.GetValueOfString(out[i], "loanNumber"), helper.GetValueOfString(out[j], "loanNumber"))
+	})
+	return out
+}
+
 // rollup groups KPIs by level ("partner", "cluster" or "group") and returns
 // one row per unit, largest savings first.
 func rollup(app *yekonga.YekongaData, kpis []groupKPI, level string) []datatype.DataMap {
 	names := map[string]string{}
+	statuses := map[string]string{}
 	switch level {
 	case "partner":
 		for _, p := range listAll(app, "Partner") {
 			names[helper.GetValueOfString(p, "id")] = helper.GetValueOfString(p, "name")
+			statuses[helper.GetValueOfString(p, "id")] = unitStatus(p)
 		}
 	case "cluster":
 		for _, c := range listAll(app, "Cluster") {
 			names[helper.GetValueOfString(c, "id")] = helper.GetValueOfString(c, "name")
+			statuses[helper.GetValueOfString(c, "id")] = unitStatus(c)
 		}
 	}
 	rows := rollupRows(kpis, level, names)
+	for _, r := range rows {
+		if st, ok := statuses[helper.GetValueOfString(r, "id")]; ok {
+			r["status"] = st
+		}
+	}
 	sort.SliceStable(rows, func(i, j int) bool {
 		return helper.GetValueOfFloat(rows[i], "savings") > helper.GetValueOfFloat(rows[j], "savings")
 	})
@@ -481,8 +529,11 @@ func rollupRows(kpis []groupKPI, level string, names map[string]string) []dataty
 		row := totals[key].json()
 		row["id"] = key
 		row["name"] = names[key]
+		// Groups with no cluster / partner: the web labels this row itself
+		// ("Not assigned") and does not drill into it.
+		row["unassigned"] = key == "" || names[key] == ""
 		if row["name"] == "" {
-			row["name"] = "—"
+			row["name"] = notAssigned
 		}
 		rows = append(rows, row)
 	}
@@ -567,7 +618,7 @@ func registerDashboard(app *yekonga.YekongaData) {
 				out = append(out, datatype.DataMap{"groupId": k.GroupID, "name": k.Name, "drift": d})
 			}
 		}
-		res.Json(out)
+		res.Json(datatype.DataMap{"groups": out, "overpaidLoans": overpaidLoans(data.Loans, byId)})
 	})
 }
 

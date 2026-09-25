@@ -176,6 +176,17 @@ func guardWrite(app *yekonga.YekongaData, action string, model *yekonga.DataMode
 		for _, f := range groupReadonlyFields {
 			delete(input, f)
 		}
+		// The constitution changes only through the checked rules route
+		// (group_rules.go); a new group starts from the schema defaults.
+		for _, f := range ruleFields {
+			delete(input, f)
+		}
+		// Nothing writable left: refuse. (The framework treats an EMPTY map
+		// returned from a trigger as "no change" and would write the original
+		// input — which is how read-only fields used to slip through.)
+		if len(input) == 0 {
+			return false, nil
+		}
 		if clusterId := helper.GetValueOfString(input, "clusterId"); clusterId != "" && !a.SeesCluster(clusterId) {
 			return false, nil
 		}
@@ -218,6 +229,9 @@ func guardWrite(app *yekonga.YekongaData, action string, model *yekonga.DataMode
 			if !meetingEditableFields[k] {
 				delete(input, k)
 			}
+		}
+		if len(input) == 0 {
+			return false, nil // see the Group case: an empty result would write the original input
 		}
 		for _, m := range guardTargets(app, "Meeting", q) {
 			if !a.CanIn(PermGroupOperate, helper.GetValueOfString(m, "groupId")) {

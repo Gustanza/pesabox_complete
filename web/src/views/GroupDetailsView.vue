@@ -6,8 +6,8 @@ import { intlLocale } from '../i18n'
 import { getGroup, updateGroup, deleteGroup } from '../api/groups.js'
 import { listMembers } from '../api/members.js'
 import { listMeetings, listAllAttendance } from '../api/meetings.js'
-import { listTransactions } from '../api/transactions.js'
-import { listClusters, moveGroup, listGovLoans } from '../api/admin.js'
+import { listTransactions, listLoans } from '../api/transactions.js'
+import { listClusters, moveGroup, listGovLoans, getGroupRules, saveGroupRules } from '../api/admin.js'
 import { can } from '../api/access.js'
 
 const { t, te } = useI18n()
@@ -21,6 +21,8 @@ const attendance = ref([])
 const transactions = ref([])
 const govLoans = ref([])
 const clusters = ref([])
+const loans = ref([])
+const rulesData = ref(null) // { rules, canEdit, services, note } from the rules route
 const loading = ref(true)
 const error = ref('')
 const tab = ref('overview')
@@ -55,19 +57,23 @@ async function load() {
       return
     }
     const groupId = group.value.id
-    const [membersList, meetingsList, attendanceList, transactionsList, loans, clusterList] = await Promise.all([
+    const [membersList, meetingsList, attendanceList, transactionsList, govList, clusterList, loanList, rulesInfo] = await Promise.all([
       listMembers(groupId),
       listMeetings(groupId),
       listAllAttendance(),
       listTransactions(groupId),
       listGovLoans(groupId).catch(() => []),
-      can('structure.view') ? listClusters().catch(() => []) : Promise.resolve([])
+      can('structure.view') ? listClusters().catch(() => []) : Promise.resolve([]),
+      listLoans(groupId).catch(() => []),
+      getGroupRules(groupId).catch(() => null)
     ])
+    loans.value = loanList || []
+    rulesData.value = rulesInfo
     members.value = membersList || []
     meetings.value = meetingsList || []
     attendance.value = attendanceList || []
     transactions.value = transactionsList || []
-    govLoans.value = loans || []
+    govLoans.value = govList || []
     clusters.value = clusterList || []
   } catch (e) {
     error.value = e.message || t('gd.loadFailed')
@@ -149,21 +155,104 @@ async function removeGroup() {
 }
 
 const ALL_SERVICES = ['Shares', 'Mandatory Savings', 'Voluntary Savings', 'Social Fund', 'Loans', 'Fines', 'Membership Fee']
+const services = computed(() => rulesData.value?.services || ALL_SERVICES)
 
-const rules = computed(() => {
-  if (!group.value) return []
-  return [
-    [t('gd.ruleMandatory'), 'TZS ' + num(group.value.mandatorySavingsAmount)],
-    [t('gd.ruleShareValue'), 'TZS ' + num(group.value.shareValue)],
-    [t('gd.ruleMinShares'), String(group.value.minShares ?? '—')],
-    [t('gd.ruleMaxShares'), String(group.value.maxShares ?? '—')],
-    [t('gd.ruleSocial'), 'TZS ' + num(group.value.socialFundContribution)],
-    [t('gd.ruleInterest'), (group.value.loanInterestRate ?? 0) + '%'],
-    [t('gd.ruleMaxPeriod'), t('gd.monthsN', { n: group.value.maxLoanPeriodMonths ?? 0 })]
-  ]
-})
+// The group's rules as the server normalises them (rules route), falling
+// back to the group record if that call failed.
+const ruleValues = computed(() => rulesData.value?.rules || group.value || {})
+const canEditRules = computed(() => !!rulesData.value?.canEdit)
 
-const fineReasons = computed(() => (group.value?.fineReasons || []).filter((r) => r?.reason))
+// Every numeric rule, in form order: [key, label key, kind]
+const RULE_FIELDS = [
+  ['mandatorySavingsAmount', 'gd.ruleMandatory', 'money'],
+  ['shareValue', 'gd.ruleShareValue', 'money'],
+  ['minShares', 'gd.ruleMinShares', 'int'],
+  ['maxShares', 'gd.ruleMaxShares', 'int'],
+  ['socialFundContribution', 'gd.ruleSocial', 'money'],
+  ['loanInterestRate', 'gd.ruleInterest', 'rate'],
+  ['maxLoanPeriodMonths', 'gd.ruleMaxPeriod', 'months'],
+  ['maxLoanMultiplier', 'rules.multiplier', 'multiplier']
+]
+function ruleText(kind, v) {
+  if (v === null || v === undefined || v === '') return '—'
+  if (kind === 'money') return 'TZS ' + num(v)
+  if (kind === 'rate') return v + '%'
+  if (kind === 'months') return t('gd.monthsN', { n: v })
+  if (kind === 'multiplier') return Number(v) > 0 ? '× ' + v : t('rules.multiplierNone')
+  return String(v)
+}
+const rules = computed(() => RULE_FIELDS.map(([key, label, kind]) => [t(label), ruleText(kind, ruleValues.value[key])]))
+const fineReasons = computed(() => (ruleValues.value.fineReasons || []).filter((r) => r?.reason))
+const enabled = computed(() => ruleValues.value.enabledServices || [])
+
+// ---- edit mode (group.settings in this group; the server re-checks) ----
+const editing = ref(false)
+const draft = ref(null)
+const rulesError = ref('')
+const rulesSaving = ref(false)
+const rulesSaved = ref(false)
+
+function startEdit() {
+  const r = ruleValues.value
+  draft.value = {
+    ...Object.fromEntries(RULE_FIELDS.map(([key]) => [key, r[key] ?? ''])),
+    fineReasons: (r.fineReasons || []).map((f) => ({ reason: f.reason, amount: f.amount })),
+    enabledServices: [...(r.enabledServices || [])]
+  }
+  rulesError.value = ''
+  rulesSaved.value = false
+  editing.value = true
+}
+function cancelEdit() {
+  editing.value = false
+  rulesError.value = ''
+}
+function toggleService(s) {
+  const list = draft.value.enabledServices
+  const i = list.indexOf(s)
+  if (i >= 0) list.splice(i, 1)
+  else list.push(s)
+}
+// Blank or non-numeric inputs are sent as-is so the server's message says
+// which rule is wrong.
+const asNumber = (v) => (v === '' || v === null || isNaN(Number(v)) ? v : Number(v))
+async function saveRules() {
+  rulesSaving.value = true
+  rulesError.value = ''
+  try {
+    const payload = Object.fromEntries(RULE_FIELDS.map(([key]) => [key, asNumber(draft.value[key])]))
+    payload.fineReasons = draft.value.fineReasons.map((f) => ({ reason: f.reason, amount: asNumber(f.amount) }))
+    payload.enabledServices = draft.value.enabledServices
+    rulesData.value = await saveGroupRules(group.value.id, payload)
+    editing.value = false
+    rulesSaved.value = true
+    group.value = (await getGroup(group.value.id)) || group.value
+  } catch (e) {
+    rulesError.value = e.message || t('common.requestFailed')
+  } finally {
+    rulesSaving.value = false
+  }
+}
+
+// Loans with their terms: totalDue is fixed at issue; a loan without it
+// predates interest charging and owes the principal only.
+const loanRows = computed(() =>
+  [...loans.value]
+    .map((l) => {
+      const totalDue = Number(l.totalDue) > 0 ? Number(l.totalDue) : Number(l.amount || 0)
+      const closed = ['repaid', 'completed', 'cancelled'].includes(l.status)
+      return {
+        ...l,
+        legacy: !(Number(l.totalDue) > 0),
+        interest: Math.max(0, totalDue - Number(l.amount || 0)),
+        totalDue,
+        balance: closed ? 0 : Math.max(0, totalDue - Number(l.amountRepaid || 0))
+      }
+    })
+    .sort((a, b) => new Date(b.issuedDate) - new Date(a.issuedDate))
+)
+const hasLegacyLoans = computed(() => loanRows.value.some((l) => l.legacy && l.status !== 'cancelled'))
+const loanStatus = (st) => (te('rules.st.' + st) ? t('rules.st.' + st) : st)
 const sortedMeetings = computed(() => [...meetings.value].sort((a, b) => (b.meetingNumber || 0) - (a.meetingNumber || 0)))
 const sortedTransactions = computed(() => [...transactions.value].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)))
 const govOutstanding = computed(() => govLoans.value.reduce((s, l) => s + (l.outstanding || 0), 0))
@@ -270,26 +359,108 @@ const govOutstanding = computed(() => govLoans.value.reduce((s, l) => s + (l.out
     <!-- Financial -->
     <div v-else-if="tab === 'financial'">
       <div class="card">
-        <div class="card-head"><h3>{{ t('gd.constitution') }}</h3></div>
-        <p style="font-size: 12.5px; color: var(--ink-600); margin-bottom: 14px; line-height: 1.5">{{ t('gd.constitutionNote') }}</p>
-        <div class="grid3">
-          <div v-for="r in rules" :key="r[0]" class="field-view">
-            <label>{{ r[0] }}</label>
-            <div class="box">{{ r[1] }}</div>
+        <div class="card-head">
+          <h3>{{ t('gd.constitution') }}</h3>
+          <button v-if="canEditRules && !editing" type="button" class="btn btn-outline btn-sm" @click="startEdit">{{ t('rules.edit') }}</button>
+        </div>
+        <p style="font-size: 12.5px; color: var(--ink-600); margin-bottom: 14px; line-height: 1.5">
+          {{ t('gd.constitutionNote') }}
+          <template v-if="!canEditRules"> {{ t('rules.readOnly') }}</template>
+        </p>
+        <p v-if="rulesSaved" style="font-size: 12.5px; color: var(--green-600); margin-bottom: 12px">{{ t('rules.saved') }}</p>
+
+        <!-- read-only view -->
+        <template v-if="!editing">
+          <div class="grid3">
+            <div v-for="r in rules" :key="r[0]" class="field-view">
+              <label>{{ r[0] }}</label>
+              <div class="box">{{ r[1] }}</div>
+            </div>
           </div>
-        </div>
-        <div class="card-head" style="margin-top: 8px"><h3>{{ t('gd.fineReasonsTitle') }}</h3></div>
-        <div v-if="fineReasons.length" class="grid3">
-          <div v-for="r in fineReasons" :key="r.reason" class="field-view">
-            <label>{{ r.reason }}</label>
-            <div class="box">TZS {{ num(r.amount) }}</div>
+          <div class="card-head" style="margin-top: 8px"><h3>{{ t('gd.fineReasonsTitle') }}</h3></div>
+          <div v-if="fineReasons.length" class="grid3">
+            <div v-for="r in fineReasons" :key="r.reason" class="field-view">
+              <label>{{ r.reason }}</label>
+              <div class="box">TZS {{ num(r.amount) }}</div>
+            </div>
           </div>
+          <p v-else style="font-size: 12px; color: var(--ink-400)">{{ t('gd.noFineReasons') }}</p>
+          <div class="card-head" style="margin-top: 8px"><h3>{{ t('gd.enabledServices') }}</h3></div>
+          <div v-for="s in services" :key="s" class="toggle-line">
+            <span class="chk" :class="enabled.includes(s) ? 'on' : 'off'">&#10003;</span>{{ svcText(s) }}
+          </div>
+        </template>
+
+        <!-- edit form -->
+        <form v-else @submit.prevent="saveRules">
+          <div class="hint-box" style="font-size: 12.5px; background: var(--gold-100); padding: 10px 12px; border-radius: 8px; margin-bottom: 14px">
+            {{ t('rules.newRecordsOnly') }}
+          </div>
+          <div class="grid3">
+            <div v-for="[key, label, kind] in RULE_FIELDS" :key="key" class="field-view">
+              <label :for="'rule-' + key">{{ t(label) }}</label>
+              <input
+                :id="'rule-' + key"
+                v-model="draft[key]"
+                class="box"
+                type="number"
+                min="0"
+                :step="kind === 'int' || kind === 'months' ? 1 : 'any'"
+                :placeholder="kind === 'multiplier' ? t('rules.multiplierHint') : ''"
+              />
+            </div>
+          </div>
+          <div class="card-head" style="margin-top: 8px"><h3>{{ t('gd.fineReasonsTitle') }}</h3></div>
+          <div v-for="(f, i) in draft.fineReasons" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center">
+            <input v-model="f.reason" class="box" style="flex: 2" :placeholder="t('rules.reason')" :aria-label="t('rules.reason')" />
+            <input v-model="f.amount" class="box" style="flex: 1" type="number" min="0" :placeholder="t('rules.amount')" :aria-label="t('rules.amount')" />
+            <button type="button" class="btn btn-outline btn-sm" @click="draft.fineReasons.splice(i, 1)">{{ t('rules.remove') }}</button>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" @click="draft.fineReasons.push({ reason: '', amount: 0 })">{{ t('rules.addReason') }}</button>
+          <div class="card-head" style="margin-top: 14px"><h3>{{ t('rules.services') }}</h3></div>
+          <label v-for="s in services" :key="s" class="toggle-line" style="cursor: pointer">
+            <input type="checkbox" :checked="draft.enabledServices.includes(s)" @change="toggleService(s)" />
+            {{ svcText(s) }}
+          </label>
+          <div v-if="rulesError" role="alert" style="color: var(--danger); font-size: 13px; margin-top: 12px">{{ rulesError }}</div>
+          <div style="display: flex; gap: 10px; margin-top: 16px">
+            <button type="submit" class="btn btn-primary" :disabled="rulesSaving">{{ rulesSaving ? t('rules.saving') : t('rules.save') }}</button>
+            <button type="button" class="btn btn-outline" :disabled="rulesSaving" @click="cancelEdit">{{ t('rules.cancel') }}</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="panel" style="margin-top: 16px">
+        <div class="panel-inner" style="padding-bottom: 0"><h3 style="font-size: 16px">{{ t('rules.loansTitle') }}</h3></div>
+        <div v-if="!loanRows.length" class="empty"><p>{{ t('rules.noLoans') }}</p></div>
+        <div v-else style="overflow-x: auto; margin-top: 12px">
+          <table class="dtable">
+            <thead>
+              <tr>
+                <th>{{ t('rules.loanNo') }}</th><th>{{ t('rules.member') }}</th><th style="text-align: right">{{ t('rules.principal') }}</th>
+                <th style="text-align: right">{{ t('rules.rate') }}</th><th style="text-align: right">{{ t('rules.interest') }}</th>
+                <th style="text-align: right">{{ t('rules.totalDue') }}</th><th style="text-align: right">{{ t('rules.repaid') }}</th>
+                <th style="text-align: right">{{ t('rules.balance') }}</th><th>{{ t('rules.issued') }}</th><th>{{ t('rules.status') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="l in loanRows" :key="l.id">
+                <td class="cell-muted">{{ l.loanNumber }}</td>
+                <td class="cell-strong">{{ memberName(l.memberId) }}</td>
+                <td style="text-align: right">{{ num(l.amount) }}</td>
+                <td style="text-align: right">{{ l.legacy ? '—' : (l.interestRate ?? 0) + '%' }}</td>
+                <td style="text-align: right">{{ num(l.interest) }}</td>
+                <td style="text-align: right">{{ num(l.totalDue) }}</td>
+                <td style="text-align: right">{{ num(l.amountRepaid) }}</td>
+                <td style="text-align: right" class="cell-strong">{{ num(l.balance) }}</td>
+                <td class="cell-muted">{{ formatDate(l.issuedDate) }}</td>
+                <td><span class="badge" :class="l.status === 'active' ? 'green' : 'grey'">{{ loanStatus(l.status) }}</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <p v-if="hasLegacyLoans" style="font-size: 12px; color: var(--ink-400); padding: 8px 24px">{{ t('rules.legacyNote') }}</p>
         </div>
-        <p v-else style="font-size: 12px; color: var(--ink-400)">{{ t('gd.noFineReasons') }}</p>
-        <div class="card-head" style="margin-top: 8px"><h3>{{ t('gd.enabledServices') }}</h3></div>
-        <div v-for="s in ALL_SERVICES" :key="s" class="toggle-line">
-          <span class="chk" :class="(group.enabledServices || []).includes(s) ? 'on' : 'off'">&#10003;</span>{{ svcText(s) }}
-        </div>
+        <div style="height: 16px"></div>
       </div>
     </div>
 

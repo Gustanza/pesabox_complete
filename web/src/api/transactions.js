@@ -42,3 +42,27 @@ export function listTransactions(groupId) {
     { where: { groupId: { equalTo: groupId } } }
   ).then((data) => data.transactions)
 }
+
+// A group's member loans. totalDue / interestAmount are fixed at issue; a loan
+// without totalDue predates interest charging and owes its principal only.
+const LOAN_FIELDS = `
+  id
+  groupId
+  memberId
+  loanNumber
+  amount
+  amountRepaid
+  interestRate
+  interestAmount
+  totalDue
+  issuedDate
+  dueDate
+  status
+`
+
+export function listLoans(groupId) {
+  return gql(
+    `query($where: WhereLoanInput){ loans(where: $where) { ${LOAN_FIELDS} } }`,
+    { where: { groupId: { equalTo: groupId } } }
+  ).then((data) => data.loans)
+}
