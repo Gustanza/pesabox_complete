@@ -10,6 +10,9 @@ async function readError(res) {
   return json?.error || 'Request failed'
 }
 
+// Live preview of one dataset:
+// { key, columns, types: {col: type}, rows, totals?, pointInTime, balances,
+//   asAt, enums: { sw: {code: label}, en: {...} } }
 export async function fetchReport(type, { partnerId = '', clusterId = '', groupId = '', from = '', to = '' } = {}) {
   const params = new URLSearchParams({ type })
   if (partnerId) params.set('partnerId', partnerId)
@@ -26,7 +29,10 @@ export async function fetchReport(type, { partnerId = '', clusterId = '', groupI
 }
 
 // Catalog for the export picker:
-// [{ key, category, categorySw, sw, en, columns: [{ key, sw, en }] }]
+// [{ key, category, categorySw, sw, en, pointInTime, balances, totals,
+//    columns: [{ key, sw, en, type }] }]
+// type is money | count | int | rate | date | datetime | enum | text. SMS
+// datasets are only listed for roles that may read SMS logs.
 export async function listDatasets() {
   const res = await apiFetch('/api/admin/reports/datasets')
   if (!res.ok) throw new Error(await readError(res))

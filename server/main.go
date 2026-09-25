@@ -95,10 +95,7 @@ func beemSend(phone string, message string) (bool, string) {
 		return true, "dev-mode (no Beem credentials)"
 	}
 
-	sender := os.Getenv("BEEM_SENDER_ID")
-	if helper.IsEmpty(sender) {
-		sender = beemSenderID
-	}
+	sender := smsSenderID()
 
 	provider := gateway.NewSMSProvider(&config.SMSGatewayConfig{
 		Provider:  config.ProviderBeem,

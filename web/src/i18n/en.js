@@ -63,7 +63,13 @@ export default {
     chooseColumn: 'Choose at least one column for {name}',
     loadFailed: 'Could not load the report list',
     generateFailed: 'Failed to generate report',
-    exportFailed: 'Export failed'
+    exportFailed: 'Export failed',
+    total: 'TOTAL',
+    pointInTime: 'current position — the date range does not apply',
+    asAt: 'As at {date} — the date range does not apply.',
+    balancesNote: 'Balances are current (as at {date}); "(period)" columns follow the date range.',
+    from: 'From',
+    to: 'To'
   },
   sms: {
     title: 'SMS Management',
@@ -447,7 +453,17 @@ export default {
     database: 'Database',
     authentication: 'Authentication',
     jobs: 'Background Jobs',
-    act: { share: 'Share', saving: 'Saving', repayment: 'Repayment', fine: 'Fine', loan: 'Loan' }
+    act: {
+      contribution: 'Saving',
+      share: 'Share',
+      social_fund: 'Social fund',
+      loan_disbursement: 'Loan',
+      loan_repayment: 'Repayment',
+      fine: 'Fine payment',
+      expense: 'Expense',
+      withdrawal: 'Withdrawal',
+      other: 'Other'
+    }
   },
   usr: {
     pendingTab: 'Pending Admins ({n})',
@@ -463,7 +479,8 @@ export default {
   setx: {
     save: 'Save Changes',
     saved: 'Settings saved',
-    immediate: 'Changes take effect immediately.'
+    immediate: 'Changes take effect immediately.',
+    delivery: 'Delivery'
   },
   offc: {
     officer: 'Responsible officer',
@@ -631,7 +648,9 @@ export default {
     noRows: 'No data for this selection.',
     inactive: 'Inactive',
     activeN: '{n} active',
-    fm: '(W {f} · M {m})'
+    fm: '(W {f} · M {m})',
+    crumbAll: 'Whole programme',
+    drillHint: 'Click a row to open the next level.'
   },
   gl: {
     tab: 'Government loans',

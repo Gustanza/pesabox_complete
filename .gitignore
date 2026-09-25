@@ -19,3 +19,7 @@ schema.graphql
 
 # Own nested git repo (see CLAUDE.md) — not a submodule, not tracked here.
 pesa_box_app
+# Build output — rebuild with `go build` (see CLAUDE.md), never commit.
+*.exe
+*.exe~
+server/logs/

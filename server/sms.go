@@ -153,7 +153,21 @@ func notificationSettings() datatype.DataMap {
 		settingTransactionalSms: settingOn(settingTransactionalSms),
 		settingRemindersSms:     settingOn(settingRemindersSms),
 		settingSmsLanguage:      smsLang(),
+		// Read-only facts for the Settings screen.
+		"smsProvider": "Beem Africa",
+		"senderId":    smsSenderID(),
+		"smsLive":     helper.IsNotEmpty(os.Getenv("BEEM_API_KEY")) && helper.IsNotEmpty(os.Getenv("BEEM_SECRET_KEY")),
+		"remindersOn": os.Getenv("PESABOX_REMINDERS") == "1",
 	}
+}
+
+// smsSenderID is the Sender ID messages go out as: BEEM_SENDER_ID when set,
+// otherwise the approved default (beemSenderID in main.go).
+func smsSenderID() string {
+	if v := os.Getenv("BEEM_SENDER_ID"); v != "" {
+		return v
+	}
+	return beemSenderID
 }
 
 // ---- rendering ------------------------------------------------------------

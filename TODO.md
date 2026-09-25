@@ -16,20 +16,20 @@
 
 ---
 
-## 0. Where we are today (already in the code)
+## 0. Where we are today (updated 2026-09-25)
 
 | Area | State |
 |---|---|
-| Language switch, Swahili default (web + mobile) | ✅ done — some new web text is English-only (see H3) |
-| Report download: PDF + Excel + CSV | ✅ done (`server/reports.go`) — group level only |
+| Language switch, Swahili default (web + mobile) | ✅ done — all screens translated (L4: client to review wording) |
+| Report download: PDF + Excel + CSV | ✅ done — 19 datasets, organisation → partner → cluster → group |
 | SMS templates + on/off switches (web) | ✅ done |
 | SMS provider | ✅ **switched SMTZ → Beem Africa**, sender ID `TUKIIO` (`server/main.go`) |
-| Super Admin live dashboard (cross-group stats, 7-day chart) | ✅ done (`/api/admin/dashboard`) |
+| Live dashboard | ✅ scoped to the role, KPIs (PAR 30, attendance, active groups, gov loans), roll-ups by partner/cluster/group |
 | Profile completion after OTP login (web + mobile) | ✅ done |
-| Transaction correction via reversal (`reversed` flag) | ✅ exists — good base for "no delete" |
-| Roles | ⚠️ only `super_admin`, `support_admin`, `group_admin` — no scoping by partner/cluster |
-| Partner, Cluster, Government loans, Audit log | ❌ not started |
-| Group Members logging in (self-service) | ❌ not started — members don't log in today |
+| Corrections | ✅ reversal route + app screen; financial records can't be deleted (GraphQL guard) |
+| Roles | ✅ 7 levels + staff presets + assignments (`server/access.go`), every REST + GraphQL call scoped |
+| Partner, Cluster, Government loans, Audit log | ✅ done (web + app) |
+| Group Members logging in (self-service) | ⏳ phase 3 (U21–U23) |
 
 ---
 
@@ -126,20 +126,20 @@ Tick when GATA confirms (or note their change in the log).
 
 ---
 
-## 3. Rename PesaBox → HelaBox — `⏳ TODO` (build now on D1; ~22 files)
+## 3. Rename PesaBox → HelaBox — `✅ DONE` (R5 waits for the domain)
 
 - [x] **R1** Make brand name a single source: server `config.json` `appName`, web + mobile — _server brand.go + web i18n app.name (linked @:app.name) — mobile still to do (R3)_
       i18n key (e.g. `app.name`) — no hardcoded "PesaBox" in views
 - [x] **R2** Web: page titles, `index.html`, logo/wordmark, sw + en strings — _web: HelaBox in sidebar, login pages, page title, all translations_
-- [ ] **R3** Mobile: Android/iOS display name, splash/login, sw + en strings, launcher icon
+- [x] **R3** Mobile: Android/iOS display name, splash/login, sw + en strings, launcher icon — _app/brand.dart (kBrandName), Android label + iOS display name HelaBox, H logo mark — launcher icon image still the default (needs a HelaBox logo file)_
 - [x] **R4** Server: PDF/Excel report headers, email text, SMS templates text — _server: brand.go (HelaBox, BRAND_NAME env), PDF header, export filename, SMS {BRAND} prefix_
 - [ ] **R5** Point web/mobile to final domain (D2) when it's live
-- [ ] **R6** Check: search web, mobile, SMS, reports — no user-facing "PesaBox" left
-- [ ] **R7** Do NOT rename: `com.example.pesa_box_app`, DB `pesabox`, repos (see D1)
+- [x] **R6** Check: search web, mobile, SMS, reports — no user-facing "PesaBox" left — _swept 2026-09-25: remaining hits are internal ids only (PesaBoxApp class, PESABOX_REMINDERS, DB name). Web + mobile Settings now show the real sender ID from the server_
+- [x] **R7** Do NOT rename: `com.example.pesa_box_app`, DB `pesabox`, repos (see D1) — _kept: package com.example.pesa_box_app, DB pesabox, config appName PesaBox (it names the data dir)_
 
 ---
 
-## 4. User levels & structure — `⏳ TODO` (approved by client)
+## 4. User levels & structure — `✅ DONE` (4e member app = phase 3)
 
 | # | Role | Sees | Can't |
 |---|---|---|---|
@@ -176,8 +176,8 @@ Tick when GATA confirms (or note their change in the log).
 - [x] **U18** Audit log viewer (Super Admin) — _web: Audit Logs page reads the real log (filters: action, record, dates)_
 
 ### 4d. Mobile app (group roles)
-- [ ] **U19** Show/hide actions by Group Admin vs Group Officer
-- [ ] **U20** Group Admin: add/remove Group Officers
+- [x] **U19** Show/hide actions by Group Admin vs Group Officer — _app reads position + permissions from GET /api/main/group, officer-only screens hide admin actions (officers, close cycle, reversal gated by finance.write)_
+- [x] **U20** Group Admin: add/remove Group Officers — _app: Group → Group officers (add by phone + position, remove) — POST/DELETE /api/main/officers_
 
 ### 4e. Member self-service — phase 3
 - [ ] **U21** Member login (phone + OTP)
@@ -185,12 +185,12 @@ Tick when GATA confirms (or note their change in the log).
 - [ ] **U23** Member requests (loan application) → approved by Admin/Officer
 
 ### 4f. Check
-- [ ] **U24** Test each role: can do what it should, **can't** do what it shouldn't
-- [ ] **U25** Scope-leak test: a Cluster Manager / Partner never sees another's data (incl. reports & exports)
+- [x] **U24** Test each role: can do what it should, **can't** do what it shouldn't — _server e2e: super admin, staff viewer, partner user, katibu — 44/44_
+- [x] **U25** Scope-leak test: a Cluster Manager / Partner never sees another's data (incl. reports & exports) — _server e2e: viewer on another cluster sees 0 groups / 0 transactions over REST and GraphQL_
 
 ---
 
-## 5. Reports at 4 levels — `⏳ TODO` (phase 2; build on D4)
+## 5. Reports at 4 levels — `✅ DONE`
 
 - [x] **P1** Roll-up engine: group → cluster → partner → organisation (needs U1–U3) — _/api/admin/rollup + summary-partner/cluster/group datasets_
 - [x] **P2** Check roll-up totals match the sum of groups exactly — _one KPI computation (server/report_kpis.go) feeds dashboard, roll-ups and exports_
@@ -203,7 +203,7 @@ Tick when GATA confirms (or note their change in the log).
 
 ---
 
-## 6. Data that must not be deleted — `⏳ TODO` (phase 1; build on D5)
+## 6. Data that must not be deleted — `✅ DONE`
 
 - [x] **N1** Block delete at the API for all financial models (every role)
 - [x] **N2** Soft delete (deactivate) for members, users, groups, clusters, partners — — _DELETE /api/admin/users/:id now deactivates_
@@ -216,12 +216,12 @@ Tick when GATA confirms (or note their change in the log).
 
 ---
 
-## 7. Government loans — `⏳ TODO` (phase 2; build on D6)
+## 7. Government loans — `✅ DONE` (G3 group statement still to add)
 
 - [x] **G1** `GovernmentLoans` + repayments model (D6 fields) — _GovernmentLoans + GovernmentLoanRepayments models, /api/main/gov-loans routes_
-- [ ] **G2** Record receipt + repayments (web + mobile, Group Admin/Officer)
-- [ ] **G3** Show on group dashboard & group statement, separate from member savings
-- [ ] **G4** Include in reports at all 4 levels (§5) and in SMS notifications (§8)
+- [x] **G2** Record receipt + repayments (web + mobile, Group Admin/Officer) — _app: Group → Government loans (record + repayments), web shows them read-only on the group page_
+- [ ] **G3** Show on group dashboard & group statement, separate from member savings — _web group page + app screen ✅ — not yet on the app's Group Statement PDF_
+- [x] **G4** Include in reports at all 4 levels (§5) and in SMS notifications (§8) — _all 4 report levels + government-loans dataset. No member SMS by design (the loan is to the group)_
 
 ---
 
@@ -235,32 +235,32 @@ Tick when GATA confirms (or note their change in the log).
       loan disbursement / repayment, fine, government loan)
 - [ ] **S5** Meeting & loan-due reminders (currently opt-in `PESABOX_REMINDERS=1`) — turn on in production
 - [ ] **S6** Switch sender ID to `HelaBox` once approved (D3) via `BEEM_SENDER_ID`
-- [ ] **S7** Brand name in SMS text (R4)
+- [x] **S7** Brand name in SMS text (R4) — _SMS templates use {BRAND} → HELABOX, saved templates migrated on start_
 
 ---
 
-## 9. Language — `✅ DONE` (clean-up left)
+## 9. Language — `✅ DONE` (L4 = client review)
 
 - [x] **L1** Swahili default + English, web and mobile
 - [x] **L2** Translate new English-only web screens from the 2026-09-23 merge: — _ProfileView, CompleteProfileView, GroupDetails, Dashboard, Register translated — merge-broken imports fixed (AppLayout, RegisterView)_
       `ProfileView`, `CompleteProfileView`, parts of `DashboardView`, `GroupDetailsView`,
       `LoginView`, `RegisterView`
-- [ ] **L3** Mobile: add Swahili for strings added after the i18n merge
+- [x] **L3** Mobile: add Swahili for strings added after the i18n merge — _79 strings added to lib/i18n/sw.dart — only demo text on unused onboarding screens left_
       ("Deactivate member", "Mark as urgent", "No messages sent yet.", …)
 - [ ] **L4** Client review of Swahili wording
 
 ---
 
-## 10. Housekeeping
+## 10. Housekeeping — `🚧` (H3 stash drop is yours)
 
-- [ ] **H1** Stop tracking `web/node_modules/` and `server/pesabox-server.exe` in git
+- [x] **H1** Stop tracking `web/node_modules/` and `server/pesabox-server.exe` in git — _git rm --cached web/node_modules, both server .exe files, server/server.log + .gitignore rules — commit to apply_
       (the last commit changed 130+ node_modules files — `.gitignore` has `*/node_modules`
       but they're already tracked, so `git rm -r --cached` is needed)
-- [ ] **H2** Push the 4 unpushed server-repo commits (incl. merge `8efa003`)
-- [ ] **H3** Mobile repo: commit the merged work, then `git stash drop` the backup stash
-- [ ] **H4** Mobile: bundle Google Fonts in the app (runtime download froze the emulator
+- [x] **H2** Push the 4 unpushed server-repo commits (incl. merge `8efa003`) — _pushed by you (569b4c8)_
+- [ ] **H3** Mobile repo: commit the merged work, then `git stash drop` the backup stash — _committed by you (a6eb6db) — the backup stash is still there, drop it when happy_
+- [x] **H4** Mobile: bundle Google Fonts in the app (runtime download froze the emulator — _pesa_box_app/google_fonts/*.ttf + GoogleFonts.config.allowRuntimeFetching=false_
       and will fail for users on bad networks)
-- [ ] **H5** Add a real `server/.env.example` listing required keys (BEEM_*, PESABOX_REMINDERS)
+- [x] **H5** Add a real `server/.env.example` listing required keys (BEEM_*, PESABOX_REMINDERS) — _server/.env.example_
 
 ---
 
@@ -274,3 +274,5 @@ Tick when GATA confirms (or note their change in the log).
 | 2026-09-23 | framework | Claude | yekonga: `Delete()` now fires AfterDelete (was AfterCreate); trigger dispatch no longer holds the lock while running triggers (deadlock fix) |
 | 2026-09-23 | U14–U18, R1–R2, P3–P4, P8, L2 (web) | Claude | New pages Structure / Users & Roles / Audit / NoAccess, role-aware menu + router, dashboard KPIs + roll-ups, report filters by partner/cluster. Headless-Chrome smoke test: 11/11 pages OK in sw + en, 0 JS errors |
 | 2026-09-23 | fixes | Claude | The merge had broken the web: AppLayout + RegisterView lost their `useI18n` import/call (runtime crash), Dashboard stat labels, fake pagination on Groups — all fixed |
+| 2026-09-25 | R3, R6, U19–U20, G2, L3, H4 (mobile) | Claude | HelaBox brand, role-aware app (/api/main/group), officers + government loans screens, real reversal screen, 79 Swahili strings, bundled fonts, expired session → login instead of 'waiting for group'. Checked on the emulator + flutter test 29/29 |
+| 2026-09-25 | settings, H1, H5 | Claude | Web Settings showed fake data (NextSMS, PESABOX, fake admins, dead 2FA toggles) — now real provider/sender/health/admins. Untracked node_modules + exe + log, added server/.env.example |

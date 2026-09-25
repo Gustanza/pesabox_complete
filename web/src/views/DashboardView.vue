@@ -120,13 +120,20 @@ const statuses = computed(() => {
   }))
 })
 
+// Every time on the dashboard is East Africa Time, whatever the viewer's clock.
+const TZ = 'Africa/Dar_es_Salaam'
+
 const activity = computed(() =>
   (dash.value?.recentActivity || []).map((a) => ({
-    time: a.time,
+    // "at" is the EAT timestamp; date + time so older rows are unambiguous.
+    time: a.at
+      ? new Date(a.at).toLocaleString(intlLocale(), { timeZone: TZ, day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : [a.date, a.time].filter(Boolean).join(' '),
     member: a.member || '—',
     group: a.group || '—',
-    type: a.type,
-    amount: (a.direction === 'in' ? '+' : '-') + 'TZS ' + Number(a.amount || 0).toLocaleString(),
+    // a.type is a stable snake-case key (contribution, social_fund, ...).
+    type: te('dash2.act.' + a.type) ? t('dash2.act.' + a.type) : a.label || a.type,
+    amount: (a.direction === 'in' ? '+' : '-') + 'TZS ' + Number(a.amount || 0).toLocaleString(intlLocale()),
     ok: a.direction === 'in'
   }))
 )
@@ -136,7 +143,10 @@ const chartLine = computed(() => {
   if (!points.length || !points.some((p) => p.count > 0)) return ''
 
   const data = points.map((p) => p.count)
-  const labels = points.map((p) => p.day)
+  // ISO dates (EAT days) from the server, shown as weekdays in the UI language.
+  const labels = points.map((p) =>
+    p.date ? new Date(p.date + 'T12:00:00+03:00').toLocaleDateString(intlLocale(), { weekday: 'short', timeZone: TZ }) : p.day
+  )
   const w = 660, h = 260, padL = 42, padB = 28, padT = 10
   const peak = Math.max(...data, 0)
   const maxY = peak > 0 ? Math.ceil(peak * 1.25) : 5
@@ -165,10 +175,37 @@ const chartLine = computed(() => {
   </svg>`
 })
 
+// Drill down: partner row -> its clusters, cluster row -> its groups,
+// group row -> the group page. The breadcrumb chips go back up.
 function openRow(r) {
-  if (level.value === 'group') router.push('/groups/' + r.id)
-  else if (level.value === 'cluster') filters.clusterId = r.id
-  else filters.partnerId = r.id
+  if (level.value === 'group') {
+    router.push('/groups/' + r.id)
+  } else if (level.value === 'cluster') {
+    filters.clusterId = r.id
+    level.value = 'group'
+  } else {
+    filters.partnerId = r.id
+    level.value = 'cluster'
+  }
+}
+
+const nameOf = (list, id) => list.find((x) => x.id === id)?.name || '—'
+const crumbs = computed(() => {
+  if (!showStructure.value || (!filters.partnerId && !filters.clusterId)) return []
+  const out = [{ key: 'all', label: t('kpi.crumbAll') }]
+  if (filters.partnerId) out.push({ key: 'partner', label: nameOf(partners.value, filters.partnerId) })
+  if (filters.clusterId) out.push({ key: 'cluster', label: nameOf(clusters.value, filters.clusterId) })
+  return out
+})
+function goCrumb(key) {
+  if (key === 'all') {
+    filters.partnerId = ''
+    filters.clusterId = ''
+    level.value = 'partner'
+  } else if (key === 'partner') {
+    filters.clusterId = ''
+    level.value = 'cluster'
+  }
 }
 </script>
 
@@ -239,6 +276,20 @@ function openRow(r) {
           <button class="dtab" :class="{ active: level === 'group' }" @click="level = 'group'">{{ t('kpi.byGroup') }}</button>
         </div>
       </div>
+      <div v-if="crumbs.length" class="panel-inner" style="padding-top: 10px; padding-bottom: 0; display: flex; gap: 6px; flex-wrap: wrap; align-items: center">
+        <template v-for="(c, i) in crumbs" :key="c.key">
+          <span v-if="i > 0" class="cell-muted" aria-hidden="true">›</span>
+          <button
+            type="button"
+            class="pill"
+            :class="i === crumbs.length - 1 ? 'green' : 'grey'"
+            :disabled="i === crumbs.length - 1"
+            style="border: 0; cursor: pointer"
+            @click="goCrumb(c.key)"
+          >{{ c.label }}</button>
+        </template>
+      </div>
+      <p v-if="showStructure && level !== 'group'" class="cell-sub" style="padding: 8px 24px 0; margin: 0">{{ t('kpi.drillHint') }}</p>
       <div style="overflow-x: auto; margin-top: 14px">
         <table class="dtable">
           <thead>
@@ -297,7 +348,7 @@ function openRow(r) {
               <td class="cell-muted">{{ a.time }}</td>
               <td class="cell-strong">{{ a.member }}</td>
               <td class="cell-muted">{{ a.group }}</td>
-              <td class="cell-muted">{{ te('dash2.act.' + a.type.toLowerCase()) ? t('dash2.act.' + a.type.toLowerCase()) : a.type }}</td>
+              <td class="cell-muted">{{ a.type }}</td>
               <td class="cell-strong" :style="{ color: a.ok ? 'var(--green-600)' : 'var(--danger)' }">{{ a.amount }}</td>
             </tr>
           </tbody>

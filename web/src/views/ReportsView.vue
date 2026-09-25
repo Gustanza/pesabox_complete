@@ -1,7 +1,8 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { intlLocale } from '../i18n'
 import { listGroups } from '@/api/groups'
 import { listPartners, listClusters } from '@/api/admin'
 import { can } from '@/api/access'
@@ -10,8 +11,12 @@ import { fetchReport, listDatasets, exportReports } from '@/api/reports'
 const { t, locale } = useI18n()
 const route = useRoute()
 
+// Every date in a report is an East Africa Time day (server/reports.go).
+const TZ = 'Africa/Dar_es_Salaam'
+const PREVIEW_ROWS = 50
+
 // ?preset=finance (from the Finance page) pre-selects the money datasets.
-const PRESETS = { finance: ['savings', 'shares', 'social-fund', 'loans', 'fines', 'transactions'] }
+const PRESETS = { finance: ['savings', 'shares', 'social-fund', 'loans', 'fines', 'fines-outstanding', 'expenses', 'transactions'] }
 
 const datasets = ref([])
 const selected = reactive({}) // datasetKey -> true
@@ -24,6 +29,8 @@ const partners = ref([])
 const clusters = ref([])
 const partnerId = ref('')
 const clusterId = ref('')
+// Partner / cluster filters only for roles that may see the structure; a
+// group role reports on its own group only (the server refuses anything else).
 const showStructure = computed(() => can('structure.view'))
 const shownClusters = computed(() => clusters.value.filter((c) => !partnerId.value || c.partnerId === partnerId.value))
 const shownGroups = computed(() => {
@@ -47,7 +54,18 @@ const to = ref('')
 const generating = ref('')
 const exporting = ref(false)
 const lastReport = ref(null)
+const printing = ref(false)
 const error = ref('')
+
+// A preview must always match the controls: any change of dates, filters or
+// the dataset catalog drops it (and any response still on its way).
+let requestSeq = 0
+function clearPreview() {
+  requestSeq++
+  lastReport.value = null
+  generating.value = ''
+}
+watch([from, to, partnerId, clusterId, groupId, datasets], clearPreview)
 
 const categories = computed(() => {
   const map = new Map()
@@ -62,10 +80,11 @@ const selectedKeys = computed(() => datasets.value.filter((d) => selected[d.key]
 
 onMounted(async () => {
   try {
-    datasets.value = await listDatasets()
-    for (const d of datasets.value) {
+    const list = await listDatasets()
+    for (const d of list) {
       pickedColumns[d.key] = Object.fromEntries(d.columns.map((c) => [c.key, true]))
     }
+    datasets.value = list
     for (const k of PRESETS[route.query.preset] || []) selected[k] = true
   } catch (e) {
     error.value = e.message || t('reports.loadFailed')
@@ -94,23 +113,76 @@ function colLabel(c) {
 
 // Preview columns arrive as English keys; show them in the active language.
 function previewColLabel(key) {
-  for (const d of datasets.value) {
-    const c = d.columns.find((x) => x.key === key)
-    if (c) return colLabel(c)
-  }
-  return key
+  const d = datasets.value.find((x) => x.key === lastReport.value?.key)
+  const c = d?.columns.find((x) => x.key === key)
+  return c ? colLabel(c) : key
 }
 
+// One formatter per column type (the server's column-type map), so the
+// preview reads like the PDF / Excel export.
+function fmtCell(type, v) {
+  if (v === null || v === undefined || v === '') return '—'
+  const loc = intlLocale()
+  switch (type) {
+    case 'date':
+    case 'datetime': {
+      const d = new Date(v)
+      if (isNaN(d)) return String(v)
+      return type === 'date'
+        ? d.toLocaleDateString(loc, { timeZone: TZ, year: 'numeric', month: 'short', day: 'numeric' })
+        : d.toLocaleString(loc, { timeZone: TZ, year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    }
+    case 'money':
+      return Number(v).toLocaleString(loc, { maximumFractionDigits: 2 })
+    case 'count':
+      return Number(v).toLocaleString(loc)
+    case 'rate':
+      return Number(v).toLocaleString(loc, { maximumFractionDigits: 1 }) + '%'
+    case 'enum': {
+      const map = lastReport.value?.enums?.[locale.value === 'sw' ? 'sw' : 'en'] || {}
+      return map[v] ?? String(v)
+    }
+    default:
+      return String(v)
+  }
+}
+
+const isNumeric = (type) => ['money', 'count', 'int', 'rate'].includes(type)
+const colType = (c) => lastReport.value?.types?.[c] || 'text'
+
+// Where the footer's TOTAL label goes: the first column without a total.
+const totalsLabelCol = computed(() => {
+  const r = lastReport.value
+  if (!r?.totals) return null
+  return r.columns.find((c) => !(c in r.totals)) ?? null
+})
+
+const shownRows = computed(() => {
+  const rows = lastReport.value?.rows || []
+  return printing.value ? rows : rows.slice(0, PREVIEW_ROWS)
+})
+
+const previewNote = computed(() => {
+  const r = lastReport.value
+  if (!r) return ''
+  const date = fmtCell('date', r.asAt)
+  if (r.pointInTime) return t('reports.asAt', { date })
+  if (r.balances) return t('reports.balancesNote', { date })
+  return ''
+})
+
 async function generate(d) {
+  const id = ++requestSeq
   generating.value = d.key
   error.value = ''
   try {
     const report = await fetchReport(d.key, { ...scope.value, from: from.value, to: to.value })
+    if (id !== requestSeq) return // the controls changed while this was loading
     lastReport.value = { label: label(d), ...report }
   } catch (e) {
-    error.value = e.message || t('reports.generateFailed')
+    if (id === requestSeq) error.value = e.message || t('reports.generateFailed')
   } finally {
-    generating.value = ''
+    if (id === requestSeq) generating.value = ''
   }
 }
 
@@ -149,8 +221,15 @@ async function doExport() {
   }
 }
 
-function printPreview() {
-  window.print()
+// Printing shows every row of the preview, not just the first 50.
+async function printPreview() {
+  printing.value = true
+  await nextTick()
+  try {
+    window.print()
+  } finally {
+    printing.value = false
+  }
 }
 </script>
 
@@ -163,7 +242,7 @@ function printPreview() {
       </div>
     </div>
 
-    <div v-if="error" class="no-print" style="color: var(--danger); font-size: 13.5px; margin-bottom: 12px">
+    <div v-if="error" class="no-print" role="alert" style="color: var(--danger); font-size: 13.5px; margin-bottom: 12px">
       {{ error }}
     </div>
 
@@ -175,17 +254,24 @@ function printPreview() {
             <div class="kv">
               <label style="display: flex; align-items: center; gap: 8px; cursor: pointer">
                 <input v-model="selected[d.key]" type="checkbox" />
-                <span class="k">{{ label(d) }}</span>
+                <span class="k">
+                  {{ label(d) }}
+                  <span v-if="d.pointInTime" class="cell-sub" style="font-weight: 400">({{ t('reports.pointInTime') }})</span>
+                </span>
               </label>
               <span style="display: flex; gap: 14px">
-                <span
-                  style="color: var(--ink-400); font-size: 12px; cursor: pointer"
+                <button
+                  type="button"
+                  class="link-btn"
+                  :aria-expanded="!!expanded[d.key]"
                   @click="expanded[d.key] = !expanded[d.key]"
-                >{{ expanded[d.key] ? t('reports.hideColumns') : t('reports.columns') }}</span>
-                <span
-                  style="color: var(--green-600); font-weight: 700; font-size: 12px; cursor: pointer"
+                >{{ expanded[d.key] ? t('reports.hideColumns') : t('reports.columns') }}</button>
+                <button
+                  type="button"
+                  class="link-btn strong"
+                  :disabled="generating === d.key"
                   @click="generate(d)"
-                >{{ generating === d.key ? t('reports.loadingShort') : t('reports.preview') }}</span>
+                >{{ generating === d.key ? t('reports.loadingShort') : t('reports.preview') }}</button>
               </span>
             </div>
             <div v-if="expanded[d.key]" style="display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 4px 0 12px 26px">
@@ -208,8 +294,8 @@ function printPreview() {
           <div class="field-view">
             <label>{{ t('reports.dateRange') }}</label>
             <div style="display: flex; gap: 8px">
-              <input v-model="from" type="date" class="box" style="flex: 1" />
-              <input v-model="to" type="date" class="box" style="flex: 1" />
+              <input v-model="from" type="date" class="box" style="flex: 1" :max="to || undefined" :aria-label="t('reports.from')" />
+              <input v-model="to" type="date" class="box" style="flex: 1" :min="from || undefined" :aria-label="t('reports.to')" />
             </div>
           </div>
           <div v-if="showStructure" class="field-view">
@@ -250,12 +336,15 @@ function printPreview() {
             <button
               v-for="f in [['pdf', 'PDF'], ['xlsx', 'Excel'], ['csv', 'CSV']]"
               :key="f[0]"
+              type="button"
               class="btn"
               :class="format === f[0] ? 'btn-primary' : 'btn-outline'"
+              :aria-pressed="format === f[0]"
               @click="format = f[0]"
             >{{ f[1] }}</button>
           </div>
           <button
+            type="button"
             class="btn btn-primary btn-block"
             :disabled="!selectedKeys.length || exporting"
             @click="doExport"
@@ -268,23 +357,38 @@ function printPreview() {
     </div>
 
     <div v-if="lastReport" class="panel print-area" style="margin-top: 20px">
-      <div class="panel-inner" style="padding-bottom: 0; display: flex; justify-content: space-between">
-        <h3 style="font-size: 15px">{{ lastReport.label }}</h3>
-        <button class="btn btn-outline btn-sm no-print" @click="printPreview">{{ t('common.print') }}</button>
+      <div class="panel-inner" style="padding-bottom: 0; display: flex; justify-content: space-between; gap: 12px">
+        <div>
+          <h3 style="font-size: 15px">{{ lastReport.label }}</h3>
+          <p v-if="previewNote" class="cell-sub" style="margin: 4px 0 0">{{ previewNote }}</p>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm no-print" @click="printPreview">{{ t('common.print') }}</button>
       </div>
       <div style="overflow-x: auto; margin-top: 14px">
         <div v-if="!lastReport.rows.length" class="empty"><p>{{ t('reports.noRecords') }}</p></div>
         <table v-else class="dtable">
           <thead>
-            <tr><th v-for="c in lastReport.columns" :key="c">{{ previewColLabel(c) }}</th></tr>
+            <tr>
+              <th v-for="c in lastReport.columns" :key="c" :style="isNumeric(colType(c)) ? 'text-align: right' : ''">{{ previewColLabel(c) }}</th>
+            </tr>
           </thead>
           <tbody>
-            <tr v-for="(row, i) in lastReport.rows.slice(0, 50)" :key="i">
-              <td v-for="c in lastReport.columns" :key="c">{{ row[c] }}</td>
+            <tr v-for="(row, i) in shownRows" :key="i">
+              <td v-for="c in lastReport.columns" :key="c" :style="isNumeric(colType(c)) ? 'text-align: right; white-space: nowrap' : ''">
+                {{ fmtCell(colType(c), row[c]) }}
+              </td>
             </tr>
           </tbody>
+          <tfoot v-if="lastReport.totals">
+            <tr class="totals-row">
+              <td v-for="c in lastReport.columns" :key="c" :style="isNumeric(colType(c)) ? 'text-align: right; white-space: nowrap' : ''">
+                <template v-if="c === totalsLabelCol">{{ t('reports.total') }}</template>
+                <template v-else-if="c in lastReport.totals">{{ fmtCell(colType(c), lastReport.totals[c]) }}</template>
+              </td>
+            </tr>
+          </tfoot>
         </table>
-        <p v-if="lastReport.rows.length > 50" class="no-print" style="font-size: 12px; color: var(--ink-400); padding: 10px">
+        <p v-if="!printing && lastReport.rows.length > PREVIEW_ROWS" class="no-print" style="font-size: 12px; color: var(--ink-400); padding: 10px">
           {{ t('reports.showingFirst', { n: lastReport.rows.length }) }}
         </p>
       </div>
@@ -294,6 +398,32 @@ function printPreview() {
 </template>
 
 <style>
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink-400);
+  cursor: pointer;
+}
+.link-btn.strong {
+  color: var(--green-600);
+  font-weight: 700;
+}
+.link-btn:hover,
+.link-btn:focus-visible {
+  text-decoration: underline;
+}
+.link-btn:disabled {
+  cursor: default;
+  text-decoration: none;
+}
+.totals-row td {
+  font-weight: 800;
+  background: var(--green-100);
+  border-top: 2px solid var(--green-600);
+}
 @media print {
   .no-print,
   .sidebar,

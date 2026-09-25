@@ -1,32 +1,39 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Svgs from '../components/Svgs.vue'
 import { getNotificationSettings, saveNotificationSettings } from '@/api/settings'
+import { getDashboard, listUsers } from '@/api/admin'
 
 const { t, te } = useI18n()
 
-// Static platform info (display only).
-const general = [
-  ['set.platformName', 'HelaBox'],
+// Platform info (display only).
+const general = computed(() => [
+  ['set.platformName', t('app.name')],
   ['set.currency', 'TZS'],
   ['set.timezone', 'Africa/Dar_es_Salaam']
+])
+// Provider and sender come from the server (server/sms.go) — the sender ID is
+// BEEM_SENDER_ID or the approved default, never hard-coded here.
+const sms = computed(() => [
+  ['set.provider', notif.value.smsProvider || '—'],
+  ['set.senderId', notif.value.senderId || '—'],
+  ['setx.delivery', notif.value.smsLive ? t('dash.live') : t('dash.devMode')]
+])
+
+// Live service status (same source as the dashboard).
+const status = ref(null)
+const HEALTH_KEYS = [
+  ['api', 'dash2.api'],
+  ['database', 'dash2.database'],
+  ['authentication', 'dash2.authentication'],
+  ['smsProvider', 'dash.smsProvider'],
+  ['backgroundJobs', 'dash2.jobs']
 ]
-const sms = [
-  ['set.provider', 'NextSMS'],
-  ['set.senderId', 'PESABOX']
-]
-const health = [
-  ['dash2.api', 'Operational'],
-  ['dash2.database', 'Operational'],
-  ['dash2.authentication', 'Operational'],
-  ['dash.smsProvider', 'Operational'],
-  ['dash2.jobs', 'Operational']
-]
-const admins = [
-  { name: 'Raymond', email: 'admin@pesabox.co.tz', role: 'super_admin', status: 'Active' },
-  { name: 'Support Admin', email: 'support@pesabox.co.tz', role: 'support_admin', status: 'Active' }
-]
+const health = computed(() => HEALTH_KEYS.map(([key, label]) => [label, !!status.value?.[key]]))
+
+// People who administer the platform: super admins and HelaBox staff.
+const admins = ref([])
 
 // SMS switches and language are stored on the server and enforced where
 // messages are sent (server/sms.go). Optimistic update, rolled back on failure.
@@ -39,6 +46,12 @@ onMounted(async () => {
   } catch (e) {
     error.value = e.message || t('set.loadFailed')
   }
+  getDashboard()
+    .then((d) => (status.value = d.status))
+    .catch(() => {})
+  listUsers()
+    .then((us) => (admins.value = us.filter((u) => u.role === 'super_admin' || u.role === 'staff')))
+    .catch(() => {})
 })
 
 async function setNotif(key, value) {
@@ -46,22 +59,15 @@ async function setNotif(key, value) {
   notif.value[key] = value
   error.value = ''
   try {
-    notif.value = await saveNotificationSettings({ [key]: value })
+    notif.value = { ...notif.value, ...(await saveNotificationSettings({ [key]: value })) }
   } catch (e) {
     notif.value[key] = before
     error.value = e.message || t('settings.saveFailed')
   }
 }
 
-// These two have no backend mechanism (no real 2FA flow, no masking layer).
-const twoFA = ref(true)
-const maskSensitive = ref(true)
-
 const roleText = (r) => (te('roles.' + r) ? t('roles.' + r) : r)
-
-function save() {
-  alert(t('setx.saved'))
-}
+const adminName = (u) => [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username
 </script>
 
 <template>
@@ -116,17 +122,6 @@ function save() {
         </div>
       </div>
 
-      <div class="settings-card">
-        <div class="head"><div class="ic"><Svgs name="shield" /></div><h3>{{ t('set.security') }}</h3></div>
-        <div class="toggle-row">
-          <span class="toggle-label">{{ t('set.twoFactor') }}</span>
-          <div class="toggle" :class="twoFA ? 'on' : 'off'" @click="twoFA = !twoFA"><div class="knob"></div></div>
-        </div>
-        <div class="toggle-row">
-          <span class="toggle-label">{{ t('set.maskSensitive') }}</span>
-          <div class="toggle" :class="maskSensitive ? 'on' : 'off'" @click="maskSensitive = !maskSensitive"><div class="knob"></div></div>
-        </div>
-      </div>
     </div>
 
     <div class="settings-grid" style="grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));">
@@ -139,17 +134,17 @@ function save() {
             <thead>
               <tr>
                 <th>{{ t('set.name') }}</th>
-                <th>{{ t('set.email') }}</th>
+                <th>{{ t('struct.phone') }}</th>
                 <th>{{ t('set.role') }}</th>
                 <th>{{ t('common.status') }}</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="a in admins" :key="a.email">
-                <td class="cell-strong">{{ a.name }}</td>
-                <td class="cell-muted">{{ a.email }}</td>
-                <td class="cell-muted">{{ roleText(a.role) }}</td>
-                <td><span class="badge green">{{ t('users.active') }}</span></td>
+              <tr v-for="a in admins" :key="a.id">
+                <td class="cell-strong">{{ adminName(a) }}</td>
+                <td class="cell-muted">{{ a.username }}</td>
+                <td class="cell-muted">{{ roleText(a.role) }}<template v-if="a.preset"> · {{ t('ur.presets.' + a.preset) }}</template></td>
+                <td><span class="badge" :class="a.isActive ? 'green' : 'grey'">{{ a.isActive ? t('users.active') : t('users.inactive') }}</span></td>
               </tr>
             </tbody>
           </table>
@@ -159,18 +154,13 @@ function save() {
 
       <div class="chart-card">
         <h3>{{ t('set.health') }}</h3>
-        <div v-for="[name, state2] in health" :key="name" class="status-row">
+        <div v-for="[name, ok] in health" :key="name" class="status-row">
           <span>{{ t(name) }}</span>
-          <span class="status-dot" :class="state2 === 'Operational' ? '' : 'red'"></span>
+          <span class="status-dot" :class="ok ? '' : 'red'"></span>
         </div>
       </div>
     </div>
 
-    <div style="text-align: center">
-      <button class="btn btn-primary" style="padding: 15px 40px" @click="save">{{ t('setx.save') }}</button>
-      <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; color: var(--gold-500); font-size: 13.5px; font-weight: 600">
-        <Svgs name="warn" width="16" height="16" /> {{ t('setx.immediate') }}
-      </div>
-    </div>
+    <p style="text-align: center; color: var(--ink-400); font-size: 13px">{{ t('setx.immediate') }}</p>
   </div>
 </template>

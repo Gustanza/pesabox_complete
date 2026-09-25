@@ -369,7 +369,11 @@ func registerAccessRoutes(app *yekonga.YekongaData) {
 		if requirePerm(app, req, res, PermAudit) == nil {
 			return
 		}
-		from, to := reportRange(req.Query("from"), req.Query("to"))
+		from, to, err := reportRange(req.Query("from"), req.Query("to"))
+		if err != nil {
+			deny(res, 400, err.Error())
+			return
+		}
 		limit := 300
 		if n := helper.GetValueOfInt(datatype.DataMap{"n": req.Query("limit")}, "n"); n > 0 && n <= 2000 {
 			limit = n

@@ -62,7 +62,13 @@ export default {
     chooseColumn: 'Chagua angalau safu moja kwa {name}',
     loadFailed: 'Imeshindwa kupakia orodha ya ripoti',
     generateFailed: 'Imeshindwa kutengeneza ripoti',
-    exportFailed: 'Kupakua kumeshindwa'
+    exportFailed: 'Kupakua kumeshindwa',
+    total: 'JUMLA',
+    pointInTime: 'hali ya sasa — kipindi cha tarehe hakihusiki',
+    asAt: 'Hali kufikia {date} — kipindi cha tarehe hakihusiki.',
+    balancesNote: 'Salio ni la sasa (kufikia {date}); safu za "(kipindi)" zinafuata kipindi cha tarehe.',
+    from: 'Kuanzia',
+    to: 'Hadi'
   },
   sms: {
     title: 'Usimamizi wa SMS',
@@ -446,7 +452,17 @@ export default {
     database: 'Hifadhidata',
     authentication: 'Uthibitishaji',
     jobs: 'Kazi za Nyuma',
-    act: { share: 'Hisa', saving: 'Akiba', repayment: 'Marejesho', fine: 'Faini', loan: 'Mkopo' }
+    act: {
+      contribution: 'Akiba',
+      share: 'Hisa',
+      social_fund: 'Mfuko wa jamii',
+      loan_disbursement: 'Mkopo',
+      loan_repayment: 'Marejesho',
+      fine: 'Malipo ya faini',
+      expense: 'Matumizi',
+      withdrawal: 'Uondoaji',
+      other: 'Nyingine'
+    }
   },
   usr: {
     pendingTab: 'Wasimamizi Wanaosubiri ({n})',
@@ -462,7 +478,8 @@ export default {
   setx: {
     save: 'Hifadhi Mabadiliko',
     saved: 'Mipangilio imehifadhiwa',
-    immediate: 'Mabadiliko yanaanza kutumika mara moja.'
+    immediate: 'Mabadiliko yanaanza kutumika mara moja.',
+    delivery: 'Uwasilishaji'
   },
   offc: {
     officer: 'Afisa Msimamizi',
@@ -630,7 +647,9 @@ export default {
     noRows: 'Hakuna data kwa uchaguzi huu.',
     inactive: 'Haifanyi kazi',
     activeN: '{n} hai',
-    fm: '(W {f} · M {m})'
+    fm: '(W {f} · M {m})',
+    crumbAll: 'Programu yote',
+    drillHint: 'Bofya safu kuingia ngazi inayofuata.'
   },
   gl: {
     tab: 'Mikopo ya serikali',
