@@ -140,6 +140,9 @@ func _otp(g *GraphqlAutoBuild) *graphql.Field {
 
 				if v, ok := triggerResult.(bool); ok && !v {
 					return nil, errors.New("Rejected by BeforeOtpTriggerAction")
+				} else if e, ok := triggerResult.(error); ok {
+					// The trigger's own error is shown to the user as is.
+					return nil, e
 				}
 
 				if helper.IsNotEmpty(username) {
@@ -526,6 +529,13 @@ func _socialLogin(g *GraphqlAutoBuild) *graphql.Field {
 
 			googleClientID := g.yekonga.Config.GoogleClientId
 			credential := helper.GetValueOfString(input, "credential")
+
+			// Without a configured client ID, idtoken.Validate skips the
+			// audience check and would accept any Google token — i.e. anyone
+			// could create an account. Treat it as "Google sign-in disabled".
+			if helper.IsEmpty(googleClientID) {
+				return nil, errors.New("Google sign-in is not enabled")
+			}
 
 			payload, err := idtoken.Validate(context.Background(), credential, googleClientID)
 			if err != nil {

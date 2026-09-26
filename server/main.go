@@ -238,9 +238,17 @@ var defaultFineReasons = []datatype.DataMap{
 // groupFineReasons returns the group's configured fine reasons, falling back
 // to the platform defaults when the group hasn't set its own yet.
 func groupFineReasons(g datatype.DataMap) []datatype.DataMap {
-	raw := docList(g["fineReasons"])
-	if len(raw) == 0 {
+	// Never configured: the defaults. Configured as an empty list (allowed
+	// only while Fines is switched off): no reasons.
+	if g["fineReasons"] == nil {
 		return defaultFineReasons
+	}
+	raw := docList(g["fineReasons"])
+	if raw == nil {
+		return defaultFineReasons
+	}
+	if len(raw) == 0 {
+		return []datatype.DataMap{}
 	}
 	out := []datatype.DataMap{}
 	for _, r := range raw {
@@ -352,6 +360,7 @@ func main() {
 	// access.go / guard.go. migrateAccess moves pre-existing data (old role
 	// names, groups without a cluster) onto the new structure on every start.
 	registerGuards(app)
+	registerLoginGate(app)
 	migrateAccess(app)
 	migrateSmsBrand(app)
 
@@ -748,7 +757,7 @@ func main() {
 		if method == "" {
 			method = "Cash"
 		}
-		created := app.ModelQuery("Transaction").SkipBeforeCommit().Create(datatype.DataMap{
+		rec := datatype.DataMap{
 			"groupId":     groupId,
 			"meetingId":   helper.GetValueOfString(x, "meetingId"),
 			"memberId":    helper.GetValueOfString(x, "memberId"),
@@ -759,7 +768,11 @@ func main() {
 			"reference":   helper.GetValueOfString(x, "reference"),
 			"description": description,
 			"createdBy":   helper.GetValueOfString(x, "createdBy"),
-		})
+		}
+		if st := helper.GetValueOfString(x, "savingsType"); st != "" {
+			rec["savingsType"] = st // mandatory / voluntary savings
+		}
+		created := app.ModelQuery("Transaction").SkipBeforeCommit().Create(rec)
 		if created != nil {
 			if _, isErr := created.(error); !isErr {
 				switch typ {
@@ -917,6 +930,9 @@ func main() {
 			rec["loansTaken"] = loansTaken[mid]
 			rec["outstanding"] = outstanding[mid]
 			rec["outstandingLoan"] = outstanding[mid]
+			// The loan limit (group rules): -1 = no limit.
+			rec["availableToBorrow"] = availableToBorrow(*g, memberSavingsShares(*txs, mid), outstanding[mid])
+			rec["canBorrow"] = memberActive(m)
 			rec["finesCharged"] = finesCharged[mid]
 			rec["finesPaid"] = finesPaid[mid]
 			rec["finesOwed"] = finesCharged[mid] - finesPaid[mid]
@@ -1222,19 +1238,23 @@ func main() {
 		// Rule validation (spec §15) — the group's rules (group_rules.go) decide
 		// which services are on and the fixed amounts; the server rejects
 		// transactions that break them instead of recording an off-rule amount.
-		if typ == "loan_disbursement" {
-			deny(res, 400, "issue loans with the Record Loan action, not as a plain transaction")
-			return
-		}
-		if msg := serviceOff(*g, typ); msg != "" {
+		if msg := txTypeError(typ); msg != "" {
 			deny(res, 400, msg)
 			return
 		}
-		msa := ruleFloat(*g, "mandatorySavingsAmount")
-		if msa > 0 && typ == "contribution" && serviceEnabled(*g, "Mandatory Savings") && amount != msa {
-			res.Status(400)
-			res.Json(map[string]string{"error": fmt.Sprintf("Mandatory Savings is %s per meeting", fmtTZS(msa))})
-			return
+		if typ == "contribution" {
+			kind, msg := contributionKind(*g, helper.GetValueOfString(body, "savingsType"), amount)
+			if msg != "" {
+				deny(res, 400, msg)
+				return
+			}
+			body["savingsType"] = kind
+		} else {
+			delete(body, "savingsType")
+			if msg := serviceOff(*g, typ); msg != "" {
+				deny(res, 400, msg)
+				return
+			}
 		}
 		sfc := ruleFloat(*g, "socialFundContribution")
 		if sfc > 0 && typ == "social_fund" && amount != sfc {
@@ -1338,13 +1358,19 @@ func main() {
 			deny(res, 400, msg)
 			return
 		}
+		if !memberActive(*rec) {
+			deny(res, 400, fmt.Sprintf("only active members can borrow; %s is %s", memberFullName(*rec), helper.GetValueOfString(*rec, "status")))
+			return
+		}
 		if ruleFloat(*g, "maxLoanMultiplier") > 0 {
-			txs := app.ModelQuery("Transaction").SkipBeforeCommit().Where("groupId", groupId).Where("memberId", memberId).Find(nil)
-			var list []datatype.DataMap
-			if txs != nil {
-				list = *txs
+			var txList, loanList []datatype.DataMap
+			if txs := app.ModelQuery("Transaction").SkipBeforeCommit().Where("groupId", groupId).Where("memberId", memberId).Find(nil); txs != nil {
+				txList = *txs
 			}
-			if msg := loanLimitError(*g, amount, memberSavingsShares(list, memberId)); msg != "" {
+			if ls := app.ModelQuery("Loan").SkipBeforeCommit().Where("groupId", groupId).Where("memberId", memberId).Find(nil); ls != nil {
+				loanList = *ls
+			}
+			if msg := loanLimitError(*g, amount, memberSavingsShares(txList, memberId), memberOwed(loanList, memberId)); msg != "" {
 				deny(res, 400, msg)
 				return
 			}
@@ -1396,6 +1422,9 @@ func main() {
 			res.Json(map[string]string{"error": "could not record loan disbursement"})
 			return
 		}
+		// The running total tracks what is owed: the disbursement added the
+		// principal, the flat interest is owed too.
+		adjustGroupTotal(groupId, "totalLoans", interest)
 		writeAudit(app, actor, "create", "Loan", helper.GetValueOfString(helper.ToDataMap(created), "id"), groupId,
 			fmt.Sprintf("Issued loan LN-%04d of %s to %s", number, fmtTZS(amount), memberFullName(*rec)), nil)
 
@@ -1721,10 +1750,12 @@ func main() {
 				deny(res, 400, "reverse this loan's repayments first")
 				return
 			}
+			owedNow := amount
 			if loan != nil {
+				owedNow = loanTotalDue(*loan) // principal + interest, nothing repaid yet
 				app.ModelQuery("Loan").SkipBeforeCommit().Where("id", helper.GetValueOfString(*loan, "id")).Update(datatype.DataMap{"status": "cancelled"}, nil)
 			}
-			adjustGroupTotal(groupId, "totalLoans", -amount)
+			adjustGroupTotal(groupId, "totalLoans", -owedNow)
 		default:
 			deny(res, 400, "this kind of transaction cannot be reversed")
 			return

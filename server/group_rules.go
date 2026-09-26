@@ -36,18 +36,22 @@ var ruleDefaults = map[string]float64{
 	"mandatorySavingsAmount": 5000, "loanInterestRate": 10, "maxLoanPeriodMonths": 3, "maxLoanMultiplier": 0,
 }
 
+// maxRuleMoney caps any money amount in the rules (whole TZS).
+const maxRuleMoney = 100000000
+
 // numericRules: field -> (min, max, whole number). max < 0 = no upper bound.
+// Money rules are whole TZS up to maxRuleMoney.
 var numericRules = []struct {
 	key      string
 	min, max float64
 	whole    bool
 	label    string
 }{
-	{"mandatorySavingsAmount", 0, -1, false, "Mandatory savings amount"},
-	{"shareValue", 0, -1, false, "Share value"},
+	{"mandatorySavingsAmount", 0, maxRuleMoney, true, "Mandatory savings amount"},
+	{"shareValue", 0, maxRuleMoney, true, "Share value"},
 	{"minShares", 0, 1000, true, "Minimum shares per meeting"},
 	{"maxShares", 0, 1000, true, "Maximum shares per meeting"},
-	{"socialFundContribution", 0, -1, false, "Social fund contribution"},
+	{"socialFundContribution", 0, maxRuleMoney, true, "Social fund contribution"},
 	{"loanInterestRate", 0, 100, false, "Loan interest rate"},
 	{"maxLoanPeriodMonths", 1, 36, true, "Loan repayment period"},
 	{"maxLoanMultiplier", 0, 100, false, "Maximum loan multiplier"},
@@ -248,6 +252,9 @@ func validateRules(g datatype.DataMap, body datatype.DataMap) (datatype.DataMap,
 		}
 		if r.whole {
 			if n != math.Trunc(n) {
+				if r.max == maxRuleMoney {
+					return nil, fmt.Errorf("%s must be a whole number of shillings", r.label)
+				}
 				return nil, fmt.Errorf("%s must be a whole number", r.label)
 			}
 			next[r.key] = int(n)
@@ -290,6 +297,9 @@ func validateRules(g datatype.DataMap, body datatype.DataMap) (datatype.DataMap,
 			if amt < 0 {
 				return nil, fmt.Errorf("the amount for fine reason %q cannot be negative", name)
 			}
+			if amt != math.Trunc(amt) || amt > maxRuleMoney {
+				return nil, fmt.Errorf("the amount for fine reason %q must be a whole number of shillings up to %s", name, fmtTZS(maxRuleMoney))
+			}
 			reasons = append(reasons, datatype.DataMap{"reason": name, "amount": amt})
 		}
 		next["fineReasons"] = reasons
@@ -321,6 +331,33 @@ func validateRules(g datatype.DataMap, body datatype.DataMap) (datatype.DataMap,
 			}
 		}
 		next["enabledServices"] = services
+	}
+
+	// Rules a switched-on service cannot work without.
+	on := func(svc string) bool {
+		for _, x := range next["enabledServices"].([]string) {
+			if x == svc {
+				return true
+			}
+		}
+		return false
+	}
+	if on("Shares") {
+		if helper.GetValueOfFloat(next, "shareValue") <= 0 {
+			return nil, fmt.Errorf("share value must be more than 0 while Shares is switched on")
+		}
+		if helper.GetValueOfInt(next, "maxShares") < 1 {
+			return nil, fmt.Errorf("maximum shares per meeting must be at least 1 while Shares is switched on")
+		}
+	}
+	if on("Social Fund") && helper.GetValueOfFloat(next, "socialFundContribution") <= 0 {
+		return nil, fmt.Errorf("social fund contribution must be more than 0 while Social Fund is switched on")
+	}
+	if on("Mandatory Savings") && helper.GetValueOfFloat(next, "mandatorySavingsAmount") <= 0 {
+		return nil, fmt.Errorf("mandatory savings amount must be more than 0 while Mandatory Savings is switched on")
+	}
+	if on("Fines") && len(next["fineReasons"].([]datatype.DataMap)) == 0 {
+		return nil, fmt.Errorf("add at least one fine reason while Fines is switched on")
 	}
 
 	changes := datatype.DataMap{}
@@ -415,18 +452,96 @@ func memberSavingsShares(txs []datatype.DataMap, memberId string) float64 {
 	return math.Max(0, total)
 }
 
-// loanLimitError checks a new loan against maxLoanMultiplier ("" = fine).
-func loanLimitError(g datatype.DataMap, amount float64, base float64) string {
+// memberOwed is what a member still owes on their open loans (total due,
+// i.e. principal + interest, less what was repaid).
+func memberOwed(loans []datatype.DataMap, memberId string) float64 {
+	var owed float64
+	for _, l := range loans {
+		if helper.GetValueOfString(l, "memberId") == memberId {
+			owed += loanBalance(l)
+		}
+	}
+	return owed
+}
+
+// availableToBorrow is the most a member may borrow now:
+// (savings + shares − withdrawals, non-reversed) × maxLoanMultiplier, less
+// what they already owe. -1 = no limit (multiplier 0).
+func availableToBorrow(g datatype.DataMap, base, owed float64) float64 {
 	mult := ruleFloat(g, "maxLoanMultiplier")
 	if mult <= 0 {
+		return -1
+	}
+	return math.Max(0, base*mult-owed)
+}
+
+// loanLimitError checks a new loan's principal against availableToBorrow
+// ("" = fine); the message spells the rule out.
+func loanLimitError(g datatype.DataMap, amount, base, owed float64) string {
+	avail := availableToBorrow(g, base, owed)
+	if avail < 0 || amount <= avail+0.005 {
 		return ""
 	}
-	limit := base * mult
-	if amount > limit+0.005 {
-		return fmt.Sprintf("this loan is above the group's limit of %s× the member's savings and shares (%s for this member)",
-			plainNumber(mult), fmtTZS(limit))
+	mult := ruleFloat(g, "maxLoanMultiplier")
+	return fmt.Sprintf("this loan is above what the member may borrow: %s× savings and shares (%s) less %s still owed leaves %s available",
+		plainNumber(mult), fmtTZS(base*mult), fmtTZS(owed), fmtTZS(avail))
+}
+
+// ---- transactions -------------------------------------------------------------
+
+// txTypeError: POST /api/main/transactions takes member savings, shares,
+// social fund and withdrawals only; everything else has its own checked
+// route (it also updates the loan / fine / expense records).
+func txTypeError(typ string) string {
+	switch typ {
+	case "contribution", "share", "social_fund", "withdrawal":
+		return ""
+	case "loan_disbursement":
+		return "record loans with Record Loan (POST /api/main/loans), not as a plain transaction"
+	case "loan_repayment":
+		return "record loan repayments on the loan (POST /api/main/loans/:id/repayment), not as a plain transaction"
+	case "fine":
+		return "record fine payments on the fine (POST /api/main/fines/:id/pay), not as a plain transaction"
+	case "expense":
+		return "record expenses with POST /api/main/expenses, not as a plain transaction"
+	case "":
+		return "type and a positive amount are required"
 	}
-	return ""
+	return fmt.Sprintf("unknown transaction type %q (allowed here: contribution, share, social_fund, withdrawal)", typ)
+}
+
+// contributionKind decides whether a savings contribution is mandatory or
+// voluntary and checks it against the group's rules. Without a savingsType
+// it is mandatory when that service is on (voluntary otherwise). Only
+// mandatory savings must match the fixed amount.
+func contributionKind(g datatype.DataMap, savingsType string, amount float64) (string, string) {
+	mandatoryOn, voluntaryOn := serviceEnabled(g, "Mandatory Savings"), serviceEnabled(g, "Voluntary Savings")
+	kind := strings.ToLower(strings.TrimSpace(savingsType))
+	switch kind {
+	case "":
+		switch {
+		case mandatoryOn:
+			kind = "mandatory"
+		case voluntaryOn:
+			kind = "voluntary"
+		default:
+			return "", "Mandatory Savings / Voluntary Savings is switched off in this group's rules"
+		}
+	case "mandatory":
+		if !mandatoryOn {
+			return "", "Mandatory Savings is switched off in this group's rules"
+		}
+	case "voluntary":
+		if !voluntaryOn {
+			return "", "Voluntary Savings is switched off in this group's rules"
+		}
+	default:
+		return "", "savingsType must be mandatory or voluntary"
+	}
+	if msa := ruleFloat(g, "mandatorySavingsAmount"); kind == "mandatory" && msa > 0 && amount != msa {
+		return "", fmt.Sprintf("Mandatory Savings is %s per meeting", fmtTZS(msa))
+	}
+	return kind, ""
 }
 
 // ---- routes -------------------------------------------------------------------

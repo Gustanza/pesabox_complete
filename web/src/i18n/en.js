@@ -459,6 +459,8 @@ export default {
   auth: {
     phone: 'Phone number',
     phoneInvalid: 'Enter a valid phone number, e.g. 0712 345 678',
+    notRegistered: 'This phone number is not registered. Ask your group leader or administrator to add you.',
+    deactivated: 'This account has been deactivated. Contact your administrator.',
     sendingCode: 'Sending code…',
     remember: 'Remember this device',
     noAccount: 'No account?',

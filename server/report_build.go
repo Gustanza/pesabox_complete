@@ -503,7 +503,7 @@ func buildReport(c *reportCtx, key string) ([]datatype.DataMap, bool) {
 				"Borrower":   c.memberName(helper.GetValueOfString(l, "memberId")),
 				"Principal":  helper.GetValueOfFloat(l, "amount"),
 				"Interest %": helper.GetValueOfFloat(l, "interestRate"),
-				"Interest":   loanInterest(l), "Total Due": loanTotalDue(l),
+				"Interest":   cancelledBlank(l, loanInterest(l)), "Total Due": cancelledBlank(l, loanTotalDue(l)),
 				"Repaid": helper.GetValueOfFloat(l, "amountRepaid"), "Balance": loanBalance(l),
 				"Overpaid": loanOverpaid(l),
 				"Status":   helper.GetValueOfString(l, "status"), "Issued": dateVal(issued),
@@ -665,6 +665,14 @@ func buildReport(c *reportCtx, key string) ([]datatype.DataMap, bool) {
 	}
 
 	return rows, true
+}
+
+// cancelledBlank hides a cancelled loan's charged terms (it was never lent).
+func cancelledBlank(l datatype.DataMap, v float64) interface{} {
+	if helper.GetValueOfString(l, "status") == "cancelled" {
+		return nil
+	}
+	return v
 }
 
 // summaryRow is one summary / group-performance row from summed KPIs. The

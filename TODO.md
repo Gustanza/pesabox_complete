@@ -119,7 +119,7 @@ Tick when GATA confirms (or note their change in the log).
   - **Group Members log in with phone + OTP** (same as admins today) — phase 3.
   *Why:* presets are easier to explain, test and support than per-permission switches.
 
-- [ ] **D10 Loan interest.** Loans store `interestRate` (10%) but repayments and balances use principal only.
+- [x] **D10 Loan interest.** _Decided 2026-09-26 (user): flat interest on principal, added at issue; per-group rate; new loans only._ Loans store `interestRate` (10%) but repayments and balances use principal only.
   *Our recommendation:* flat interest on principal, added to the amount due at disbursement
   (total due = principal × (1 + rate)); PAR and balances use total due. Reports already show "Interest %".
   **Needs GATA to confirm before we change balances.**
@@ -127,6 +127,8 @@ Tick when GATA confirms (or note their change in the log).
 - [x] **D11 Money recorded outside a meeting.** _Decided 2026-09-25 (user): yes — it counts toward that day's meeting (current behaviour kept)._ The "collections per meeting" report credits a payment
   with no meeting to that day's meeting. *Our recommendation:* only money-in recorded in the app during the
   meeting counts; mobile-money pay-ins outside it show as "between meetings". Needs GATA to confirm.
+
+- [ ] **D12 Loan limit (our default, GATA to confirm).** A member may borrow up to (savings + shares − withdrawals) × the group's multiplier, **minus what they still owe**; only Active members can borrow. Multiplier 0 = no limit (the default).
 
 - [ ] **D9 Still genuinely needed from the client** (can't be decided for them):
   - Real partner & cluster names and which groups go where (data to load).
@@ -198,6 +200,14 @@ Tick when GATA confirms (or note their change in the log).
 - [x] **U25** Scope-leak test: a Cluster Manager / Partner never sees another's data (incl. reports & exports) — _server e2e: viewer on another cluster sees 0 groups / 0 transactions over REST and GraphQL_
 
 ---
+
+## 4g. Group rules (constitution) — `✅ DONE` (2026-09-26)
+
+- [x] **K1** Edit rules: web Financial tab (Super Admin / Operations) + app Rules & Constitution (Mwenyekiti) — `/api/admin/groups/:id/rules`, `/api/main/group/rules`, audit-logged, validated, locked out of GraphQL
+- [x] **K2** Rules take effect: flat interest (`Loan.interestAmount` / `totalDue`), repayment up to total due, loan limit (D12), social fund amount, services on/off, fine reasons only (old fine fields unused), voluntary vs mandatory savings (`Transaction.savingsType`)
+- [x] **K3** Balances everywhere use total due (reports, PAR, dashboard, app, SMS, stored `totalLoans`, `/totals-drift`)
+- [x] **K4** Security fixes found on the way: GraphQL could overwrite Group totals, a group admin could move a meeting to another group, `/transactions` accepted any type — all closed
+- [ ] **K5 Rollout:** release the new app **before or with** the new server on the live machine — the installed app caps repayments at the principal, so interest could never be repaid from it
 
 ## 5. Reports at 4 levels — `✅ DONE`
 
@@ -288,3 +298,5 @@ Tick when GATA confirms (or note their change in the log).
 | 2026-09-25 | R3, R6, U19–U20, G2, L3, H4 (mobile) | Claude | HelaBox brand, role-aware app (/api/main/group), officers + government loans screens, real reversal screen, 79 Swahili strings, bundled fonts, expired session → login instead of 'waiting for group'. Checked on the emulator + flutter test 29/29 |
 | 2026-09-25 | settings, H1, H5 | Claude | Web Settings showed fake data (NextSMS, PESABOX, fake admins, dead 2FA toggles) — now real provider/sender/health/admins. Untracked node_modules + exe + log, added server/.env.example |
 | 2026-09-25 | P9, G3 (reports review) | Claude (reviewer + coder agents) | Reviewer found 27 report issues (3 high: date range ignored by 11 datasets, UTC dates, app counted cancelled loans) — all fixed; re-review found 8 small ones — fixed. go test 28/28, isolated e2e 131/131, web build + i18n parity 633/633, flutter test 35/35. D10 (interest) + D11 (meeting rule) added for GATA |
+| 2026-09-26 | K1–K4, D10, D11 | Claude (coder + reviewer agents) | Group rules editable (web + app) and enforced; flat interest; loan limit; voluntary savings; 2 old bugs + 1 security hole fixed. Review round W1–W10 fixed. go test 44/44, e2e 204/204, web build + i18n 666/666, flutter test 43/43. TESTING.md: H8–H14, M1–M10 |
+| 2026-09-26 | login gate | Claude | Login is invite-only: an unknown number gets no OTP (no SMS, no account) — only existing active accounts, a group's admin phone, SUPER_ADMIN_PHONES, or first setup. Deactivated accounts refused. Framework Google sign-in refused when no client ID is set (it accepted any Google token). Web + app show the reason in sw/en. go test + flutter test 43/43 + web build OK; checked live on the isolated :8091 server. TESTING.md A9–A11 |

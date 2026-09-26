@@ -96,6 +96,7 @@ REST and GraphQL requests both terminate in the same data layer: `ModelQuery` (f
 2. **API** on :8090 — `cd server && go build -o pesabox-server.exe . && ./pesabox-server.exe` (run from `server/` so it finds `config.json`, `database.json`, `.env`). The port comes from `PORT`, not `config.json`. Settings: `server/.env.example`.
 3. **Web** on :5173 — `cd web && npm install && npm run dev` (Vite proxies `/api`, `/graphql`, `/me`, `/logout`, `/refresh` to :8090).
 4. **App** — `cd pesa_box_app && flutter run -d emulator-5554` (or VS Code Run). **Debug builds use the local server automatically** (`10.0.2.2:8090` on the Android emulator, `localhost:8090` elsewhere — `lib/services/api_base.dart`); **release builds use the live server** `161.97.99.40:8090`. `--dart-define=API_BASE_URL=...` overrides both (VS Code has a "LIVE server" launch config for that). Switching servers invalidates the saved login ("Domain mismatch") and the app asks you to sign in again. Start the emulator with `-dns-server 8.8.8.8` if it has no internet.
+- **Login is invite-only** (`server/login_gate.go`, the framework's `BeforeOtp` hook): an OTP is only sent to an existing active account, the `adminPhone` of an open group (its first login creates the account), a `SUPER_ADMIN_PHONES` number, or anyone while there are no users. Everyone else gets "not registered" (deactivated: "deactivated") — the web/app match those phrases to show a translated message. To let someone in, add them in Users & Roles or put their phone on a group first.
 - **Dev login:** without `BEEM_API_KEY`/`BEEM_SECRET_KEY` the server is in dev mode — SMS/OTPs are printed to the console and the OTP is **1234**.
 - First Super Admin: `SUPER_ADMIN_PHONES`, else the earliest account is promoted on start when none exists (`migrateAccess` in `server/access.go`).
 
@@ -120,6 +121,10 @@ REST and GraphQL requests both terminate in the same data layer: `ModelQuery` (f
 
 One KPI computation (`server/report_kpis.go`: `computeGroupKPIs` + `rollup`) feeds `/api/admin/dashboard`, `/api/admin/rollup?level=partner|cluster|group` and the `summary-*` report datasets. `reportScope` (`server/reports.go`) turns `partnerId`/`clusterId`/`groupId` filters into a group set, always clipped to the caller's scope. A new report = one entry in `reportDatasets` (`server/reports.go`: label, column types, `Totals`/`pointInTime` flags) + one builder in `server/report_build.go` (uses the per-request `reportCtx` lookups) + Swahili labels in `columnSw`/`valueSw`. Exports live in `server/report_export.go`. Rules every report follows: dates parsed and printed in **EAT** (`to` inclusive), balances computed from non-reversed transactions and non-cancelled loans (never the stored `Group.total*` — `/api/admin/totals-drift` shows drift), SMS datasets need `PermSms` per group, bad dates → 400, out-of-scope filters from group roles → 403. Tests: `server/reports_test.go` (in-memory fixtures).
 
+### Group rules (constitution)
+
+Per-group rules are fields on `Group` (`shareValue`, `min/maxShares`, `mandatorySavingsAmount`, `socialFundContribution`, `fineReasons`, `loanInterestRate`, `maxLoanPeriodMonths`, `maxLoanMultiplier`, `enabledServices`). They are **only** changed through `server/group_rules.go` (`/api/main/group/rules` for the app, `/api/admin/groups/:id/rules` for the web; `PermGroupSettings`; validated; audit "GroupRules") — the guard strips them from GraphQL. Changes apply to new records only. Loans: flat interest fixed at issue in `interestAmount` + `totalDue`; balance = `totalDue − amountRepaid` (a loan with no `totalDue` is a pre-interest loan and owes its principal). `/api/main/transactions` only takes contribution / share / social_fund / withdrawal — loans, repayments, fines and expenses have their own routes. Tests: `server/group_rules_test.go`.
+
 ### Branding
 
 The user-facing name is **HelaBox**: `server/brand.go` (`brandName`, env `BRAND_NAME`), web i18n key `app.name` (other messages reference it as `@:app.name`, or `@:{'app.name'}` when punctuation follows), app `lib/brand.dart` (`kBrandName`). SMS templates start with `{BRAND}:`. **Do not rename** `config.json` `appName` ("PesaBox" — it names the server's data directory), the `pesabox` DB, `com.example.pesa_box_app` or the `PesaBoxApp` class. SMS sender ID is `TUKIIO` (Beem), overridable with `BEEM_SENDER_ID`.
@@ -128,7 +133,7 @@ The user-facing name is **HelaBox**: `server/brand.go` (`brandName`, env `BRAND_
 
 - `web/src/api/access.js` loads `/api/access/me`; the router (`meta.perm`) and sidebar (`AppLayout.vue`) show only what the role allows; roles without `dashboard.view` land on `/no-access`.
 - Admin REST calls live in `web/src/api/admin.js`. Groups still use GraphQL for read/create/edit; delete goes through the REST safe-delete.
-- **i18n:** `web/src/i18n/sw.js` and `en.js` must keep **identical keys** (Swahili is the default). Every visible string goes through `t()`.
+- **i18n:** `web/src/i18n/sw.js` and `en.js` must keep **identical keys** (**English is the web default** since 2026-09-26; the app and SMS stay Swahili-first). Every visible string goes through `t()`.
 
 ### App (`pesa_box_app/`)
 

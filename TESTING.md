@@ -79,6 +79,16 @@ Test people used below (all created during the tests):
 | Katibu Test | 0711000003 | Group Officer (Katibu) |
 | Clara | 0711000004 | Cluster Manager |
 
+- [ ] **A9 Unknown number is refused** — Log in with a number nobody added, e.g. 0799 123 456.
+  **Where:** 🌐 Web → `http://localhost:5173` login page · then 📱 App → Get started → phone
+  *Expect:* "Namba hii ya simu haijasajiliwa…" / "This phone number is not registered…"; **no code is sent** (nothing in the API console) and the number does **not** appear in Users & Roles.
+- [ ] **A10 Deactivated account is refused** — Deactivate a test person in Users & Roles, then try to log in as them.
+  **Where:** 🌐 Web → Users & Roles → Status badge · then the login page
+  *Expect:* "Akaunti hii imezimwa…" / "This account has been deactivated…". Reactivate them afterwards.
+- [ ] **A11 New group admin can still log in** — Create a group with admin phone 0711 000 021 (a number with no account), then log in with it.
+  **Where:** 🌐 Web → Groups → Create Group · then 📱 App → Get started
+  *Expect:* the code is sent and the app opens that group as Mwenyekiti.
+
 ---
 
 ## A. Login, branding, language — 🌐 Web + 📱 App
@@ -88,7 +98,7 @@ Test people used below (all created during the tests):
   *Expect:* the dashboard opens and the sidebar says **HelaBox Admin** with your role under it.
 - [ ] **A2 Language switch (web)** — Click **SW** / **EN** in the top bar.
   **Where:** 🌐 Web → top bar → **SW / EN** buttons (any page)
-  *Expect:* every menu item, heading and button changes language; no text looks like `kpi.members` or `struct.title`.
+  *Expect:* every menu item, heading and button changes language; no text looks like `kpi.members` or `struct.title`. A first visit (or a private window) opens in **English**; after you pick SW it stays Swahili on that browser.
 - [ ] **A3 Browser tab title** — *Expect:* **HelaBox — Admin**.
   **Where:** 🌐 Web → the browser tab at the top of the window
 - [ ] **A4 App welcome screen** — Log out in the app (Profile → Log out) or start it fresh.
@@ -277,6 +287,28 @@ Log out in the app, then log in with 0711000003 / 1234.
   **Where:** 🌐 Web (Paul's incognito window) → Reports
   *Expect:* only GATA / its clusters in the filters, and his exports contain only GATA's groups.
 
+- [ ] **H8 Date range** — Reports → Meetings → set From/To to a day with no meeting → Preview.
+  **Where:** 🌐 Web → Reports → date inputs + **Preview →**
+  *Expect:* 0 rows. Summary datasets show "(period)" columns for the range and note "balances as at today". A From date after To shows an error.
+- [ ] **H9 Formatting** — Preview **Transactions** in Swahili.
+  **Where:** 🌐 Web → Reports → Financial → Transactions → Preview
+  *Expect:* dates like 25/09/2026 (East Africa time), money with commas, values in Swahili (e.g. Taslimu), empty cells as "—". Summaries end with a **JUMLA/TOTAL** row.
+- [ ] **H10 New datasets** — Preview **Meeting collections**, **Fines charged & outstanding**, **Expenses**, **Government loan repayments**.
+  **Where:** 🌐 Web → Reports → dataset list
+  *Expect:* one row per meeting with present/absent and money in/out; fines show Charged / Paid / Outstanding.
+- [ ] **H11 Excel & PDF quality** — Export Summary by Group + Loans as Excel, then as PDF.
+  **Where:** 🌐 Web → Reports → Export card
+  *Expect:* file name like `helabox-…-multi-….xlsx`; Excel dates sort as dates, money has commas, header row frozen, TOTAL row bold; PDF names not cut off.
+- [ ] **H12 SMS reports are protected** — As Paul (0711000002), open Reports.
+  **Where:** 🌐 Web (Paul's incognito window) → Reports
+  *Expect:* no SMS datasets in the list (Super Admin still sees them).
+- [ ] **H13 Dashboard drill-down** — Performance by level → By partner → click GATA.
+  **Where:** 🌐 Web → Dashboard → "Performance by level"
+  *Expect:* switches to GATA's clusters with a breadcrumb chip to go back; the "Not assigned" row isn't clickable; recent activity shows date + time.
+- [ ] **H14 Real balances** — Group Mkusanyiko → Overview "Loans outstanding" vs Reports → Summary by Group.
+  **Where:** 🌐 Web → Groups → Mkusanyiko Group · then Reports
+  *Expect:* the same number in both (computed from loans, not a stored total).
+
 ## I. Audit log — 🌐 Web (as Super Admin)
 
 - [ ] **I1 Entries exist** — Audit Logs. *Expect:* entries for what you did above: partner/cluster created, user added, assignment, officer added, contribution recorded, **reversal (with the reason)**, government loan, deactivate/reactivate.
@@ -307,6 +339,39 @@ Log out in the app, then log in with 0711000003 / 1234.
 - [ ] **K3 App reads the local server** — Run the app from VS Code with the default "HelaBox - LOCAL server" config.
   **Where:** VS Code → Run and Debug → **HelaBox - LOCAL server** → 📱 App → log in → compare with 🌐 Web Dashboard
   *Expect:* after login it shows the same group and balances as the web dashboard (not "Waiting for your group").
+
+## M. Group rules (constitution) — 🌐 Web + 📱 App
+
+- [ ] **M1 See rules (read-only)** — As Paul (partner) open a group's Financial tab.
+  **Where:** 🌐 Web (Paul's window) → Groups → Mkusanyiko Group → **Financial** tab
+  *Expect:* rules shown, **no Edit rules** button.
+- [ ] **M2 Edit on the web** — As Super Admin set Mkusanyiko loan interest to **12%**, add a fine reason "Phone ringing" 500, Save.
+  **Where:** 🌐 Web → Groups → Mkusanyiko Group → Financial → **Edit rules**
+  *Expect:* saved with a note "changes apply to new records only"; Audit Logs shows a GroupRules entry with before → after.
+- [ ] **M3 Bad values refused** — In the same form try interest 150, min shares 5 > max shares 2, or delete every fine reason.
+  *Expect:* a clear error for each, nothing saved.
+- [ ] **M4 Edit in the app** — As Mwenyekiti (you) open the rules and change the social fund amount.
+  **Where:** 📱 App → Group tab → **Rules & Constitution** → **Edit rules**
+  *Expect:* saved; the social fund screen then shows the new amount, read-only.
+- [ ] **M5 Katibu can't edit** — Log in as 0711000003.
+  **Where:** 📱 App → Group tab → Rules & Constitution
+  *Expect:* rules visible, **no Edit** button.
+- [ ] **M6 Interest on a new loan** — Record a loan of 10,000 after M2.
+  **Where:** 📱 App → Loans → **Record loan**
+  *Expect:* preview shows interest **1,200**, total to repay **11,200** and "Available to borrow"; the loan details show the same; an older loan still owes principal only.
+- [ ] **M7 Repay the interest** — Repay 11,200 on that loan, then try 1 more.
+  **Where:** 📱 App → Loans → the loan → Record repayment
+  *Expect:* the loan becomes Repaid; the extra 1 is refused.
+- [ ] **M8 Loan limit** — Edit rules → Max loan = 2× savings; try a loan bigger than the member's available amount; try a loan for a suspended member.
+  *Expect:* refused with the reason (limit less what they still owe / only active members can borrow).
+- [ ] **M9 Switch a service off** — Edit rules → turn **Shares** off → Save.
+  **Where:** 🌐 Web or 📱 App → Edit rules → service switches
+  *Expect:* the app hides "Record shares"; existing loans can still be repaid. Turn it back on afterwards.
+- [ ] **M10 Voluntary savings** — Turn on Voluntary Savings, then record a contribution of 3,000 marked **Voluntary**.
+  **Where:** 📱 App → Meetings → an open meeting → Record contribution → Mandatory / Voluntary
+  *Expect:* accepted; a Mandatory one at a different amount is refused.
+
+---
 
 ## L. Technical checks — 💻 Git Bash (optional, for developers)
 

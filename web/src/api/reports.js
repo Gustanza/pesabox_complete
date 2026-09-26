@@ -43,7 +43,7 @@ export async function listDatasets() {
 //   datasets: ['loans', 'members']
 //   columns:  { loans: ['Loan #', 'Balance'] }   (omit a key for "all columns")
 //   format:   'xlsx' | 'pdf' | 'csv'   (csv with several datasets is a .zip)
-export async function exportReports({ datasets, columns = {}, format, partnerId = '', clusterId = '', groupId = '', from = '', to = '', lang = 'sw' }) {
+export async function exportReports({ datasets, columns = {}, format, partnerId = '', clusterId = '', groupId = '', from = '', to = '', lang = 'en' }) {
   const res = await apiFetch('/api/admin/reports/export', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

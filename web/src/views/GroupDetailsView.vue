@@ -251,6 +251,9 @@ const loanRows = computed(() =>
     })
     .sort((a, b) => new Date(b.issuedDate) - new Date(a.issuedDate))
 )
+// What members owe now (principal + interest − repaid), from the loans
+// themselves — the stored Group.totalLoans can drift.
+const loansOutstanding = computed(() => loanRows.value.reduce((s, l) => s + l.balance, 0))
 const hasLegacyLoans = computed(() => loanRows.value.some((l) => l.legacy && l.status !== 'cancelled'))
 const loanStatus = (st) => (te('rules.st.' + st) ? t('rules.st.' + st) : st)
 const sortedMeetings = computed(() => [...meetings.value].sort((a, b) => (b.meetingNumber || 0) - (a.meetingNumber || 0)))
@@ -323,7 +326,7 @@ const govOutstanding = computed(() => govLoans.value.reduce((s, l) => s + (l.out
         <div class="kv"><span class="k">{{ t('gd.savings') }}</span><span class="v">TZS {{ num(group.totalSavings) }}</span></div>
         <div class="kv"><span class="k">{{ t('gd.shares') }}</span><span class="v">TZS {{ num(group.totalShares) }}</span></div>
         <div class="kv"><span class="k">{{ t('gd.socialFund') }}</span><span class="v">TZS {{ num(group.totalSocialFund) }}</span></div>
-        <div class="kv"><span class="k">{{ t('gd.loansOut') }}</span><span class="v">TZS {{ num(group.totalLoans) }}</span></div>
+        <div class="kv"><span class="k">{{ t('gd.loansOut') }}</span><span class="v">TZS {{ num(loansOutstanding) }}</span></div>
         <div class="kv"><span class="k">{{ t('gl.outstanding') }}</span><span class="v">TZS {{ num(govOutstanding) }}</span></div>
         <p style="font-size: 11.5px; color: var(--ink-400); margin-top: 10px">{{ t('gd.autoUpdated') }}</p>
       </div>
@@ -448,9 +451,9 @@ const govOutstanding = computed(() => govLoans.value.reduce((s, l) => s + (l.out
                 <td class="cell-muted">{{ l.loanNumber }}</td>
                 <td class="cell-strong">{{ memberName(l.memberId) }}</td>
                 <td style="text-align: right">{{ num(l.amount) }}</td>
-                <td style="text-align: right">{{ l.legacy ? '—' : (l.interestRate ?? 0) + '%' }}</td>
-                <td style="text-align: right">{{ num(l.interest) }}</td>
-                <td style="text-align: right">{{ num(l.totalDue) }}</td>
+                <td style="text-align: right">{{ l.legacy || l.status === 'cancelled' ? '—' : (l.interestRate ?? 0) + '%' }}</td>
+                <td style="text-align: right">{{ l.status === 'cancelled' ? '—' : num(l.interest) }}</td>
+                <td style="text-align: right">{{ l.status === 'cancelled' ? '—' : num(l.totalDue) }}</td>
                 <td style="text-align: right">{{ num(l.amountRepaid) }}</td>
                 <td style="text-align: right" class="cell-strong">{{ num(l.balance) }}</td>
                 <td class="cell-muted">{{ formatDate(l.issuedDate) }}</td>

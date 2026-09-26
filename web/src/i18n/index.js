@@ -1,4 +1,4 @@
-// Language support. Swahili is the default; the choice is remembered in
+// Language support. English is the default (Swahili one click away); the choice is remembered in
 // localStorage under 'pb_lang' (ReportsView and the API layer read the same
 // key so exports and SMS follow the language the admin sees).
 import { createI18n } from 'vue-i18n'
@@ -15,13 +15,13 @@ export function savedLocale() {
   } catch {
     // storage blocked — fall through to the default
   }
-  return 'sw'
+  return 'en'
 }
 
 const i18n = createI18n({
   legacy: false,
   locale: savedLocale(),
-  fallbackLocale: 'en', // a missing Swahili key shows English rather than a raw key
+  fallbackLocale: 'en', // a missing key shows English rather than a raw key
   messages: { sw, en }
 })
 

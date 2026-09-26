@@ -233,7 +233,11 @@ func guardWrite(app *yekonga.YekongaData, action string, model *yekonga.DataMode
 		if len(input) == 0 {
 			return false, nil // see the Group case: an empty result would write the original input
 		}
-		for _, m := range guardTargets(app, "Meeting", q) {
+		targets := guardTargets(app, "Meeting", q)
+		if meetingMoveRefused(input, targets) {
+			return false, nil // a meeting never moves to another group
+		}
+		for _, m := range targets {
 			if !a.CanIn(PermGroupOperate, helper.GetValueOfString(m, "groupId")) {
 				return false, nil
 			}
@@ -244,6 +248,28 @@ func guardWrite(app *yekonga.YekongaData, action string, model *yekonga.DataMode
 		return input, nil
 	}
 	return false, nil
+}
+
+// meetingMoveRefused: an update may repeat a meeting's own groupId (the
+// app's close call sends it) but never change it — otherwise a group admin
+// could move a meeting into a group they do not run.
+func meetingMoveRefused(input datatype.DataMap, targets []datatype.DataMap) bool {
+	gid, present := input["groupId"]
+	if !present {
+		return false
+	}
+	// The framework may already have turned the id into an ObjectID; read it
+	// the same way as the stored value.
+	want := helper.GetValueOfString(input, "groupId")
+	if gid == nil || want == "" {
+		return true
+	}
+	for _, m := range targets {
+		if helper.GetValueOfString(m, "groupId") != want {
+			return true
+		}
+	}
+	return false
 }
 
 // guardTargets loads the records an update's where-clause points at. An

@@ -439,6 +439,7 @@ func groupTotalsDrift(g datatype.DataMap, k groupKPI) datatype.DataMap {
 	check("totalSocialFund", k.SocialFund)
 	check("totalFines", k.Fines)
 	check("totalExpenses", k.Expenses)
+	check("totalLoans", k.LoansOutstanding)
 	return out
 }
 

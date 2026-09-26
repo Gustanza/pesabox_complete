@@ -595,6 +595,12 @@
             "default": null,
             "required": false
         },
+        "savingsType": {
+            "type": "String",
+            "default": null,
+            "required": false,
+            "options": ["mandatory", "voluntary"]
+        },
         "reversed": {
             "type": "Boolean",
             "default": false,

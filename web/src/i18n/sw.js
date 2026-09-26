@@ -458,6 +458,8 @@ export default {
   auth: {
     phone: 'Namba ya simu',
     phoneInvalid: 'Weka namba sahihi ya simu, mfano 0712 345 678',
+    notRegistered: 'Namba hii ya simu haijasajiliwa. Muombe kiongozi wa kikundi au msimamizi akuongeze.',
+    deactivated: 'Akaunti hii imezimwa. Wasiliana na msimamizi.',
     sendingCode: 'Inatuma nambari…',
     remember: 'Kumbuka kifaa hiki',
     noAccount: 'Huna akaunti?',

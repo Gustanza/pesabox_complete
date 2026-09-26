@@ -37,7 +37,10 @@ async function signIn() {
       query: { mode: 'login', username: phone.value, remember: remember.value ? '1' : '' }
     })
   } catch (e) {
-    error.value = e.message
+    // The server refuses numbers that haven't been registered (invite-only).
+    error.value = /not registered/i.test(e.message) ? t('auth.notRegistered')
+      : /deactivated/i.test(e.message) ? t('auth.deactivated')
+      : e.message
   } finally {
     loading.value = false
   }
