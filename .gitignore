@@ -10,6 +10,7 @@
 *.orig
 *.vscode
 .env
+.env.live
 desktop/**/build
 desktop/**/frontend/dist
 
