@@ -253,7 +253,7 @@ function barWidth(v, max) {
         <div class="field">
           <label>{{ t('sms.message') }}</label>
           <div class="inp" style="align-items:flex-start;padding:12px;">
-            <textarea v-model="draft" rows="4" maxlength="480" style="border:none;outline:none;flex:1;font-family:'Inter';font-size:13px;background:transparent;resize:none;"></textarea>
+            <textarea v-model="draft" rows="4" maxlength="480" style="border:none;outline:none;flex:1;font-family:var(--font);font-size:13px;background:transparent;resize:none;"></textarea>
           </div>
         </div>
         <div style="font-size:11.5px;color:var(--ink-400);margin-bottom:14px;">

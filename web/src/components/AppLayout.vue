@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import Svgs from './Svgs.vue'
+import logoDark from '@/assets/logo-dark.svg'
 import { initials, avaColor } from '../data/mock.js'
 import { logout as logoutRequest, currentUser } from '@/api/auth'
 import { access, can, clearAccess, loadAccess } from '@/api/access'
@@ -26,6 +27,7 @@ const NAV = [
   { key: 'reports', icon: 'rep', route: '/reports', perm: 'reports.view' },
   { key: 'sms', icon: 'sms', route: '/sms', perm: 'sms.view' },
   { key: 'audit', icon: 'audit', route: '/audit', perm: 'audit.view' },
+  { key: 'app', icon: 'phone', route: '/app', perm: 'platform.manage' },
   { key: 'settings', icon: 'settings', route: '/settings', perm: 'platform.manage' }
 ]
 const navItems = computed(() => (access.loaded ? NAV.filter((n) => can(n.perm)) : []))
@@ -69,11 +71,8 @@ async function logout() {
   <div class="app">
     <div class="sidebar">
       <div class="sb-brand">
-        <div class="mark">{{ t('app.name').charAt(0) }}</div>
-        <div>
-          <span>{{ t('app.name') }} <span class="accent">Admin</span></span>
-          <small>{{ role ? roleText(role).toUpperCase() : '' }}</small>
-        </div>
+        <img class="mark" :src="logoDark" :alt="t('app.name')" />
+        <small>Admin</small>
       </div>
       <router-link
         v-for="item in navItems"

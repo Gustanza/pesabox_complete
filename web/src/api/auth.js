@@ -3,12 +3,12 @@
 // then complete registration/login with the same code via verifyOtp(). The
 // server sets httpOnly session cookies on success, so there is no token to
 // store here.
-import { apiFetch } from './http.js'
+import { apiFetch, apiUrl } from './http.js'
 
 const AUTH_ENDPOINT = '/graphql/auth'
 
 async function gql(query, variables) {
-  const res = await fetch(AUTH_ENDPOINT, {
+  const res = await fetch(apiUrl(AUTH_ENDPOINT), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -78,7 +78,7 @@ export function updateProfile(changes) {
 export function logout() {
   // Ask for JSON explicitly: without an Accept header the server treats this
   // as a plain browser navigation and replies with a redirect instead.
-  return fetch('/logout', {
+  return fetch(apiUrl('/logout'), {
     credentials: 'include',
     headers: { Accept: 'application/json' }
   })

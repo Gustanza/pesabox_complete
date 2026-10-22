@@ -5,6 +5,9 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Public path the dashboard is served under, e.g. VITE_BASE=/admin/ for
+  // helabox.co.tz/admin. Default: site root.
+  base: process.env.VITE_BASE || '/',
   plugins: [vue()],
   resolve: {
     alias: {

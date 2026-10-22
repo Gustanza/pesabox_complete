@@ -2,8 +2,10 @@
 //   GET  /api/admin/sms/settings  -> { otpSms, transactionalSms, remindersSms, smsLanguage }
 //   POST /api/admin/settings      -> saves the keys sent (platform admin only)
 
+import { apiUrl } from './http.js'
+
 async function call(path, options) {
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     ...options

@@ -3,7 +3,7 @@
 // scope=all asks for everything the signed-in role may see (every group for a
 // super admin, assigned partners/clusters/groups for staff and partners)
 // instead of just the caller's own group.
-import { apiFetch } from './http.js'
+import { apiFetch, apiUrl } from './http.js'
 
 const ENDPOINT = '/api/main/sms/activity?scope=all'
 
@@ -25,7 +25,7 @@ export function listSmsActivity() {
 // (type, language) pair: { type, category, sw, en, language, body,
 // defaultBody, custom, active, variables }.
 async function send(path, options) {
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     ...options

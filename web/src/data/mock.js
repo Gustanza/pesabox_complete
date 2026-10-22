@@ -1,4 +1,4 @@
-export const AVA = ['#18A672', '#D9A441', '#3E7BFA', '#E15454', '#136B54', '#9B6BD9']
+export const AVA = ['#1598B7', '#F19135', '#803E98', '#112D4B']
 
 export function initials(name) {
   return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()

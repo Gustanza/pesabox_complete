@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { updateProfile } from '@/api/auth'
 import Svgs from '../components/Svgs.vue'
+import logoIcon from '@/assets/logo-icon-reverse.svg'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -39,7 +40,7 @@ async function save() {
 <template>
   <div class="login-split">
     <div class="login-left">
-      <div class="login-shield"><Svgs name="shield" width="60" height="60" /></div>
+      <div class="login-shield"><img :src="logoIcon" :alt="t('app.name')" /></div>
       <h1>{{ t('app.name') }} <span>Admin</span></h1>
       <p class="sub">{{ t('prof.tagline') }}</p>
       <div class="login-feature"><div class="fi"><Svgs name="chart" /></div><span>{{ t('login.f1') }}</span></div>

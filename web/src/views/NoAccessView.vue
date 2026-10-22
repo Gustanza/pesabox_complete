@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { logout as logoutRequest } from '@/api/auth'
 import { access, clearAccess } from '@/api/access'
 import { setLocale } from '@/i18n'
+import logoIcon from '@/assets/logo-icon.svg'
 
 const { t, te, locale } = useI18n()
 const router = useRouter()
@@ -31,7 +32,7 @@ async function logout() {
           {{ l.toUpperCase() }}
         </button>
       </div>
-      <div class="na-mark">{{ t('app.name').charAt(0) }}</div>
+      <img class="na-mark" :src="logoIcon" :alt="t('app.name')" />
       <h1>{{ t('access.noAccessTitle') }}</h1>
       <p v-if="runsGroup">
         {{ t('access.useApp', { group: access.data.homeGroup.name }) }}
@@ -52,32 +53,49 @@ async function logout() {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: var(--cream, #faf8f4);
+  position: relative;
+  overflow: hidden;
+  background-color: var(--teal-900);
+  background-image: var(--noise);
+}
+.na-wrap::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--dots);
+  background-size: 22px 22px;
+}
+.na-wrap::after {
+  content: "";
+  position: absolute;
+  right: -120px;
+  bottom: -120px;
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  border: 36px solid var(--brand-orange);
+  border-color: var(--brand-orange) transparent transparent var(--brand-orange);
+  transform: rotate(-20deg);
 }
 .na-card {
   max-width: 440px;
   width: 100%;
   background: #fff;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg, 16px);
-  box-shadow: var(--shadow);
-  padding: 28px 30px 30px;
+  position: relative;
+  z-index: 1;
+  border-radius: var(--radius-lg, 20px);
+  box-shadow: 10px 10px 0 0 rgba(0, 0, 0, .28);
+  padding: 34px 32px 32px;
   text-align: center;
 }
 .na-mark {
-  width: 52px;
-  height: 52px;
+  display: block;
+  width: 60px;
+  height: 60px;
   margin: 0 auto 16px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font: 800 24px 'Plus Jakarta Sans', sans-serif;
-  color: #fff;
-  background: var(--green-600, #18a672);
 }
 h1 {
-  font-size: 20px;
+  font-size: 24px;
   margin-bottom: 10px;
 }
 p {

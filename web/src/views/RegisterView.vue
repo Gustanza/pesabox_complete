@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { setLocale } from '@/i18n'
 import { requestOtp } from '@/api/auth'
 import Svgs from '../components/Svgs.vue'
+import logoIcon from '@/assets/logo-icon-reverse.svg'
 
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -49,7 +50,7 @@ async function register() {
 <template>
   <div class="login-split">
     <div class="login-left">
-      <div class="login-shield"><Svgs name="shield" width="60" height="60" /></div>
+      <div class="login-shield"><img :src="logoIcon" :alt="t('app.name')" /></div>
       <h1>{{ t('app.name') }} <span>Admin</span></h1>
       <p class="sub">{{ t('auth.registerTagline') }}</p>
       <div class="login-feature"><div class="fi"><Svgs name="chart" /></div><span>{{ t('login.f1') }}</span></div>

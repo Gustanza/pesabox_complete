@@ -1,7 +1,7 @@
 // Admin REST routes (server/access_routes.go, structure_routes.go,
 // gov_loans.go, report_kpis.go). Every route checks the caller's role and
 // scope on the server; errors come back as { error } with a 4xx status.
-import { apiFetch } from './http.js'
+import { apiFetch, apiUrl } from './http.js'
 
 async function call(method, path, body) {
   const res = await apiFetch(path, {
@@ -53,3 +53,35 @@ export const getDashboard = (filters) => call('GET', '/api/admin/dashboard' + qs
 export const getRollup = (level, filters) => call('GET', '/api/admin/rollup' + qs({ level, ...filters }))
 export const listGovLoans = (groupId) => call('GET', '/api/admin/gov-loans' + qs({ groupId }))
 export const listAudit = (filters) => call('GET', '/api/admin/audit' + qs(filters))
+
+// ---- mobile app releases (server/app_releases.go, super admin) --------------
+export const listAppReleases = () => call('GET', '/api/admin/app-releases')
+export const deleteAppRelease = (id) => call('DELETE', '/api/admin/app-releases/' + id)
+
+// Upload an APK with progress. XHR rather than fetch: fetch has no upload
+// progress events. onProgress receives 0..1. Resolves { release }.
+export function uploadAppRelease({ file, version, notes }, onProgress) {
+  return new Promise((resolve, reject) => {
+    const form = new FormData()
+    form.append('version', version)
+    form.append('notes', notes || '')
+    form.append('file', file)
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', apiUrl('/api/admin/app-releases'))
+    xhr.withCredentials = true
+    xhr.setRequestHeader('Accept', 'application/json')
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total)
+    }
+    xhr.onload = () => {
+      let json = null
+      try { json = JSON.parse(xhr.responseText) } catch { /* not JSON (e.g. proxy error page) */ }
+      if (xhr.status >= 200 && xhr.status < 300) return resolve(json)
+      if (xhr.status === 413) return reject(new Error('too_large'))
+      if (xhr.status === 401) return reject(new Error('session'))
+      reject(new Error(json?.error || 'Request failed'))
+    }
+    xhr.onerror = () => reject(new Error('network'))
+    xhr.send(form)
+  })
+}

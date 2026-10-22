@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="sw">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HelaBox — Vikundi vya Akiba, Kidijitali</title>
+  <meta name="description" content="HelaBox ni mfumo wa kidijitali kwa vikundi vya kuweka akiba na kukopa (VSLA): michango, hisa, mikopo, faini, mikutano, ripoti na SMS kwa Kiswahili." />
+  <meta name="theme-color" content="#112D4B" />
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <meta property="og:title" content="HelaBox — Vikundi vya Akiba, Kidijitali" />
+  <meta property="og:description" content="Michango, hisa, mikopo, mikutano na ripoti za kikundi chako — mahali pamoja, kwa usalama." />
+  <meta property="og:image" content="/assets/apple-touch-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css?v=202610121200" />
+</head>
+<body>
+<!-- icon sprite -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+    <symbol id="i-coins" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="9" cy="7" rx="6" ry="3"/><path d="M3 7v5c0 1.7 2.7 3 6 3s6-1.3 6-3V7"/><path d="M3 12v5c0 1.7 2.7 3 6 3 1.3 0 2.5-.2 3.5-.6"/><circle cx="17" cy="16" r="4"/></symbol>
+    <symbol id="i-loan" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15h3l4 3h5a2 2 0 0 0 0-4h-3"/><path d="M6 15v5H3v-5"/><path d="M11 14l6.5-3.2a1.8 1.8 0 0 1 2 3L14 18"/><circle cx="15" cy="5.5" r="2.5"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8.5 15l2 2 4-4"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.5 3.3-5.5 6.5-5.5s5.8 2 6.5 5.5"/><circle cx="17" cy="9" r="2.8"/><path d="M17 14.5c2.4 0 4 1.6 4.6 4.5"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6l8-3z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></symbol>
+    <symbol id="i-sms" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4V6a1 1 0 0 1 1-1z"/><path d="M8 10h8M8 13h5"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h16"/><path d="M8 16v-4M12 16V8M16 16v-6M20 16V6"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7.5-4.4-7.5-10A4.3 4.3 0 0 1 12 7.3 4.3 4.3 0 0 1 19.5 10c0 5.6-7.5 10-7.5 10z"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></symbol>
+    <symbol id="i-bank" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-5 9 5H3z"/><path d="M5 9v8M9.5 9v8M14.5 9v8M19 9v8M3 20h18"/></symbol>
+    <symbol id="i-rules" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+    <symbol id="i-android" viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48l1.84-3.18a.38.38 0 0 0-.66-.38l-1.87 3.23a11.4 11.4 0 0 0-9.82 0L5.22 5.92a.38.38 0 0 0-.66.38L6.4 9.48A10.8 10.8 0 0 0 1 18h22a10.8 10.8 0 0 0-5.4-8.52zM7 15.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm10 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></symbol>
+  </defs>
+</svg>
+
+<a class="skip" href="#main" data-i18n="skip">Ruka hadi maudhui</a>
+
+<!-- ============ HEADER ============ -->
+<header class="site-header" id="top">
+  <div class="container bar">
+    <a class="brand" href="/" aria-label="HelaBox">
+      <img class="on-dark" src="/assets/logo-dark.svg" alt="HelaBox" width="166" height="40" />
+      <img class="on-light" src="/assets/logo-light.svg" alt="HelaBox" width="166" height="40" />
+    </a>
+    <nav class="nav" aria-label="Menyu kuu">
+      <a href="#huduma" data-i18n="nav.features">Huduma</a>
+      <a href="#jinsi" data-i18n="nav.how">Jinsi Inavyofanya Kazi</a>
+      <a href="#ripoti" data-i18n="nav.reports">Ripoti</a>
+      <a href="#usalama" data-i18n="nav.trust">Usalama</a>
+      <a href="#maswali" data-i18n="nav.faq">Maswali</a>
+      <a href="#app" data-app-only hidden data-i18n="nav.app">Pakua App</a>
+    </nav>
+    <div class="header-actions">
+      <div class="lang" role="group" aria-label="Lugha / Language">
+        <button type="button" data-lang="sw" aria-pressed="true">SW</button>
+        <button type="button" data-lang="en" aria-pressed="false">EN</button>
+      </div>
+      <a class="btn btn-accent btn-sm" href="/admin/"><span data-i18n="cta.login">Ingia</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      <button class="menu-btn" type="button" aria-label="Fungua menyu" aria-controls="drawer" aria-expanded="false"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<div class="drawer" id="drawer" aria-hidden="true">
+  <div class="scrim" data-close></div>
+  <div class="panel" role="dialog" aria-modal="true" aria-label="Menyu">
+    <div class="panel-top">
+      <img src="/assets/logo-dark.svg" alt="HelaBox" width="140" height="34" />
+      <button class="close" type="button" aria-label="Funga" data-close><svg aria-hidden="true"><use href="#i-close"/></svg></button>
+    </div>
+    <nav aria-label="Menyu ya simu">
+      <a href="#huduma" data-close data-i18n="nav.features">Huduma</a>
+      <a href="#jinsi" data-close data-i18n="nav.how">Jinsi Inavyofanya Kazi</a>
+      <a href="#ripoti" data-close data-i18n="nav.reports">Ripoti</a>
+      <a href="#usalama" data-close data-i18n="nav.trust">Usalama</a>
+      <a href="#maswali" data-close data-i18n="nav.faq">Maswali</a>
+      <a href="#app" data-close data-app-only hidden data-i18n="nav.app">Pakua App</a>
+    </nav>
+    <a class="btn btn-accent" href="/admin/"><span data-i18n="cta.dashboard">Ingia kwenye Dashibodi</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+  </div>
+</div>
+
+<main id="main">
+
+<!-- ============ HERO ============ -->
+<section class="band hero">
+  <span class="blob b1" aria-hidden="true"></span>
+  <span class="blob b2" aria-hidden="true"></span>
+  <div class="container hero-grid">
+    <div class="reveal">
+      <span class="eyebrow" data-i18n="hero.eyebrow">Mfumo wa Vikundi vya Akiba (VSLA)</span>
+      <h1 data-i18n="hero.title">Hesabu za Kikundi, <span class="accent">Wazi na Salama</span></h1>
+      <p class="lead" data-i18n="hero.lead">Rekodi michango, mikopo na vikao kwenye simu — kila mwanachama anapata uthibitisho kwa SMS.</p>
+      <div class="btn-row">
+        <a class="btn btn-accent" href="/admin/"><span data-i18n="cta.dashboard">Ingia kwenye Dashibodi</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        <a class="btn btn-ghost-dark" href="#jinsi"><span data-i18n="cta.how">Jinsi Inavyofanya Kazi</span></a>
+      </div>
+      <ul class="hero-trust">
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span data-i18n="hero.f1">SMS kwa kila muamala</span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span data-i18n="hero.f2">Hakuna muamala unaofutwa</span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span data-i18n="hero.f3">Kiswahili na Kiingereza</span></li>
+      </ul>
+    </div>
+
+    <div class="stage reveal" style="--d:.15s" aria-hidden="true">
+      <span class="ring spin"></span>
+      <span class="arc"></span>
+      <div class="phone">
+        <div class="screen">
+          <div class="notch"></div>
+          <div class="app">
+            <div class="app-top"><b>Kikundi cha Umoja</b><img src="/assets/icon.svg" alt="" /></div>
+            <div class="bal">
+              <small data-i18n="ph.total">Jumla ya Akiba ya Kikundi</small>
+              <strong>TSh 4,820,000</strong>
+              <div class="row">
+                <div><span data-i18n="ph.shares">Hisa</span><b>1,205</b></div>
+                <div><span data-i18n="ph.members">Wanachama</span><b>24</b></div>
+                <div><span data-i18n="ph.loans">Mikopo</span><b>TSh 1.3M</b></div>
+              </div>
+            </div>
+            <h4 data-i18n="ph.today">Kikao cha Leo</h4>
+            <div class="tx"><i style="background:#E3F2F7;color:#1598B7"><svg><use href="#i-coins"/></svg></i><div class="who">Asha M.<small data-i18n="ph.t1">Hisa × 3</small></div><div class="amt">15,000</div></div>
+            <div class="tx"><i style="background:#FFF1E3;color:#E07F22"><svg><use href="#i-loan"/></svg></i><div class="who">Juma K.<small data-i18n="ph.t2">Marejesho ya mkopo</small></div><div class="amt">50,000</div></div>
+            <div class="tx"><i style="background:#F3E8F7;color:#803E98"><svg><use href="#i-heart"/></svg></i><div class="who">Neema P.<small data-i18n="ph.t3">Mfuko wa jamii</small></div><div class="amt">2,000</div></div>
+          </div>
+          <div class="tabbar"><span></span><span></span><span></span><span></span></div>
+        </div>
+      </div>
+      <div class="chip att floaty">
+        <div class="k"><svg class="ok"><use href="#i-calendar"/></svg><span data-i18n="chip.att">Mahudhurio 22 / 24</span></div>
+        <div class="bar"><span></span></div>
+      </div>
+      <div class="chip sms floaty d2">
+        <div class="k"><svg style="color:#1598B7"><use href="#i-sms"/></svg>SMS · HELABOX</div>
+        <p data-i18n="chip.sms">Habari Asha, umethibitishwa kununua shares 3 zenye thamani ya TSh 15,000. Asante.</p>
+      </div>
+      <div class="chip rep">
+        <div class="k"><svg style="color:#F19135"><use href="#i-chart"/></svg><span data-i18n="chip.rep">Akiba kwa mwezi</span></div>
+        <div class="bars"><span style="height:40%"></span><span style="height:55%"></span><span style="height:48%"></span><span style="height:70%"></span><span style="height:82%"></span><span style="height:100%"></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CORE FEATURES ============ -->
+<section class="section" id="huduma">
+  <div class="container">
+    <div class="head center reveal">
+      <span class="eyebrow" data-i18n="feat.eyebrow">Kila Kitu cha Kikundi</span>
+      <h2 class="title" data-i18n="feat.title">Kikao Kizima, <span class="light">Kwenye Simu Moja</span></h2>
+      <p class="lead" data-i18n="feat.lead">Katibu au Mweka Hazina anarekodi kila kitu wakati wa kikao. Hesabu zinajipiga zenyewe, na daftari linakuwa historia.</p>
+    </div>
+    <div class="grid-3">
+      <article class="info reveal">
+        <span class="ico"><svg aria-hidden="true"><use href="#i-coins"/></svg></span>
+        <h3 data-i18n="feat.c1.t">Akiba, Hisa na Mfuko wa Jamii</h3>
+        <p data-i18n="feat.c1.p">Rekodi michango ya lazima, ununuzi wa hisa na mfuko wa jamii kwa kila mwanachama — salio lake linaonekana papo hapo.</p>
+      </article>
+      <article class="info reveal" style="--d:.1s">
+        <span class="ico"><svg aria-hidden="true"><use href="#i-loan"/></svg></span>
+        <h3 data-i18n="feat.c2.t">Mikopo Yenye Riba Wazi</h3>
+        <p data-i18n="feat.c2.p">Riba inapangwa siku mkopo unatolewa kulingana na katiba ya kikundi. Kila marejesho yanapunguza salio, na mikopo iliyochelewa inaonekana mapema.</p>
+      </article>
+      <article class="info reveal" style="--d:.2s">
+        <span class="ico"><svg aria-hidden="true"><use href="#i-calendar"/></svg></span>
+        <h3 data-i18n="feat.c3.t">Mikutano na Mahudhurio</h3>
+        <p data-i18n="feat.c3.p">Fungua kikao, weka mahudhurio (amefika, amechelewa, hayupo, ameruhusiwa) na ufunge. Kikao kilichofungwa kinalindwa — hakuna mabadiliko baadaye.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WHY / TRUST ============ -->
+<section class="section section-tint" id="usalama">
+  <div class="container split">
+    <div class="media reveal">
+      <div class="panel-rings">
+        <div class="dash" aria-hidden="true">
+          <div class="top"><i></i><i></i><i></i><b>helabox.co.tz/admin</b></div>
+          <div class="body">
+            <div class="side"><img src="/assets/icon-dark.svg" alt="" /><span class="on"></span><span></span><span></span><span></span><span></span></div>
+            <div class="main">
+              <div class="kpis">
+                <div class="kpi"><small data-i18n="dash.k1">Vikundi hai</small><b>128</b></div>
+                <div class="kpi"><small data-i18n="dash.k2">Wanachama</small><b>3,214</b></div>
+                <div class="kpi"><small data-i18n="dash.k3">Akiba (TSh)</small><b>412.6M</b></div>
+                <div class="kpi"><small>PAR 30</small><b>3.1%</b></div>
+              </div>
+              <div class="chart"><small data-i18n="dash.chart">Akiba dhidi ya mikopo</small>
+                <svg viewBox="0 0 300 90" preserveAspectRatio="none"><path d="M0 70 L50 60 L100 62 L150 45 L200 38 L250 26 L300 18" fill="none" stroke="#1598B7" stroke-width="3"/><path d="M0 80 L50 76 L100 70 L150 68 L200 58 L250 55 L300 46" fill="none" stroke="#F19135" stroke-width="3" stroke-dasharray="6 5"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="chip float f1 floaty" aria-hidden="true"><div class="k"><svg style="color:#803E98"><use href="#i-undo"/></svg><span data-i18n="chip.rev">Muamala umegeuzwa · salio limerudishwa</span></div></div>
+        <div class="chip float f2 floaty d2" aria-hidden="true"><div class="k"><svg class="ok"><use href="#i-shield"/></svg><span data-i18n="chip.audit">Imeandikwa kwenye kumbukumbu</span></div></div>
+      </div>
+    </div>
+    <div class="reveal" style="--d:.1s">
+      <span class="eyebrow" data-i18n="why.eyebrow">Kwa Nini HelaBox</span>
+      <h2 class="title" data-i18n="why.title">Pesa ya Kikundi Inastahili <span class="mark">Uwazi</span> Kamili</h2>
+      <p class="lead" data-i18n="why.lead">Tumejenga HelaBox juu ya sheria moja rahisi: fedha haifutwi wala kubadilishwa kimyakimya.</p>
+      <ul class="checks">
+        <li><i class="tick"><svg aria-hidden="true"><use href="#i-check"/></svg></i><div data-i18n="why.l1">Hakuna muamala unaofutwa<span>Kosa likitokea, muamala unageuzwa na salio la kikundi, mkopo au faini linarudishwa — historia inabaki.</span></div></li>
+        <li><i class="tick"><svg aria-hidden="true"><use href="#i-check"/></svg></i><div data-i18n="why.l2">Kumbukumbu ya kila hatua<span>Kila mabadiliko yanaandikwa: nani, lini na nini — kwenye kumbukumbu isiyoweza kufutwa.</span></div></li>
+        <li><i class="tick"><svg aria-hidden="true"><use href="#i-check"/></svg></i><div data-i18n="why.l3">Kila mtu anaona chake tu<span>Majukumu na maeneo ya usimamizi yanaamua nani anaona vikundi vipi na anaweza kufanya nini.</span></div></li>
+        <li><i class="tick"><svg aria-hidden="true"><use href="#i-check"/></svg></i><div data-i18n="why.l4">Kuingia kwa mwaliko tu<span>Nambari ya siri (OTP) inatumwa kwa SMS kwa watumiaji waliosajiliwa pekee.</span></div></li>
+      </ul>
+      <a class="btn btn-primary" href="/admin/"><span data-i18n="cta.dashboard">Ingia kwenye Dashibodi</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SERVICES BAND ============ -->
+<section class="band section">
+  <div class="container">
+    <div class="head-row">
+      <div class="head reveal">
+        <span class="eyebrow" data-i18n="svc.eyebrow">Zaidi ya Akiba</span>
+        <h2 class="title" data-i18n="svc.title">Huduma Zote Ambazo Kikundi Kinahitaji</h2>
+      </div>
+      <a class="btn btn-accent reveal" href="/admin/"><span data-i18n="cta.start">Anza Sasa</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    </div>
+    <div class="grid-4">
+      <article class="info reveal">
+        <span class="ico"><svg aria-hidden="true"><use href="#i-rules"/></svg></span>
+        <h3 data-i18n="svc.c1.t">Katiba ya Kikundi</h3>
+        <p data-i18n="svc.c1.p">Thamani ya hisa, idadi ya hisa, riba, muda na kiwango cha juu cha mkopo, sababu za faini — kila kikundi na sheria zake.</p>
+      </article>
+      <article class="info reveal" style="--d:.08s">
+        <span class="ico"><svg aria-hidden="true"><use href="#i-flag"/></svg></span>
+        <h3 data-i18n="svc.c2.t">Faini</h3>
+        <p data-i18n="svc.c2.p">Toza faini kwa sababu zilizokubaliwa, fuatilia zilizolipwa na madeni ya faini ya kila mwanachama.</p>
+      </article>
+      <article class="info reveal" style="--d:.16s">
+        <span class="ico"><svg aria-hidden="true"><use href="#i-bank"/></svg></span>
+        <h3 data-i18n="svc.c3.t">Mikopo ya Serikali</h3>
+        <p data-i18n="svc.c3.p">Mikopo kwa kikundi (kama ya halmashauri) na marejesho yake hufuatiliwa pembeni, bila kuchanganywa na akiba ya wanachama.</p>
+      </article>
+      <article class="info reveal" style="--d:.24s">
+        <span class="ico"><svg aria-hidden="true"><use href="#i-sms"/></svg></span>
+        <h3 data-i18n="svc.c4.t">SMS za Uthibitisho</h3>
+        <p data-i18n="svc.c4.p">Kila mchango, mkopo, marejesho na faini — mwanachama anapata SMS. Pia vikumbusho vya vikao na mikopo inayokaribia kuisha.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STRUCTURE / ROLES ============ -->
+<section class="section">
+  <div class="container split">
+    <div class="reveal">
+      <span class="eyebrow" data-i18n="org.eyebrow">Kwa Kila Ngazi</span>
+      <h2 class="title" data-i18n="org.title">Kuanzia Kikundi Kimoja Hadi Programu Nzima</h2>
+      <p class="lead" data-i18n="org.lead">Wabia wanasimamia klasta, klasta zinakusanya vikundi, na vikundi vina wanachama. Kila mtu anaingia na kuona sehemu yake tu.</p>
+      <div class="roles">
+        <span data-i18n="org.r1">Msimamizi Mkuu</span>
+        <span data-i18n="org.r2">Wafanyakazi</span>
+        <span data-i18n="org.r3">Mbia</span>
+        <span data-i18n="org.r4">Meneja wa Klasta</span>
+        <span data-i18n="org.r5">Mwenyekiti · Katibu · Mweka Hazina</span>
+        <span data-i18n="org.r6">Kamati</span>
+        <span data-i18n="org.r7">Mwanachama</span>
+      </div>
+      <a class="btn btn-outline" href="#maswali"><span data-i18n="cta.faq">Maswali ya Mara kwa Mara</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    </div>
+    <div class="media reveal" style="--d:.1s">
+      <div class="panel-rings">
+        <div class="tree">
+          <div class="node"><i style="background:#112D4B"><svg aria-hidden="true"><use href="#i-layers"/></svg></i><div data-i18n="org.n1">Mbia<small>Shirika linalosimamia programu</small></div></div>
+          <div class="node"><i style="background:#1598B7"><svg aria-hidden="true"><use href="#i-pin"/></svg></i><div data-i18n="org.n2">Klasta<small>Eneo au kundi la vikundi</small></div></div>
+          <div class="node"><i style="background:#F19135"><svg aria-hidden="true"><use href="#i-users"/></svg></i><div data-i18n="org.n3">Kikundi<small>Viongozi, katiba na vikao</small></div></div>
+          <div class="node"><i style="background:#803E98"><svg aria-hidden="true"><use href="#i-heart"/></svg></i><div data-i18n="org.n4">Mwanachama<small>Akiba, hisa, mikopo na SMS zake</small></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STATS BAND ============ -->
+<section class="band section stats-band" id="ripoti">
+  <div class="container">
+    <div class="head center reveal">
+      <span class="eyebrow" data-i18n="rep.eyebrow">Ripoti na Takwimu</span>
+      <h2 class="title" data-i18n="rep.title">Takwimu Sahihi, Tayari Kupakua</h2>
+      <p class="lead" style="color:var(--on-dark-muted)" data-i18n="rep.lead">Salio linahesabiwa kutoka kwenye miamala halisi kila mara — si kutoka kwa jumla zilizohifadhiwa. Chuja kwa mbia, klasta, kikundi na tarehe.</p>
+    </div>
+    <div class="stats">
+      <div class="stat reveal"><span class="glow" style="background:#1598B7"></span><div class="num" data-count="23">23</div><div class="lbl" data-i18n="rep.s1">Aina za ripoti — fedha, vikundi, mikutano na SMS</div></div>
+      <div class="stat reveal" style="--d:.08s"><span class="glow" style="background:#F19135"></span><div class="num" data-count="3">3</div><div class="lbl" data-i18n="rep.s2">Miundo ya kupakua: Excel, PDF na CSV</div></div>
+      <div class="stat reveal" style="--d:.16s"><span class="glow" style="background:#803E98"></span><div class="num" data-count="13">13</div><div class="lbl" data-i18n="rep.s3">Aina za SMS kwa Kiswahili na Kiingereza</div></div>
+      <div class="stat reveal" style="--d:.24s"><span class="glow" style="background:#3CC4A0"></span><div class="num">30<small data-i18n="rep.s4u">siku</small></div><div class="lbl" data-i18n="rep.s4">PAR 30 — mikopo iliyo hatarini inaonekana mapema</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section class="section" id="jinsi">
+  <div class="container">
+    <div class="head center reveal">
+      <span class="eyebrow ribbon" data-i18n="how.eyebrow">Jinsi Inavyofanya Kazi</span>
+      <h2 class="title" data-i18n="how.title">Hatua Nne Kuanza</h2>
+    </div>
+    <div class="steps">
+      <div class="step reveal"><h3 data-i18n="how.s1.t">Sajili Kikundi</h3><p data-i18n="how.s1.p">Msimamizi anaweka kikundi, klasta yake na nambari ya simu ya Mwenyekiti.</p></div>
+      <div class="step reveal" style="--d:.08s"><h3 data-i18n="how.s2.t">Weka Katiba</h3><p data-i18n="how.s2.p">Thamani ya hisa, riba, faini na huduma ambazo kikundi kinatumia.</p></div>
+      <div class="step reveal" style="--d:.16s"><h3 data-i18n="how.s3.t">Endesha Vikao</h3><p data-i18n="how.s3.p">Viongozi wanaingia kwenye programu, wanarekodi mahudhurio na michango — wanachama wanapata SMS.</p></div>
+      <div class="step reveal" style="--d:.24s"><h3 data-i18n="how.s4.t">Fuatilia Ripoti</h3><p data-i18n="how.s4.p">Wabia na wasimamizi wanaona dashibodi na kupakua ripoti za eneo lao.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SMS ============ -->
+<section class="section section-tint">
+  <div class="container split">
+    <div class="reveal">
+      <span class="eyebrow" data-i18n="sms.eyebrow">Mawasiliano</span>
+      <h2 class="title" data-i18n="sms.title">Kila Mwanachama Anajua Hali Yake</h2>
+      <p class="lead" data-i18n="sms.lead">Hata bila simu janja, mwanachama anapokea SMS ya uthibitisho kwa kila muamala wake — kwa lugha anayoielewa. Ujumbe unaweza kuhaririwa na msimamizi.</p>
+      <ul class="checks">
+        <li><i class="tick"><svg aria-hidden="true"><use href="#i-check"/></svg></i><div data-i18n="sms.l1">Uthibitisho wa michango, hisa, mikopo na faini</div></li>
+        <li><i class="tick"><svg aria-hidden="true"><use href="#i-check"/></svg></i><div data-i18n="sms.l2">Vikumbusho vya vikao na mikopo inayoisha</div></li>
+        <li><i class="tick"><svg aria-hidden="true"><use href="#i-check"/></svg></i><div data-i18n="sms.l3">Ripoti ya SMS zilizotumwa na zilizoshindwa</div></li>
+      </ul>
+    </div>
+    <div class="media reveal" style="--d:.1s">
+      <div class="panel-rings">
+        <div class="sms-list" aria-hidden="true">
+          <div class="bubble"><div class="from">HELABOX <span>09:14</span></div><span data-i18n="sms.b1">Habari Asha, umethibitishwa kununua shares 3 zenye thamani ya TSh 15,000 kwenye Kikundi cha Umoja. Asante.</span></div>
+          <div class="bubble"><div class="from">HELABOX <span>09:21</span></div><span data-i18n="sms.b2">Habari Juma, umethibitishwa kulipa TSh 50,000 kama malipo ya mkopo kwenye Kikundi cha Umoja. Asante.</span></div>
+          <div class="bubble"><div class="from">HELABOX <span>18:00</span></div><span data-i18n="sms.b3">Habari Neema, tunakukumbusha kikao cha Kikundi cha Umoja kitafanyika kesho. Karibu.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ APP DOWNLOAD (shown once an APK is published) ============ -->
+<section class="band section app-dl" id="app" data-app-only hidden>
+  <div class="container split">
+    <div class="reveal">
+      <span class="eyebrow" data-i18n="app.eyebrow">Programu ya Android</span>
+      <h2 class="title" data-i18n="app.title">Pakua HelaBox Kwenye Simu Yako</h2>
+      <p class="lead" style="color:var(--on-dark-muted)" data-i18n="app.lead">Kwa viongozi wa vikundi: rekodi mahudhurio, michango na mikopo wakati wa kikao — hata bila kompyuta.</p>
+      <div class="app-meta">
+        <span><svg aria-hidden="true"><use href="#i-android"/></svg><span data-i18n="app.android">Android</span></span>
+        <span><span data-i18n="app.version">Toleo</span> <b data-app="version">—</b></span>
+        <span data-app="size">—</span>
+        <span data-app="date">—</span>
+      </div>
+      <p class="app-notes" data-app="notes" hidden></p>
+      <div class="btn-row">
+        <a class="btn btn-accent" data-app="link" href="/api/public/app/download"><svg aria-hidden="true" style="transform:none"><use href="#i-download"/></svg><span data-i18n="app.download">Pakua APK</span></a>
+      </div>
+      <p class="app-hint" data-i18n="app.hint">Simu ikiuliza, ruhusu kusakinisha programu kutoka kwenye kivinjari chako. Kisha ingia kwa namba yako ya simu.</p>
+    </div>
+    <div class="media reveal" style="--d:.1s" aria-hidden="true">
+      <div class="app-stage">
+        <span class="ring spin"></span>
+        <div class="phone app-phone">
+          <div class="screen">
+            <div class="notch"></div>
+            <div class="splash">
+              <img src="/assets/icon-dark.svg" alt="" />
+              <img class="wm" src="/assets/logo-dark.svg" alt="" />
+              <span class="tag" data-i18n="app.tag">Vikundi vya Akiba</span>
+            </div>
+          </div>
+        </div>
+        <div class="chip app-chip floaty"><div class="k"><svg class="ok"><use href="#i-download"/></svg><span data-app="chip">Toleo jipya</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="section" id="maswali">
+  <div class="container">
+    <div class="head center reveal">
+      <span class="eyebrow" data-i18n="faq.eyebrow">Maswali</span>
+      <h2 class="title" data-i18n="faq.title">Maswali ya Mara kwa Mara</h2>
+    </div>
+    <div class="faq reveal">
+      <details open>
+        <summary><span data-i18n="faq.q1">Je, muamala ukikosewa unafutwa?</span><span class="pm" aria-hidden="true"><svg><use href="#i-plus"/></svg></span></summary>
+        <p data-i18n="faq.a1">Hapana. Fedha haifutwi wala kuhaririwa. Muamala uliokosewa unageuzwa (reversal): unabaki kwenye historia ukiwa umewekwa alama, na salio la kikundi, mkopo au faini linarudishwa kama lilivyokuwa.</p>
+      </details>
+      <details>
+        <summary><span data-i18n="faq.q2">Nani anaweza kuona taarifa za kikundi chetu?</span><span class="pm" aria-hidden="true"><svg><use href="#i-plus"/></svg></span></summary>
+        <p data-i18n="faq.a2">Viongozi wa kikundi chenu, na wasimamizi waliopewa jukumu juu ya kikundi, klasta au mbia wenu. Kila mtumiaji anaona tu vikundi vilivyo ndani ya eneo lake.</p>
+      </details>
+      <details>
+        <summary><span data-i18n="faq.q3">Je, kila mwanachama anahitaji simu janja?</span><span class="pm" aria-hidden="true"><svg><use href="#i-plus"/></svg></span></summary>
+        <p data-i18n="faq.a3">Hapana. Viongozi ndio wanaotumia programu wakati wa kikao. Wanachama wanapokea SMS za uthibitisho kwenye simu yoyote.</p>
+      </details>
+      <details>
+        <summary><span data-i18n="faq.q4">Tunaingiaje?</span><span class="pm" aria-hidden="true"><svg><use href="#i-plus"/></svg></span></summary>
+        <p data-i18n="faq.a4">Kwa nambari yako ya simu na nambari ya siri (OTP) inayotumwa kwa SMS. Ni watumiaji waliosajiliwa tu — au Mwenyekiti wa kikundi kilichosajiliwa — wanaoweza kuingia.</p>
+      </details>
+      <details>
+        <summary><span data-i18n="faq.q5">Kikao kikishafungwa, tunaweza kuongeza michango?</span><span class="pm" aria-hidden="true"><svg><use href="#i-plus"/></svg></span></summary>
+        <p data-i18n="faq.a5">Hapana. Kikao kilichofungwa kinalindwa ili kumbukumbu zake zisibadilike. Michango mipya inarekodiwa kwenye kikao kinachofuata.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="band cta">
+  <div class="container box">
+    <span class="arc" aria-hidden="true"></span>
+    <div class="reveal">
+      <span class="eyebrow" style="color:var(--on-dark-meta)" data-i18n="cta.eyebrow">Anza Leo</span>
+      <h2 data-i18n="cta.title">Kikundi Chako Kinastahili Hesabu Zilizo Wazi</h2>
+      <p data-i18n="cta.lead">Umesajiliwa tayari? Ingia kwenye dashibodi. Unataka kikundi chako kiunganishwe? Wasiliana na mbia au msimamizi wa programu yako.</p>
+    </div>
+    <div class="reveal" style="--d:.1s">
+      <div class="btn-row">
+        <a class="btn btn-accent" href="/admin/"><span data-i18n="cta.dashboard">Ingia kwenye Dashibodi</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        <a class="btn btn-ghost-dark" href="#app" data-app-only hidden><span data-i18n="nav.app">Pakua App</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="site-footer">
+  <div class="container">
+    <div class="foot-grid">
+      <div>
+        <img src="/assets/logo-dark.svg" alt="HelaBox" width="166" height="40" />
+        <p data-i18n="foot.about">HelaBox ni mfumo wa kidijitali kwa vikundi vya kuweka akiba na kukopa — kwa viongozi, wanachama, wabia na wasimamizi wa programu.</p>
+      </div>
+      <div>
+        <h3 data-i18n="foot.product">Huduma</h3>
+        <ul>
+          <li><a href="#huduma" data-i18n="foot.p1">Michango na Hisa</a></li>
+          <li><a href="#huduma" data-i18n="foot.p2">Mikopo</a></li>
+          <li><a href="#huduma" data-i18n="foot.p3">Mikutano</a></li>
+          <li><a href="#ripoti" data-i18n="foot.p4">Ripoti</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3 data-i18n="foot.learn">Jifunze</h3>
+        <ul>
+          <li><a href="#jinsi" data-i18n="nav.how">Jinsi Inavyofanya Kazi</a></li>
+          <li><a href="#usalama" data-i18n="nav.trust">Usalama</a></li>
+          <li><a href="#maswali" data-i18n="nav.faq">Maswali</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3 data-i18n="foot.access">Ingia</h3>
+        <ul>
+          <li><a href="/admin/" data-i18n="foot.a1">Dashibodi ya Wasimamizi</a></li>
+          <li data-app-only hidden><a href="#app" data-i18n="nav.app">Pakua App</a></li>
+          <li><a href="/privacy" data-i18n="foot.privacy">Sera ya Faragha</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© <span id="year">2026</span> HelaBox. <span data-i18n="foot.rights">Haki zote zimehifadhiwa.</span></span>
+      <span data-i18n="foot.made">Imetengenezwa Tanzania</span>
+    </div>
+  </div>
+</footer>
+
+<button class="to-top" type="button" aria-label="Rudi juu"><svg aria-hidden="true"><use href="#i-up"/></svg></button>
+
+<script src="/main.js?v=202610121200" defer></script>
+</body>
+</html>

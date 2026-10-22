@@ -125,6 +125,10 @@ One KPI computation (`server/report_kpis.go`: `computeGroupKPIs` + `rollup`) fee
 
 Per-group rules are fields on `Group` (`shareValue`, `min/maxShares`, `mandatorySavingsAmount`, `socialFundContribution`, `fineReasons`, `loanInterestRate`, `maxLoanPeriodMonths`, `maxLoanMultiplier`, `enabledServices`). They are **only** changed through `server/group_rules.go` (`/api/main/group/rules` for the app, `/api/admin/groups/:id/rules` for the web; `PermGroupSettings`; validated; audit "GroupRules") — the guard strips them from GraphQL. Changes apply to new records only. Loans: flat interest fixed at issue in `interestAmount` + `totalDue`; balance = `totalDue − amountRepaid` (a loan with no `totalDue` is a pre-interest loan and owes its principal). `/api/main/transactions` only takes contribution / share / social_fund / withdrawal — loans, repayments, fines and expenses have their own routes. Tests: `server/group_rules_test.go`.
 
+### Mobile app downloads
+
+`server/app_releases.go`: the super admin uploads the Android APK in the web dashboard (**Mobile App**, `/admin/app`, `PermPlatform`); files + `releases.json` live in `APP_RELEASES_DIR` (default `./app-releases` next to the binary — not in the DB). Public, no login: `GET /api/public/app` (latest version info, `{available:false}` when none) and `GET /api/public/app/download` (latest APK). The landing page (`landing/`) shows its download section only when an APK exists. nginx must allow large bodies (`client_max_body_size`) or uploads fail with 413.
+
 ### Branding
 
 The user-facing name is **HelaBox**: `server/brand.go` (`brandName`, env `BRAND_NAME`), web i18n key `app.name` (other messages reference it as `@:app.name`, or `@:{'app.name'}` when punctuation follows), app `lib/brand.dart` (`kBrandName`). SMS templates start with `{BRAND}:`. **Do not rename** `config.json` `appName` ("PesaBox" — it names the server's data directory), the `pesabox` DB, `com.example.pesa_box_app` or the `PesaBoxApp` class. SMS sender ID is `TUKIIO` (Beem), overridable with `BEEM_SENDER_ID`.

@@ -307,7 +307,7 @@ async function submit() {
   color: #fff;
   font-weight: 800;
   font-size: 17px;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--font);
   transition: background 0.15s ease;
 }
 
@@ -364,7 +364,7 @@ async function submit() {
   outline: none;
   flex: 1;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font);
   color: var(--ink-900);
   background: transparent;
 }

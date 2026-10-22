@@ -117,6 +117,16 @@ defineProps({
     <path d="M4 20V10M12 20V4M20 20v-7" />
   </svg>
 
+  <svg v-else-if="name === 'phone'" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="6" y="2.5" width="12" height="19" rx="2.5" />
+    <path d="M10.5 18.5h3" />
+  </svg>
+  <svg v-else-if="name === 'upload'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 20V9M7 14l5-5 5 5M5 4h14" />
+  </svg>
+  <svg v-else-if="name === 'download'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
+  </svg>
   <svg v-else-if="name === 'doc'" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <path d="M6 3h8l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
     <path d="M9 12h6M9 16h6M9 8h2" />

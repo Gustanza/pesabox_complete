@@ -698,6 +698,7 @@ func main() {
 	registerGroupRules(app)
 	registerSmsAdmin(app)
 	registerSmsSettings(app)
+	registerAppReleases(app)
 	startSmsReminders(app)
 	registerAccessRoutes(app)
 	registerStructureRoutes(app)

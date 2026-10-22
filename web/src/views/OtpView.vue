@@ -2,14 +2,21 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { setLocale } from '@/i18n'
 import { requestOtp, verifyOtp } from '@/api/auth'
+import logoIcon from '@/assets/logo-icon.svg'
+import logoReverse from '@/assets/logo-icon-reverse.svg'
 
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 
 const username = route.query.username || ''
 const mode = route.query.mode || 'login'
+// 255712345678 → +255 712 345 678
+const shownPhone = /^255\d{9}$/.test(username)
+  ? '+255 ' + username.slice(3).replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3')
+  : username
 
 const CODE_LENGTH = 4
 const digits = ref(Array(CODE_LENGTH).fill(''))
@@ -92,11 +99,18 @@ async function verify() {
 
 <template>
   <div class="login-wrap">
+    <div class="auth-brand">
+      <img :src="logoReverse" alt="" />
+      <span>{{ t('app.name') }}</span>
+    </div>
+    <div class="lang-switch login-lang">
+      <button v-for="l in ['sw', 'en']" :key="l" :class="{ active: locale === l }" @click="setLocale(l)">{{ l.toUpperCase() }}</button>
+    </div>
     <div class="login-card" style="text-align: center">
-      <div class="login-mark">P</div>
+      <img class="login-logo" :src="logoIcon" :alt="t('app.name')" />
       <h2>{{ t('auth.verifyTitle') }}</h2>
       <div class="sub">
-        {{ t('auth.enterCode', { n: CODE_LENGTH }) }} <strong>{{ username }}</strong
+        {{ t('auth.enterCode', { n: CODE_LENGTH }) }} <strong>{{ shownPhone }}</strong
         >.
       </div>
       <div class="otp-row">

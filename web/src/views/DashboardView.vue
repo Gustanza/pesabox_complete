@@ -85,8 +85,6 @@ function compactMoney(n) {
 const tzs = (n) => 'TZS ' + compactMoney(n)
 const num = (n) => Number(n || 0).toLocaleString(intlLocale())
 
-const k = computed(() => dash.value?.kpis || {})
-
 const stats = computed(() => [
   { key: 'dash.totalGroups', icon: 'groups', value: dash.value ? num(dash.value.totalGroups) : '—' },
   { key: 'dash.totalMembers', icon: 'user', value: dash.value ? num(dash.value.totalMembers) : '—' },
@@ -94,14 +92,6 @@ const stats = computed(() => [
   { key: 'dash.loansOutstanding', icon: 'doc', value: dash.value ? tzs(dash.value.totalLoansOutstanding) : '—' }
 ])
 
-const kpis = computed(() => [
-  { l: t('kpi.activeGroups'), v: num(k.value.activeGroups), d: t('kpi.inactiveN', { n: num(k.value.inactiveGroups) }), warn: k.value.inactiveGroups > 0 },
-  { l: t('kpi.members'), v: num(k.value.members), d: t('kpi.womenMen', { f: num(k.value.femaleMembers), m: num(k.value.maleMembers) }) },
-  { l: t('kpi.par30'), v: (k.value.par30Rate || 0) + '%', d: tzs(k.value.par30) + ' ' + t('kpi.atRisk'), warn: k.value.par30Rate > 5 },
-  { l: t('kpi.attendance'), v: (k.value.attendanceRate || 0) + '%', d: t('kpi.attendanceNote') },
-  { l: t('kpi.shares'), v: tzs(k.value.shares), d: t('kpi.socialFund') + ': ' + tzs(k.value.socialFund) },
-  { l: t('kpi.govLoans'), v: tzs(k.value.govLoansOutstanding), d: t('kpi.govLoansNote') }
-])
 
 const STATUS_KEYS = [
   ['api', 'dash2.api'],
@@ -158,18 +148,18 @@ const chartLine = computed(() => {
   const gridLines = grid
     .map((g) => {
       const y = padT + (h - padT - padB) * (1 - g / maxY)
-      return `<line x1="${padL}" y1="${y}" x2="${w}" y2="${y}" stroke="#EFEDEA" stroke-dasharray="4 4"/><text x="0" y="${y + 4}" font-size="11" fill="#8A9895" font-family="Inter">${g}</text>`
+      return `<line x1="${padL}" y1="${y}" x2="${w}" y2="${y}" stroke="#E3E8ED" stroke-dasharray="4 4"/><text x="0" y="${y + 4}" font-size="11" fill="#8A94A0" font-family="Archivo">${g}</text>`
     })
     .join('')
   const xLabels = labels
-    .map((l, i) => `<text x="${pts[i].x}" y="${h + 2}" font-size="11" fill="#8A9895" font-family="Inter" text-anchor="middle">${l}</text>`)
+    .map((l, i) => `<text x="${pts[i].x}" y="${h + 2}" font-size="11" fill="#8A94A0" font-family="Archivo" text-anchor="middle">${l}</text>`)
     .join('')
-  const dots = pts.map((p) => `<circle cx="${p.x}" cy="${p.y}" r="4.5" fill="#18A672" stroke="#fff" stroke-width="2"/>`).join('')
+  const dots = pts.map((p) => `<circle cx="${p.x}" cy="${p.y}" r="4.5" fill="#1598B7" stroke="#fff" stroke-width="2"/>`).join('')
 
   return `<svg viewBox="0 0 ${w} ${h + 18}" style="width:100%;height:auto">
     ${gridLines}
-    <path d="${area}" fill="#18A672" opacity=".18"/>
-    <path d="${path}" fill="none" stroke="#18A672" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${area}" fill="#1598B7" opacity=".18"/>
+    <path d="${path}" fill="none" stroke="#1598B7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
     ${dots}
     ${xLabels}
   </svg>`
@@ -242,14 +232,6 @@ function goCrumb(key) {
           <div class="stat-label">{{ t(s.key) }}</div>
           <div class="stat-value">{{ s.value }}</div>
         </div>
-      </div>
-    </div>
-
-    <div class="kpi-grid">
-      <div v-for="x in kpis" :key="x.l" class="kpi-card">
-        <div class="l">{{ x.l }}</div>
-        <div class="v">{{ dash ? x.v : '—' }}</div>
-        <div class="d" :style="x.warn ? 'color: var(--danger)' : ''">{{ dash ? x.d : '' }}</div>
       </div>
     </div>
 

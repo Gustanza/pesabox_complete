@@ -7,7 +7,7 @@ import { getGroup, updateGroup, deleteGroup } from '../api/groups.js'
 import { listMembers } from '../api/members.js'
 import { listMeetings, listAllAttendance } from '../api/meetings.js'
 import { listTransactions, listLoans } from '../api/transactions.js'
-import { listClusters, moveGroup, listGovLoans, getGroupRules, saveGroupRules } from '../api/admin.js'
+import { listClusters, moveGroup, listGovLoans, getGroupRules, saveGroupRules, getDashboard } from '../api/admin.js'
 import { can } from '../api/access.js'
 
 const { t, te } = useI18n()
@@ -22,6 +22,7 @@ const transactions = ref([])
 const govLoans = ref([])
 const clusters = ref([])
 const loans = ref([])
+const groupKpis = ref(null) // this group's KPIs from /api/admin/dashboard?groupId=
 const rulesData = ref(null) // { rules, canEdit, services, note } from the rules route
 const loading = ref(true)
 const error = ref('')
@@ -46,6 +47,18 @@ const svcText = (sv) => (te('gd.svc.' + sv) ? t('gd.svc.' + sv) : sv)
 const meetingStatus = (st) => (te('gdx.meetingSt.' + st) ? t('gdx.meetingSt.' + st) : st)
 const memberStatus = (st) => (te('mem.st.' + st) ? t('mem.st.' + st) : st)
 const num = (n) => Number(n || 0).toLocaleString(intlLocale())
+const tzs = (n) => 'TZS ' + num(n)
+
+const kpiCards = computed(() => {
+  const k = groupKpis.value
+  if (!k) return []
+  return [
+    { l: t('kpi.members'), v: num(k.members), d: t('kpi.womenMen', { f: num(k.femaleMembers), m: num(k.maleMembers) }) },
+    { l: t('kpi.shares'), v: tzs(k.shares), d: t('kpi.socialFund') + ': ' + tzs(k.socialFund) },
+    { l: t('kpi.par30'), v: (k.par30Rate || 0) + '%', d: tzs(k.par30) + ' ' + t('kpi.atRisk'), warn: k.par30Rate > 5 },
+    { l: t('kpi.attendance'), v: (k.attendanceRate || 0) + '%', d: t('kpi.attendanceNote') }
+  ]
+})
 
 async function load() {
   loading.value = true
@@ -57,7 +70,7 @@ async function load() {
       return
     }
     const groupId = group.value.id
-    const [membersList, meetingsList, attendanceList, transactionsList, govList, clusterList, loanList, rulesInfo] = await Promise.all([
+    const [membersList, meetingsList, attendanceList, transactionsList, govList, clusterList, loanList, rulesInfo, dashInfo] = await Promise.all([
       listMembers(groupId),
       listMeetings(groupId),
       listAllAttendance(),
@@ -65,9 +78,11 @@ async function load() {
       listGovLoans(groupId).catch(() => []),
       can('structure.view') ? listClusters().catch(() => []) : Promise.resolve([]),
       listLoans(groupId).catch(() => []),
-      getGroupRules(groupId).catch(() => null)
+      getGroupRules(groupId).catch(() => null),
+      getDashboard({ groupId }).catch(() => null)
     ])
     loans.value = loanList || []
+    groupKpis.value = dashInfo?.kpis || null
     rulesData.value = rulesInfo
     members.value = membersList || []
     meetings.value = meetingsList || []
@@ -291,6 +306,14 @@ const govOutstanding = computed(() => govLoans.value.reduce((s, l) => s + (l.out
     </div>
 
     <div v-if="error" style="color: var(--danger); font-size: 13px; margin-bottom: 12px">{{ error }}</div>
+
+    <div v-if="kpiCards.length" class="kpi-grid cols-4">
+      <div v-for="x in kpiCards" :key="x.l" class="kpi-card">
+        <div class="l">{{ x.l }}</div>
+        <div class="v">{{ x.v }}</div>
+        <div class="d" :style="x.warn ? 'color: var(--danger)' : 'color: var(--ink-400)'">{{ x.d }}</div>
+      </div>
+    </div>
 
     <div class="dtabs">
       <button v-for="k in tabKeys" :key="k" class="dtab" :class="{ active: tab === k }" @click="tab = k">

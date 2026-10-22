@@ -102,6 +102,12 @@ const routes = [
         component: () => import('@/views/AuditLogsView.vue')
       },
       {
+        path: 'app',
+        name: 'app',
+        meta: { perm: 'platform.manage' },
+        component: () => import('@/views/AppReleasesView.vue')
+      },
+      {
         path: 'settings',
         name: 'settings',
         meta: { perm: 'platform.manage' },
@@ -120,7 +126,7 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes
 })
 
