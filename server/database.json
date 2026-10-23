@@ -398,6 +398,11 @@
                 "Female"
             ]
         },
+        "dateOfBirth": {
+            "type": "String",
+            "default": null,
+            "required": false
+        },
         "memberNumber": {
             "type": "String",
             "default": null,
@@ -558,7 +563,9 @@
                 "fine",
                 "social_fund",
                 "expense",
-                "withdrawal"
+                "withdrawal",
+                "social_fund_payout",
+                "share_out"
             ]
         },
         "direction": {
@@ -599,7 +606,35 @@
             "type": "String",
             "default": null,
             "required": false,
-            "options": ["mandatory", "voluntary"]
+            "options": [
+                "mandatory",
+                "voluntary"
+            ]
+        },
+        "savingsReturned": {
+            "type": "Float",
+            "default": null,
+            "required": false
+        },
+        "sharesReturned": {
+            "type": "Float",
+            "default": null,
+            "required": false
+        },
+        "profit": {
+            "type": "Float",
+            "default": null,
+            "required": false
+        },
+        "cycle": {
+            "type": "Integer",
+            "default": null,
+            "required": false
+        },
+        "cycleClosed": {
+            "type": "Boolean",
+            "default": false,
+            "required": false
         },
         "reversed": {
             "type": "Boolean",
@@ -703,6 +738,27 @@
             "default": null,
             "required": false,
             "foreignKey": "Meeting.id"
+        },
+        "purpose": {
+            "type": "String",
+            "default": null,
+            "required": false,
+            "options": [
+                "business",
+                "agriculture",
+                "livestock",
+                "education",
+                "health",
+                "household",
+                "housing",
+                "emergency",
+                "other"
+            ]
+        },
+        "enterpriseType": {
+            "type": "String",
+            "default": null,
+            "required": false
         },
         "createdAt": {
             "type": "Date",

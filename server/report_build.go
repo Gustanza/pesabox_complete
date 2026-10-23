@@ -74,6 +74,9 @@ type reportCtx struct {
 	meetingById map[string]datatype.DataMap
 	kpis        []groupKPI
 	kpisReady   bool
+	mon         datatype.DataMap
+	monEx       *monitorExtras
+	auditOK     bool // the caller may see audit-log figures
 }
 
 func newReportCtx(app *yekonga.YekongaData, a *Actor, set map[string]bool, from, to time.Time) *reportCtx {
@@ -96,6 +99,7 @@ func newReportCtx(app *yekonga.YekongaData, a *Actor, set map[string]bool, from,
 		return *recs
 	}
 	c.smsOK = func(gid string) bool { return gid != "" && a.CanIn(PermSms, gid) }
+	c.auditOK = a.Can(PermAudit)
 	c.init()
 	return c
 }
@@ -222,6 +226,37 @@ func (c *reportCtx) groupKPIs() []groupKPI {
 		c.kpisReady = true
 	}
 	return c.kpis
+}
+
+// monitorInput is the scoped records the monitoring indicators read.
+func (c *reportCtx) monitorInput() monitorData {
+	return monitorData{
+		kpiData: kpiData{Groups: c.groups, Clusters: c.list("Cluster"), Members: c.list("Member"), Loans: c.list("Loan"),
+			GovLoans: c.list("GovernmentLoan"), Meetings: c.list("Meeting"), Attendance: c.list("MeetingAttendance"),
+			Transactions: c.list("Transaction")},
+		AuditLogs: c.list("AuditLog"), SmsLogs: c.list("SmsLog"), GovRepayments: c.list("GovernmentLoanRepayment"),
+		Hide: &monitorHide{smsOK: c.smsOK, noAudit: !c.auditOK},
+	}
+}
+
+// monitoring is the request's GATA indicators for the whole scope (cached).
+func (c *reportCtx) monitoring() (datatype.DataMap, *monitorExtras) {
+	if c.mon == nil {
+		c.mon, c.monEx = monitor(c.monitorInput(), c.set, c.now, c.from, c.to)
+	}
+	return c.mon, c.monEx
+}
+
+// sec reads one number from a monitoring section.
+func sec(m datatype.DataMap, section, key string) float64 {
+	return num(helper.ToDataMap(m[section])[key])
+}
+
+func yesNo(b bool) string {
+	if b {
+		return "yes"
+	}
+	return "no"
 }
 
 // lessFold orders by a (case-insensitive), then by the tie-breaker b.
@@ -458,10 +493,11 @@ func buildReport(c *reportCtx, key string) ([]datatype.DataMap, bool) {
 			})
 		}
 
-	case "savings", "shares", "social-fund", "fines", "transactions", "expenses":
+	case "savings", "shares", "social-fund", "fines", "transactions", "expenses", "social-fund-payouts", "share-outs":
 		types := map[string]map[string]bool{
 			"savings": {"contribution": true}, "shares": {"share": true}, "social-fund": {"social_fund": true},
 			"fines": {"fine": true}, "expenses": {"expense": true, "withdrawal": true},
+			"social-fund-payouts": {"social_fund_payout": true}, "share-outs": {"share_out": true},
 		}[key]
 		c.needMembers(c.listInRange("Transaction", "createdAt"))
 		for _, t := range c.listInRange("Transaction", "createdAt") {
@@ -482,6 +518,12 @@ func buildReport(c *reportCtx, key string) ([]datatype.DataMap, bool) {
 				"Description": helper.GetValueOfString(t, "description"),
 				"_t":          when, "_id": helper.GetValueOfString(t, "id"),
 			})
+			if typ == "share_out" {
+				r := rows[len(rows)-1]
+				r["Cycle #"] = helper.GetValueOfInt(t, "cycle")
+				r["Savings Returned"] = helper.GetValueOfFloat(t, "savingsReturned") + helper.GetValueOfFloat(t, "sharesReturned")
+				r["Return"] = helper.GetValueOfFloat(t, "profit")
+			}
 		}
 		sortByTimeDesc(rows)
 
@@ -507,8 +549,9 @@ func buildReport(c *reportCtx, key string) ([]datatype.DataMap, bool) {
 				"Repaid": helper.GetValueOfFloat(l, "amountRepaid"), "Balance": loanBalance(l),
 				"Overpaid": loanOverpaid(l),
 				"Status":   helper.GetValueOfString(l, "status"), "Issued": dateVal(issued),
-				"Due": dateVal(parseTimeOrZero(l["dueDate"])),
-				"_t":  issued, "_id": helper.GetValueOfString(l, "id"),
+				"Due":     dateVal(parseTimeOrZero(l["dueDate"])),
+				"Purpose": loanPurpose(l), "Enterprise Type": helper.GetValueOfString(l, "enterpriseType"),
+				"_t": issued, "_id": helper.GetValueOfString(l, "id"),
 				"_noTotals": helper.GetValueOfString(l, "status") == "cancelled",
 			})
 		}
@@ -571,6 +614,7 @@ func buildReport(c *reportCtx, key string) ([]datatype.DataMap, bool) {
 			rows = append(rows, datatype.DataMap{
 				"Group": c.groupName(helper.GetValueOfString(m, "groupId")), "Name": memberFullName(m),
 				"Phone": helper.GetValueOfString(m, "phone"), "Gender": helper.GetValueOfString(m, "gender"),
+				"Date of Birth": dobVal(m), "Age Band": ageBandOf(m, c.now),
 				"Member #": helper.GetValueOfString(m, "memberNumber"), "Status": helper.GetValueOfString(m, "status"),
 				"Joined": dateVal(joined), "_id": helper.GetValueOfString(m, "id"),
 			})
@@ -660,11 +704,136 @@ func buildReport(c *reportCtx, key string) ([]datatype.DataMap, bool) {
 		}
 		sortByKeys(rows, "Group", "Message Type")
 
+	case "monitoring-summary":
+		rows = c.monitoringSummary()
+
+	case "members-by-age":
+		_, ex := c.monitoring()
+		for _, b := range ageBands {
+			r := ex.byAge.rows[b]
+			if r == nil || (r["activeMembers"] == 0 && r["newMembers"] == 0 && r["membersAtStart"] == 0) {
+				continue
+			}
+			female, male := ex.byGenderAge.rows["Female|"+b], ex.byGenderAge.rows["Male|"+b]
+			rows = append(rows, datatype.DataMap{
+				"Age Band": b, "Members (active)": int(r["activeMembers"]), "Female": int(female["activeMembers"]), "Male": int(male["activeMembers"]),
+				"New Members (period)": int(r["newMembers"]), "Retention %": pct(r["retained"], r["membersAtStart"]),
+				"Attendance % (period)": pct(r["attended"], r["attendanceRows"]), "Savers (period)": int(r["savers"]),
+				"Regular Savers %": pct(r["regularSavers"], r["eligibleSavers"]), "Borrowers (period)": int(r["borrowers"]),
+				"IGA Borrowers": int(r["igaBorrowers"]),
+				"_ret":          r["retained"], "_mstart": r["membersAtStart"], "_pattP": r["attended"], "_pattN": r["attendanceRows"],
+				"_rs": r["regularSavers"], "_el": r["eligibleSavers"], "_id": b,
+			})
+		}
+
+	case "member-savings":
+		_, ex := c.monitoring()
+		for _, ms := range ex.members {
+			if !ms.active && ms.saved+ms.shares == 0 && ms.balance == 0 && ms.owed == 0 {
+				continue // left before the period with nothing to show
+			}
+			gid := helper.GetValueOfString(ms.m, "groupId")
+			row := datatype.DataMap{
+				"Group": c.groupName(gid), "Member": memberFullName(ms.m), "Gender": ms.gender, "Age Band": ms.band,
+				"Status": helper.GetValueOfString(ms.m, "status"), "Savings (period)": ms.saved, "Shares (period)": ms.shares,
+				"Savings & Shares Balance": ms.balance, "Loans Outstanding": ms.owed, "Meetings Saved": ms.meetingsSaved,
+				"Meetings Held (period)": ms.meetingsHeld, "Regular Saver": nil, "_id": helper.GetValueOfString(ms.m, "id"),
+			}
+			if row["Status"] == "" {
+				row["Status"] = "Active"
+			}
+			if ms.eligible {
+				row["Regular Saver"] = yesNo(ms.regular)
+			}
+			rows = append(rows, row)
+		}
+		sortByKeys(rows, "Group", "Member")
+
+	case "loans-by-purpose":
+		mon, _ := c.monitoring()
+		for _, p := range docList(helper.ToDataMap(mon["economicBenefits"])["byPurpose"]) {
+			r := helper.ToDataMap(p)
+			rows = append(rows, datatype.DataMap{
+				"Purpose": r["purpose"], "Income-generating": yesNo(helper.GetValueOfBoolean(r, "incomeGenerating")),
+				"Loans": r["loans"], "Borrowers": r["borrowers"], "Principal": r["amount"], "_id": r["purpose"],
+			})
+		}
+
+	case "loans-by-enterprise":
+		mon, _ := c.monitoring()
+		for _, p := range docList(helper.ToDataMap(mon["economicBenefits"])["byEnterpriseType"]) {
+			r := helper.ToDataMap(p)
+			rows = append(rows, datatype.DataMap{
+				"Enterprise Type": r["enterpriseType"], "Loans": r["loans"], "Borrowers": r["borrowers"], "Principal": r["amount"],
+				"_id": r["enterpriseType"],
+			})
+		}
+
+	case "monthly-growth":
+		mon, _ := c.monitoring()
+		for _, p := range docList(helper.ToDataMap(mon["growth"])["monthly"]) {
+			r := helper.ToDataMap(p)
+			rows = append(rows, datatype.DataMap{
+				"Month": r["month"], "Members (active)": r["activeMembers"], "New Members": r["newMembers"],
+				"Savings Recorded": r["savingsRecorded"], "Savings & Shares Balance": r["totalSavings"],
+				"Social Fund Balance": r["socialFundBalance"], "Loans Disbursed": r["loansDisbursed"],
+				"Loan Portfolio": r["loanPortfolio"], "Cash on Hand": r["cashOnHand"], "Group Assets": r["groupAssets"],
+				"_id": r["month"],
+			})
+		}
+
 	default:
 		return nil, false
 	}
 
 	return rows, true
+}
+
+// dobVal is a member's date of birth for a date column (nil when unknown).
+func dobVal(m datatype.DataMap) interface{} {
+	if d, ok := parseDOB(helper.GetValueOfString(m, "dateOfBirth")); ok {
+		return d
+	}
+	return nil
+}
+
+// monitoringSummary: one row per group in scope with its GATA indicators,
+// each computed by the same monitor() as the endpoint on that group alone.
+func (c *reportCtx) monitoringSummary() []datatype.DataMap {
+	parts := splitMonitorData(c.monitorInput())
+	rows := []datatype.DataMap{}
+	for _, g := range c.groups {
+		gid := helper.GetValueOfString(g, "id")
+		m, _ := monitor(parts[gid], map[string]bool{gid: true}, c.now, c.from, c.to)
+		cl := c.clusterById[helper.GetValueOfString(g, "clusterId")]
+		attP, attN := sec(m, "membership", "present")+sec(m, "membership", "late"), sec(m, "membership", "attendanceRows")
+		rows = append(rows, datatype.DataMap{
+			"Group": helper.GetValueOfString(g, "name"), "Partner": helper.GetValueOfString(c.partnerById[helper.GetValueOfString(cl, "partnerId")], "name"),
+			"Cluster":          helper.GetValueOfString(cl, "name"),
+			"Members (active)": int(sec(m, "membership", "activeMembers")), "Female": int(sec(m, "membership", "femaleMembers")),
+			"Male": int(sec(m, "membership", "maleMembers")), "Youth (15-35)": int(sec(m, "membership", "youthMembers")),
+			"New Members (period)": int(sec(m, "membership", "newMembers")), "Retention %": sec(m, "membership", "retentionRate"),
+			"Attendance % (period)": pct(attP, attN), "Savings (period)": sec(m, "savings", "savingsRecorded"),
+			"Savings & Shares Balance": sec(m, "savings", "totalBalance"), "Social Fund Balance": sec(m, "socialFund", "availableBalance"),
+			"Loans Disbursed (period)": sec(m, "loans", "amountDisbursed"), "Borrowers (period)": int(sec(m, "loans", "borrowers")),
+			"Loans Outstanding": sec(m, "loans", "outstandingBalance"), "Repayment Rate %": sec(m, "repayments", "repaymentRate"),
+			"Overdue Loans": int(sec(m, "repayments", "overdueLoans")), "Defaulted Loans": int(sec(m, "repayments", "defaultedLoans")),
+			"Interest Earned (period)":    sec(m, "financialPerformance", "interestEarned"),
+			"Expenses (period)":           sec(m, "financialPerformance", "operationalExpenses"),
+			"Shared Out (period)":         sec(m, "financialPerformance", "savingsSharedOut"),
+			"Returns to Members (period)": sec(m, "financialPerformance", "returnsToMembers"),
+			"Regular Savers %":            sec(m, "access", "regularSaversPct"),
+			"Meetings Fully Recorded %":   sec(m, "digitalAdoption", "digitalRecordingRate"),
+			"Using App":                   yesNo(sec(m, "digitalAdoption", "groupsUsingApp") > 0),
+			"_ret":                        sec(m, "membership", "retained"), "_mstart": sec(m, "membership", "membersAtStart"),
+			"_pattP": attP, "_pattN": attN,
+			"_rp": sec(m, "repayments", "amountRepaidOnFallenDue"), "_rd": sec(m, "repayments", "amountFallenDue"),
+			"_rs": sec(m, "access", "regularSavers"), "_el": sec(m, "access", "eligibleMembers"),
+			"_fr": sec(m, "digitalAdoption", "meetingsFullyRecorded"), "_mc": sec(m, "digitalAdoption", "meetingsCompleted"),
+			"_id": gid,
+		})
+	}
+	return rows
 }
 
 // cancelledBlank hides a cancelled loan's charged terms (it was never lent).
@@ -701,8 +870,8 @@ func summaryRow(t kpiTotals) datatype.DataMap {
 // exactly one.
 func (c *reportCtx) meetingCollections() []datatype.DataMap {
 	type sums struct {
-		savings, shares, social, fines, repay, disb, expenses, withdrawals float64
-		present, late, absent, excused                                     int
+		savings, shares, social, fines, repay, disb, expenses, withdrawals, payouts float64
+		present, late, absent, excused                                              int
 	}
 	byMeeting := map[string]*sums{}
 	get := func(id string) *sums {
@@ -756,6 +925,8 @@ func (c *reportCtx) meetingCollections() []datatype.DataMap {
 			s.expenses += amt
 		case "withdrawal":
 			s.withdrawals += amt
+		case "social_fund_payout", "share_out":
+			s.payouts += amt
 		}
 	}
 	for _, a := range c.list("MeetingAttendance") {
@@ -786,7 +957,7 @@ func (c *reportCtx) meetingCollections() []datatype.DataMap {
 			"Excused": s.excused, "Savings": s.savings, "Shares": s.shares, "Social Fund": s.social, "Fines": s.fines,
 			"Loan Repayments": s.repay, "Loans Disbursed": s.disb, "Expenses": s.expenses, "Withdrawals": s.withdrawals,
 			"Total In":  s.savings + s.shares + s.social + s.fines + s.repay,
-			"Total Out": s.disb + s.expenses + s.withdrawals,
+			"Total Out": s.disb + s.expenses + s.withdrawals + s.payouts,
 			"_id":       id,
 		})
 	}
@@ -797,10 +968,14 @@ func (c *reportCtx) meetingCollections() []datatype.DataMap {
 // rateParts says how a totals row recomputes each rate column: the ratio of
 // two summed (usually hidden) row values.
 var rateParts = map[string][2]string{
-	"PAR 30 %":              {"_par", "_lo"},
-	"Attendance %":          {"_attP", "_attN"},
-	"Attendance % (period)": {"_pattP", "_pattN"},
-	"Delivery %":            {"Sent", "Total"},
+	"PAR 30 %":                  {"_par", "_lo"},
+	"Attendance %":              {"_attP", "_attN"},
+	"Attendance % (period)":     {"_pattP", "_pattN"},
+	"Delivery %":                {"Sent", "Total"},
+	"Retention %":               {"_ret", "_mstart"},
+	"Repayment Rate %":          {"_rp", "_rd"},
+	"Regular Savers %":          {"_rs", "_el"},
+	"Meetings Fully Recorded %": {"_fr", "_mc"},
 }
 
 func num(v interface{}) float64 {

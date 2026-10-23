@@ -86,6 +86,7 @@ onMounted(async () => {
     }
     datasets.value = list
     for (const k of PRESETS[route.query.preset] || []) selected[k] = true
+    if (route.query.dataset && list.some((d) => d.key === route.query.dataset)) selected[route.query.dataset] = true
   } catch (e) {
     error.value = e.message || t('reports.loadFailed')
   }
@@ -97,7 +98,24 @@ onMounted(async () => {
   } catch {
     // filters just won't have options; the report itself still works
   }
+  await applyLinkFilters()
 })
+
+// Opened from Monitoring (?dataset=…&partnerId=…&from=…): apply the same
+// filters and preview that dataset. Each level is set after the previous
+// one's watcher has run, since changing a partner clears cluster and group.
+async function applyLinkFilters() {
+  const q = route.query
+  if (!q.dataset) return
+  if (q.partnerId) { partnerId.value = q.partnerId; await nextTick() }
+  if (q.clusterId) { clusterId.value = q.clusterId; await nextTick() }
+  if (q.groupId) groupId.value = q.groupId
+  if (q.from) from.value = q.from
+  if (q.to) to.value = q.to
+  await nextTick()
+  const d = datasets.value.find((x) => x.key === q.dataset)
+  if (d) generate(d)
+}
 
 function toggleAll(on) {
   for (const d of datasets.value) selected[d.key] = on

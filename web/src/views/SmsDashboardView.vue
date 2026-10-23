@@ -274,7 +274,7 @@ function barWidth(v, max) {
     </template>
 
     <template v-else>
-      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);">
+      <div class="kpi-grid cols-4">
         <div v-for="k in kpis" :key="k.l" class="kpi-card">
           <div class="l">{{ k.l }}</div>
           <div class="v">{{ k.v }}</div>

@@ -220,6 +220,10 @@ func txLabel(typ string) string {
 		return "Expense"
 	case "withdrawal":
 		return "Withdrawal"
+	case "social_fund_payout":
+		return "Social Fund Payout"
+	case "share_out":
+		return "Share-out"
 	}
 	return typ
 }
@@ -550,6 +554,12 @@ func main() {
 			return
 		}
 
+		dob, err := validateDOB(body["dateOfBirth"], time.Now())
+		if err != nil {
+			deny(res, 400, err.Error())
+			return
+		}
+
 		verified := false
 		records := app.ModelQuery("MemberVerification").SkipBeforeCommit().
 			Where("phone", phone).Find(nil)
@@ -565,14 +575,32 @@ func main() {
 			return
 		}
 
-		created := app.ModelQuery("Member").SkipBeforeCommit().Create(datatype.DataMap{
+		// Member numbers are given out by the server, in order within the
+		// group (001, 002, …), unless the caller sends one (e.g. from an old
+		// paper register).
+		unlock := lockMemberNumbers(groupId)
+		defer unlock()
+		memberNumber := strings.TrimSpace(helper.GetValueOfString(body, "memberNumber"))
+		if memberNumber == "" {
+			used := []string{}
+			for _, m := range *app.ModelQuery("Member").SkipBeforeCommit().Where("groupId", groupId).Find(nil) {
+				used = append(used, helper.GetValueOfString(m, "memberNumber"))
+			}
+			memberNumber = nextMemberNumber(used)
+		}
+
+		newMember := datatype.DataMap{
 			"groupId":      groupId,
 			"firstName":    helper.GetValueOfString(body, "firstName"),
 			"lastName":     helper.GetValueOfString(body, "lastName"),
 			"phone":        phone,
 			"gender":       helper.GetValueOfString(body, "gender"),
-			"memberNumber": helper.GetValueOfString(body, "memberNumber"),
-		})
+			"memberNumber": memberNumber,
+		}
+		if dob != "" {
+			newMember["dateOfBirth"] = dob
+		}
+		created := app.ModelQuery("Member").SkipBeforeCommit().Create(newMember)
 		if created == nil {
 			res.Status(500)
 			res.Json(map[string]string{"error": "could not create member"})
@@ -695,6 +723,7 @@ func main() {
 
 	registerReports(app)
 	registerDashboard(app)
+	registerMonitoring(app)
 	registerGroupRules(app)
 	registerSmsAdmin(app)
 	registerSmsSettings(app)
@@ -752,6 +781,10 @@ func main() {
 				description = "Fine payment"
 			case "expense":
 				description = "Group expense"
+			case "social_fund_payout":
+				description = "Social fund payout"
+			case "share_out":
+				description = "Cycle share-out"
 			}
 		}
 		method := helper.GetValueOfString(x, "method")
@@ -773,6 +806,13 @@ func main() {
 		if st := helper.GetValueOfString(x, "savingsType"); st != "" {
 			rec["savingsType"] = st // mandatory / voluntary savings
 		}
+		if typ == "share_out" { // how the payout splits (payouts.go)
+			for _, k := range []string{"savingsReturned", "sharesReturned", "profit"} {
+				rec[k] = helper.GetValueOfFloat(x, k)
+			}
+			rec["cycle"] = helper.GetValueOfInt(x, "cycle")
+			rec["cycleClosed"] = helper.GetValueOfBoolean(x, "cycleClosed")
+		}
 		created := app.ModelQuery("Transaction").SkipBeforeCommit().Create(rec)
 		if created != nil {
 			if _, isErr := created.(error); !isErr {
@@ -793,6 +833,11 @@ func main() {
 					adjustGroupTotal(groupId, "totalSavings", -amount)
 				case "expense":
 					adjustGroupTotal(groupId, "totalExpenses", amount)
+				case "social_fund_payout":
+					adjustGroupTotal(groupId, "totalSocialFund", -amount)
+				case "share_out":
+					adjustGroupTotal(groupId, "totalSavings", -helper.GetValueOfFloat(x, "savingsReturned"))
+					adjustGroupTotal(groupId, "totalShares", -helper.GetValueOfFloat(x, "sharesReturned"))
 				}
 			}
 		}
@@ -870,8 +915,13 @@ func main() {
 			switch helper.GetValueOfString(t, "type") {
 			case "contribution":
 				savings[mid] += helper.GetValueOfFloat(t, "amount")
+			case "withdrawal":
+				savings[mid] -= helper.GetValueOfFloat(t, "amount")
 			case "share":
 				shares[mid] += helper.GetValueOfFloat(t, "amount")
+			case "share_out": // returned at a share-out (payouts.go)
+				savings[mid] -= helper.GetValueOfFloat(t, "savingsReturned")
+				shares[mid] -= helper.GetValueOfFloat(t, "sharesReturned")
 			}
 			// contribution/share share the same "money in" pool; count shares
 			// separately so the app can render a share count.
@@ -920,6 +970,9 @@ func main() {
 			}
 			mid := helper.GetValueOfString(m, "id")
 			rec["fullName"] = fullName(m)
+			// Never negative, as in memberPool / computeKPIs.
+			savings[mid] = math.Max(0, savings[mid])
+			shares[mid] = math.Max(0, shares[mid])
 			rec["savings"] = savings[mid]
 			rec["contributionCount"] = contribCount[mid]
 			rec["shares"] = shares[mid]
@@ -1355,6 +1408,11 @@ func main() {
 		if meetingLocked(res, groupId, helper.GetValueOfString(body, "meetingId")) {
 			return
 		}
+		purpose, enterprise, perr := validateLoanPurpose(helper.GetValueOfString(body, "purpose"), helper.GetValueOfString(body, "enterpriseType"))
+		if perr != nil {
+			deny(res, 400, perr.Error())
+			return
+		}
 		if msg := serviceOff(*g, "loan_disbursement"); msg != "" {
 			deny(res, 400, msg)
 			return
@@ -1385,7 +1443,7 @@ func main() {
 			periodMonths = 3
 		}
 		number := app.ModelQuery("Loan").SkipBeforeCommit().Where("groupId", groupId).Count(nil) + 1
-		created := app.ModelQuery("Loan").SkipBeforeCommit().Create(datatype.DataMap{
+		loanRec := datatype.DataMap{
 			"groupId":         groupId,
 			"memberId":        memberId,
 			"loanNumber":      fmt.Sprintf("LN-%04d", number),
@@ -1398,7 +1456,14 @@ func main() {
 			"dueDate":         time.Now().AddDate(0, periodMonths, 0),
 			"status":          "active",
 			"issuedMeetingId": helper.GetValueOfString(body, "meetingId"),
-		})
+		}
+		if purpose != "" {
+			loanRec["purpose"] = purpose
+		}
+		if enterprise != "" {
+			loanRec["enterpriseType"] = enterprise
+		}
+		created := app.ModelQuery("Loan").SkipBeforeCommit().Create(loanRec)
 		if created == nil {
 			res.Status(500)
 			res.Json(map[string]string{"error": "could not create loan"})
@@ -1690,6 +1755,8 @@ func main() {
 		res.Json(created)
 	})
 
+	registerPayouts(app, requireGroupPerm, createTransaction, meetingLocked)
+
 	// Reverse a transaction (TODO.md D5/N4): financial records are never
 	// deleted or edited — a mistake is undone by marking the original
 	// "reversed" (every balance/report skips reversed rows) and putting back
@@ -1730,6 +1797,11 @@ func main() {
 			adjustGroupTotal(groupId, "totalSavings", amount)
 		case "expense":
 			adjustGroupTotal(groupId, "totalExpenses", -amount)
+		case "social_fund_payout":
+			adjustGroupTotal(groupId, "totalSocialFund", amount)
+		case "share_out":
+			adjustGroupTotal(groupId, "totalSavings", helper.GetValueOfFloat(*txn, "savingsReturned"))
+			adjustGroupTotal(groupId, "totalShares", helper.GetValueOfFloat(*txn, "sharesReturned"))
 		case "fine":
 			// A fine payment: the fine is owed again.
 			if fine := app.ModelQuery("Fine").SkipBeforeCommit().Where("id", reference).Where("groupId", groupId).First(nil); fine != nil {
@@ -1770,6 +1842,9 @@ func main() {
 		}, nil)
 		writeAudit(app, actor, "reverse", "Transaction", req.Param("id"), groupId,
 			fmt.Sprintf("Reversed %s %s: %s", txLabel(typ), fmtTZS(amount), reason), nil)
+		if typ == "share_out" {
+			reopenCycle(app, actor, groupId, *txn)
+		}
 		res.Json(map[string]bool{"success": true})
 	})
 
@@ -1826,6 +1901,14 @@ func main() {
 			if v, ok := body[k]; ok {
 				changes[k] = v
 			}
+		}
+		if raw, ok := body["dateOfBirth"]; ok {
+			dob, err := validateDOB(raw, time.Now())
+			if err != nil {
+				deny(res, 400, err.Error())
+				return
+			}
+			changes["dateOfBirth"] = dob // "" clears it
 		}
 		if len(changes) == 0 {
 			res.Status(400)

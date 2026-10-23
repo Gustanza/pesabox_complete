@@ -35,6 +35,7 @@ type periodTotals struct {
 	Savings, Shares, SocialFund, Fines float64
 	LoanRepayments, LoansDisbursed     float64
 	Expenses, Withdrawals              float64
+	SocialFundPayouts, SharedOut       float64
 	Meetings, NewMembers               int
 	AttendancePresent, AttendanceRows  int
 }
@@ -48,6 +49,8 @@ func (p *periodTotals) add(o periodTotals) {
 	p.LoansDisbursed += o.LoansDisbursed
 	p.Expenses += o.Expenses
 	p.Withdrawals += o.Withdrawals
+	p.SocialFundPayouts += o.SocialFundPayouts
+	p.SharedOut += o.SharedOut
 	p.Meetings += o.Meetings
 	p.NewMembers += o.NewMembers
 	p.AttendancePresent += o.AttendancePresent
@@ -328,10 +331,25 @@ func computeKPIs(d kpiData, set map[string]bool, now, from, to time.Time) []grou
 			if inP {
 				k.Period.LoansDisbursed += amt
 			}
+		case "social_fund_payout":
+			k.SocialFund -= amt
+			if inP {
+				k.Period.SocialFundPayouts += amt
+			}
+		case "share_out":
+			// The member's own savings and shares came back (payouts.go);
+			// the rest was their return, paid from the group's earnings.
+			k.Savings -= helper.GetValueOfFloat(t, "savingsReturned")
+			k.Shares -= helper.GetValueOfFloat(t, "sharesReturned")
+			if inP {
+				k.Period.SharedOut += amt
+			}
 		}
 	}
 	for _, k := range byGroup {
 		k.Savings = math.Max(0, k.Savings)
+		k.Shares = math.Max(0, k.Shares)
+		k.SocialFund = math.Max(0, k.SocialFund)
 	}
 
 	for _, l := range d.Loans {
@@ -627,7 +645,8 @@ func registerDashboard(app *yekonga.YekongaData) {
 // transaction type (the web translates it as dash2.act.<key>).
 func txActivityType(typ string) string {
 	switch typ {
-	case "contribution", "share", "social_fund", "loan_disbursement", "loan_repayment", "fine", "expense", "withdrawal":
+	case "contribution", "share", "social_fund", "loan_disbursement", "loan_repayment", "fine", "expense", "withdrawal",
+		"social_fund_payout", "share_out":
 		return typ
 	}
 	return "other"

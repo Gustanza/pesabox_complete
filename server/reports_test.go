@@ -456,6 +456,9 @@ func TestDeterministicOrder(t *testing.T) {
 			for _, r := range mustBuild(t, testCtx(t, fix, inScope, "", "", func(string) bool { return true }), d.Key) {
 				got = append(got, strings.TrimSpace(strings.Join([]string{toStr(r["_id"]), toStr(r["Name"]), toStr(r["Group"])}, "|")))
 			}
+			if len(got) == 0 && len(base[d.Key]) == 0 {
+				continue // no rows in this fixture (nil vs empty)
+			}
 			if !reflect.DeepEqual(got, base[d.Key]) {
 				t.Fatalf("%s order changed with input order:\n%v\n%v", d.Key, base[d.Key], got)
 			}

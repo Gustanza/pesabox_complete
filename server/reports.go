@@ -46,11 +46,17 @@ var (
 		"Savings Balance", "Shares Balance", "Social Fund Balance", "Loans Outstanding", "PAR 30 %", "Government Loans", "Attendance %",
 		"Savings (period)", "Shares (period)", "Social Fund (period)", "Fines (period)", "Loan Repayments (period)",
 		"Loans Disbursed (period)", "Expenses (period)", "Meetings Held (period)", "Attendance % (period)"}
-	txCols      = []string{"Date", "Group", "Member", "Type", "Amount", "Direction"}
-	smsCols     = []string{"Date", "Group", "Member", "Phone", "Message Type", "Status"}
-	cycCols     = []string{"Group", "Cycle Current", "Cycle Total", "Meeting Frequency"}
-	loanCols    = []string{"Loan #", "Group", "Borrower", "Principal", "Interest %", "Interest", "Total Due", "Repaid", "Balance", "Overpaid", "Status", "Issued", "Due"}
-	txDateTime  = map[string]string{"Date": "datetime"}
+	txCols     = []string{"Date", "Group", "Member", "Type", "Amount", "Direction"}
+	smsCols    = []string{"Date", "Group", "Member", "Phone", "Message Type", "Status"}
+	cycCols    = []string{"Group", "Cycle Current", "Cycle Total", "Meeting Frequency"}
+	loanCols   = []string{"Loan #", "Group", "Borrower", "Principal", "Interest %", "Interest", "Total Due", "Repaid", "Balance", "Overpaid", "Status", "Issued", "Due", "Purpose", "Enterprise Type"}
+	txDateTime = map[string]string{"Date": "datetime"}
+	// monitoringCols: one row per group with the GATA indicators.
+	monitoringCols = []string{"Group", "Partner", "Cluster", "Members (active)", "Female", "Male", "Youth (15-35)", "New Members (period)",
+		"Retention %", "Attendance % (period)", "Savings (period)", "Savings & Shares Balance", "Social Fund Balance",
+		"Loans Disbursed (period)", "Borrowers (period)", "Loans Outstanding", "Repayment Rate %", "Overdue Loans", "Defaulted Loans",
+		"Interest Earned (period)", "Expenses (period)", "Shared Out (period)", "Returns to Members (period)", "Regular Savers %",
+		"Meetings Fully Recorded %", "Using App"}
 	summaryDefs = func(key, sw, en string) reportDataset {
 		return reportDataset{Key: key, Category: "Programme", Sw: sw, En: en, Columns: summaryCols, Downloadable: true, Balances: true, Totals: true}
 	}
@@ -94,7 +100,28 @@ var reportDatasets = []reportDataset{
 		Columns: []string{"Group", "Meeting #", "Meeting Date", "Member", "Status", "Recorded"}},
 	{Key: "cycles", Category: "Operations", Sw: "Mizunguko", En: "Cycles", Columns: cycCols, Downloadable: true, PointInTime: true},
 	{Key: "members", Category: "Operations", Sw: "Wanachama", En: "Members", Downloadable: true,
-		Columns: []string{"Group", "Name", "Phone", "Gender", "Member #", "Status", "Joined"}},
+		Columns: []string{"Group", "Name", "Phone", "Gender", "Date of Birth", "Age Band", "Member #", "Status", "Joined"}},
+	{Key: "social-fund-payouts", Totals: true, Category: "Financial", Sw: "Malipo ya Mfuko wa Jamii", En: "Social Fund Payouts", Downloadable: true, Types: txDateTime,
+		Columns: []string{"Date", "Group", "Member", "Description", "Amount", "Method"}},
+	{Key: "share-outs", Totals: true, Category: "Financial", Sw: "Mgao wa Mzunguko", En: "Cycle Share-outs", Downloadable: true, Types: txDateTime,
+		Columns: []string{"Date", "Group", "Member", "Cycle #", "Amount", "Savings Returned", "Return", "Method"}},
+	// GATA monitoring indicators (monitoring.go). With no "from" they cover the
+	// last 12 calendar months, like GET /api/admin/monitoring.
+	{Key: "monitoring-summary", Category: "Monitoring", Sw: "Viashiria vya Ufuatiliaji kwa Kikundi", En: "Monitoring Indicators by Group", Downloadable: true, Totals: true, Balances: true,
+		Columns: monitoringCols},
+	{Key: "members-by-age", Category: "Monitoring", Sw: "Wanachama kwa Umri na Jinsia", En: "Members by Age & Gender", Downloadable: true, Totals: true,
+		Columns: []string{"Age Band", "Members (active)", "Female", "Male", "New Members (period)", "Retention %", "Attendance % (period)",
+			"Savers (period)", "Regular Savers %", "Borrowers (period)", "IGA Borrowers"}},
+	{Key: "member-savings", Category: "Monitoring", Sw: "Akiba na Mikopo kwa Mwanachama", En: "Savings & Credit per Member", Downloadable: true, Totals: true, Balances: true,
+		Columns: []string{"Group", "Member", "Gender", "Age Band", "Status", "Savings (period)", "Shares (period)", "Savings & Shares Balance",
+			"Loans Outstanding", "Meetings Saved", "Meetings Held (period)", "Regular Saver"}},
+	{Key: "loans-by-purpose", Category: "Monitoring", Sw: "Mikopo kwa Madhumuni", En: "Loans by Purpose", Downloadable: true, Totals: true,
+		Columns: []string{"Purpose", "Income-generating", "Loans", "Borrowers", "Principal"}},
+	{Key: "loans-by-enterprise", Category: "Monitoring", Sw: "Mikopo kwa Aina ya Biashara", En: "Loans by Enterprise Type", Downloadable: true, Totals: true,
+		Columns: []string{"Enterprise Type", "Loans", "Borrowers", "Principal"}},
+	{Key: "monthly-growth", Category: "Monitoring", Sw: "Ukuaji kwa Mwezi", En: "Monthly Growth", Downloadable: true,
+		Columns: []string{"Month", "Members (active)", "New Members", "Savings Recorded", "Savings & Shares Balance", "Social Fund Balance",
+			"Loans Disbursed", "Loan Portfolio", "Cash on Hand", "Group Assets"}},
 	{Key: "sms-usage", Category: "Communication", Sw: "Matumizi ya SMS", En: "SMS Usage", Columns: smsCols, Downloadable: true, Sms: true, Types: txDateTime},
 	{Key: "sms-delivery", Category: "Communication", Sw: "Uwasilishaji wa SMS", En: "SMS Delivery", Downloadable: true, Sms: true, Totals: true,
 		Columns: []string{"Group", "Message Type", "Sent", "Failed", "Other", "Total", "Delivery %"}},
@@ -118,6 +145,7 @@ func findDataset(key string) *reportDataset {
 
 var categorySw = map[string]string{
 	"Programme": "Programu", "Group": "Vikundi", "Financial": "Fedha", "Operations": "Uendeshaji", "Communication": "Mawasiliano",
+	"Monitoring": "Ufuatiliaji",
 }
 
 var columnSw = map[string]string{
@@ -148,6 +176,17 @@ var columnSw = map[string]string{
 	"Paid": "Imelipwa", "Outstanding": "Inayodaiwa", "Message Type": "Aina ya Ujumbe", "Sent": "Zilizotumwa",
 	"Failed": "Zilizoshindwa", "Other": "Nyingine", "Total": "Jumla", "Delivery %": "Uwasilishaji %",
 	"Overpaid": "Imelipwa Zaidi", "Interest": "Riba",
+	"Purpose": "Madhumuni", "Enterprise Type": "Aina ya Biashara", "Date of Birth": "Tarehe ya Kuzaliwa", "Age Band": "Kundi la Umri",
+	"Savings Returned": "Akiba Iliyorudishwa", "Return": "Faida", "Cycle #": "Mzunguko #", "Youth (15-35)": "Vijana (15-35)", "Retention %": "Wanaobaki %",
+	"Savings & Shares Balance": "Salio la Akiba na Hisa", "Borrowers (period)": "Wakopaji (kipindi)", "Repayment Rate %": "Kiwango cha Marejesho %",
+	"Overdue Loans": "Mikopo Iliyochelewa", "Defaulted Loans": "Mikopo Iliyoshindwa", "Interest Earned (period)": "Riba Iliyopatikana (kipindi)",
+	"Shared Out (period)": "Mgao (kipindi)", "Returns to Members (period)": "Faida kwa Wanachama (kipindi)",
+	"Regular Savers %": "Wanaoweka Akiba Mara kwa Mara %", "Meetings Fully Recorded %": "Mikutano Iliyorekodiwa Kikamilifu %",
+	"Using App": "Wanatumia Programu", "Savers (period)": "Waweka Akiba (kipindi)", "IGA Borrowers": "Wakopaji wa Shughuli za Kipato",
+	"Meetings Saved": "Mikutano Aliyoweka Akiba", "Regular Saver": "Huweka Akiba Mara kwa Mara",
+	"Income-generating": "Shughuli ya Kipato", "Loans": "Mikopo", "Borrowers": "Wakopaji", "Month": "Mwezi",
+	"New Members": "Wanachama Wapya", "Savings Recorded": "Akiba Iliyorekodiwa", "Loan Portfolio": "Jalada la Mikopo",
+	"Cash on Hand": "Fedha Sandukuni", "Group Assets": "Mali ya Kikundi",
 }
 
 // Column types drive formatting everywhere (web preview, CSV, PDF, XLSX):
@@ -169,21 +208,29 @@ var columnTypes = map[string]string{
 	"Fines": "money", "Loan Repayments": "money", "Loans Disbursed": "money", "Expenses": "money", "Withdrawals": "money",
 	"Total In": "money", "Total Out": "money", "Charged": "money", "Paid": "money", "Outstanding": "money",
 	"Overpaid": "money", "Interest": "money",
+	"Savings Returned": "money", "Return": "money", "Savings & Shares Balance": "money", "Interest Earned (period)": "money",
+	"Shared Out (period)": "money", "Returns to Members (period)": "money", "Savings Recorded": "money", "Loan Portfolio": "money",
+	"Cash on Hand": "money", "Group Assets": "money",
 
 	"Groups": "count", "Active Groups": "count", "Members": "count", "Members (active)": "count", "Members (total)": "count",
 	"Female": "count", "Male": "count", "Meetings Held (period)": "count", "New Members (period)": "count",
 	"Present": "count", "Late": "count", "Absent": "count", "Excused": "count",
 	"Sent": "count", "Failed": "count", "Other": "count", "Total": "count",
+	"Youth (15-35)": "count", "Borrowers (period)": "count", "Overdue Loans": "count", "Defaulted Loans": "count",
+	"Savers (period)": "count", "IGA Borrowers": "count", "Loans": "count", "Borrowers": "count", "New Members": "count",
+	"Meetings Saved": "int", "Cycle #": "int",
 
 	"Meeting #": "int", "Cycle Current": "int", "Cycle Total": "int", "Days Overdue": "int",
 
 	"PAR 30 %": "rate", "Attendance %": "rate", "Attendance % (period)": "rate", "Interest %": "rate", "Delivery %": "rate",
+	"Retention %": "rate", "Repayment Rate %": "rate", "Regular Savers %": "rate", "Meetings Fully Recorded %": "rate",
 
 	"Date": "date", "Formed": "date", "Issued": "date", "Due": "date", "Joined": "date", "Last Meeting": "date",
-	"Meeting Date": "date", "Recorded": "datetime",
+	"Meeting Date": "date", "Recorded": "datetime", "Date of Birth": "date",
 
 	"Type": "enum", "Status": "enum", "Direction": "enum", "Gender": "enum", "Activity": "enum", "Method": "enum",
 	"Meeting Frequency": "enum", "Message Type": "enum",
+	"Purpose": "enum", "Age Band": "enum", "Income-generating": "enum", "Using App": "enum", "Regular Saver": "enum",
 }
 
 // colType is the column's type in this dataset (ds may be nil).
@@ -219,6 +266,11 @@ var valueSw = map[string]string{
 	"loan_disbursement": "Utoaji wa Mkopo", "loan_repayment": "Marejesho ya Mkopo", "fine_payment": "Malipo ya Faini",
 	"meeting_reminder": "Kikumbusho cha Mkutano", "loan_due_soon": "Mkopo Unakaribia Kuisha",
 	"loan_overdue": "Mkopo Umechelewa", "other": "Nyingine", "expense": "Matumizi", "withdrawal": "Uondoaji",
+	"Social Fund Payout": "Malipo ya Mfuko wa Jamii", "Share-out": "Mgao wa Mzunguko",
+	"social_fund_payout": "Malipo ya Mfuko wa Jamii", "share_out": "Mgao wa Mzunguko",
+	"business": "Biashara", "agriculture": "Kilimo", "livestock": "Ufugaji", "education": "Elimu", "health": "Afya",
+	"household": "Mahitaji ya Nyumbani", "housing": "Makazi", "emergency": "Dharura", "unspecified": "Haijabainishwa",
+	"under 15": "Chini ya 15", "unknown": "Haijulikani", "yes": "Ndiyo", "no": "Hapana",
 }
 
 // valueEn gives the stored lower-case codes a readable English form.
@@ -232,6 +284,10 @@ var valueEn = map[string]string{
 	"loan_disbursement": "Loan Disbursement", "loan_repayment": "Loan Repayment", "fine_payment": "Fine Payment",
 	"meeting_reminder": "Meeting reminder", "loan_due_soon": "Loan due soon", "loan_overdue": "Loan overdue",
 	"other": "Other", "expense": "Expense", "withdrawal": "Withdrawal",
+	"social_fund_payout": "Social Fund Payout", "share_out": "Share-out",
+	"business": "Business", "agriculture": "Agriculture", "livestock": "Livestock", "education": "Education", "health": "Health",
+	"household": "Household needs", "housing": "Housing", "emergency": "Emergency", "unspecified": "Unspecified",
+	"under 15": "Under 15", "unknown": "Unknown", "yes": "Yes", "no": "No",
 }
 
 // textSw translates the few fixed values the server itself writes into text
@@ -369,6 +425,9 @@ func reportRange(from, to string) (time.Time, time.Time, error) {
 	}
 	if !f.IsZero() && !t.IsZero() && f.After(t) {
 		return f, t, fmt.Errorf("'from' (%s) must be on or before 'to' (%s)", from, to)
+	}
+	if !f.IsZero() && t.IsZero() && f.After(time.Now()) {
+		return f, t, fmt.Errorf("'from' (%s) is in the future", from)
 	}
 	return f, t, nil
 }

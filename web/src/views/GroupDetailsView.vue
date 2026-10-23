@@ -124,6 +124,34 @@ function formatDate(value) {
   return isNaN(d) || !value ? '—' : d.toLocaleDateString(intlLocale(), { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+// Members.dateOfBirth is a plain "YYYY-MM-DD" (optional). Parsed by parts so
+// the day never shifts with the browser's time zone.
+function dobParts(value) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value || '')
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null
+}
+function dobText(value) {
+  const p = dobParts(value)
+  return p ? new Date(p[0], p[1] - 1, p[2]).toLocaleDateString(intlLocale(), { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+}
+function ageOf(value) {
+  const p = dobParts(value)
+  if (!p) return '—'
+  const now = new Date()
+  let age = now.getFullYear() - p[0]
+  if (now.getMonth() + 1 < p[1] || (now.getMonth() + 1 === p[1] && now.getDate() < p[2])) age--
+  return age >= 0 ? String(age) : '—'
+}
+
+// Loans.purpose (enum, optional) + enterpriseType (free text). A server that
+// predates these fields doesn't return the key at all → "—"; a loan recorded
+// without a purpose → "Unspecified".
+function purposeText(l) {
+  if (!('purpose' in l)) return '—'
+  const key = 'rules.purposes.' + (l.purpose || 'unspecified')
+  return te(key) ? t(key) : l.purpose
+}
+
 function editGroup() {
   router.push('/groups/' + group.value.id + '/edit')
 }
@@ -365,13 +393,15 @@ const govOutstanding = computed(() => govLoans.value.reduce((s, l) => s + (l.out
         <div style="overflow-x: auto">
           <table class="dtable">
             <thead>
-              <tr><th>{{ t('gdx.no') }}</th><th>{{ t('users.name') }}</th><th>{{ t('struct.phone') }}</th><th>{{ t('common.status') }}</th><th>{{ t('gdx.joined') }}</th></tr>
+              <tr><th>{{ t('gdx.no') }}</th><th>{{ t('users.name') }}</th><th>{{ t('struct.phone') }}</th><th>{{ t('gdx.dob') }}</th><th style="text-align: right">{{ t('gdx.age') }}</th><th>{{ t('common.status') }}</th><th>{{ t('gdx.joined') }}</th></tr>
             </thead>
             <tbody>
               <tr v-for="m in members" :key="m.id">
                 <td class="cell-muted">{{ m.memberNumber || '—' }}</td>
                 <td class="cell-strong">{{ [m.firstName, m.lastName].filter(Boolean).join(' ') || '—' }}</td>
                 <td class="cell-muted">{{ m.phone || '—' }}</td>
+                <td class="cell-muted">{{ dobText(m.dateOfBirth) }}</td>
+                <td class="cell-muted" style="text-align: right">{{ ageOf(m.dateOfBirth) }}</td>
                 <td><span class="badge" :class="m.status === 'Active' ? 'green' : 'grey'">{{ memberStatus(m.status) }}</span></td>
                 <td class="cell-muted">{{ formatDate(m.joinedAt) }}</td>
               </tr>
@@ -463,7 +493,7 @@ const govOutstanding = computed(() => govLoans.value.reduce((s, l) => s + (l.out
           <table class="dtable">
             <thead>
               <tr>
-                <th>{{ t('rules.loanNo') }}</th><th>{{ t('rules.member') }}</th><th style="text-align: right">{{ t('rules.principal') }}</th>
+                <th>{{ t('rules.loanNo') }}</th><th>{{ t('rules.member') }}</th><th>{{ t('rules.purpose') }}</th><th style="text-align: right">{{ t('rules.principal') }}</th>
                 <th style="text-align: right">{{ t('rules.rate') }}</th><th style="text-align: right">{{ t('rules.interest') }}</th>
                 <th style="text-align: right">{{ t('rules.totalDue') }}</th><th style="text-align: right">{{ t('rules.repaid') }}</th>
                 <th style="text-align: right">{{ t('rules.balance') }}</th><th>{{ t('rules.issued') }}</th><th>{{ t('rules.status') }}</th>
@@ -473,6 +503,10 @@ const govOutstanding = computed(() => govLoans.value.reduce((s, l) => s + (l.out
               <tr v-for="l in loanRows" :key="l.id">
                 <td class="cell-muted">{{ l.loanNumber }}</td>
                 <td class="cell-strong">{{ memberName(l.memberId) }}</td>
+                <td>
+                  <div class="cell-muted">{{ purposeText(l) }}</div>
+                  <div v-if="l.enterpriseType" class="cell-sub" :title="t('rules.enterpriseType')">{{ t('rules.enterpriseType') }}: {{ l.enterpriseType }}</div>
+                </td>
                 <td style="text-align: right">{{ num(l.amount) }}</td>
                 <td style="text-align: right">{{ l.legacy || l.status === 'cancelled' ? '—' : (l.interestRate ?? 0) + '%' }}</td>
                 <td style="text-align: right">{{ l.status === 'cancelled' ? '—' : num(l.interest) }}</td>

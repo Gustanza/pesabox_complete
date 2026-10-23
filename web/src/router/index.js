@@ -42,6 +42,13 @@ const routes = [
         component: () => import('@/views/DashboardView.vue')
       },
       {
+        // GATA indicators — /api/admin/monitoring uses the reports scope.
+        path: 'monitoring',
+        name: 'monitoring',
+        meta: { perm: 'reports.view' },
+        component: () => import('@/views/MonitoringView.vue')
+      },
+      {
         path: 'groups',
         name: 'groups',
         meta: { perm: 'dashboard.view' },
@@ -78,10 +85,10 @@ const routes = [
         component: () => import('@/views/UserManagementView.vue')
       },
       {
+        // FinancialOverviewView only ever showed placeholder figures (data/mock.js);
+        // real financial numbers live in Reports, so old links land there.
         path: 'finance',
-        name: 'finance',
-        meta: { perm: 'reports.view' },
-        component: () => import('@/views/FinancialOverviewView.vue')
+        redirect: '/reports'
       },
       {
         path: 'sms',

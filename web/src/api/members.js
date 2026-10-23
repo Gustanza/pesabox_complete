@@ -32,9 +32,22 @@ const MEMBER_FIELDS = `
   joinedAt
 `
 
-export function listMembers(groupId) {
-  return gql(
-    `query($where: WhereMemberInput){ members(where: $where) { ${MEMBER_FIELDS} } }`,
-    { where: { groupId: { equalTo: groupId } } }
-  ).then((data) => data.members)
+// Newer optional fields. A server that doesn't have them yet answers
+// 'Cannot query field "dateOfBirth"'; we then retry without them and stop
+// asking for the rest of the session (the page shows "—").
+let extraFields = 'dateOfBirth'
+
+export async function listMembers(groupId) {
+  const run = (extra) =>
+    gql(
+      `query($where: WhereMemberInput){ members(where: $where) { ${MEMBER_FIELDS} ${extra} } }`,
+      { where: { groupId: { equalTo: groupId } } }
+    ).then((data) => data.members)
+  try {
+    return await run(extraFields)
+  } catch (e) {
+    if (!extraFields || !/Cannot query field/.test(e.message)) throw e
+    extraFields = ''
+    return run('')
+  }
 }

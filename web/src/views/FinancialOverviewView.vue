@@ -46,7 +46,7 @@ const loansKpis = [
     </div>
 
     <template v-if="activeTab === 'loans'">
-      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);">
+      <div class="kpi-grid cols-4">
         <div v-for="k in loansKpis" :key="k.l" class="kpi-card">
           <div class="l">{{ t(k.l) }}</div>
           <div class="v">{{ k.v }}</div>

@@ -232,7 +232,9 @@ func TokenMiddleware(req *Request, res *Response) (int, error) {
 					return http.StatusTemporaryRedirect, errors.New(helper.GetBaseUrl(logoutUrl, domain))
 				}
 
-				return http.StatusTemporaryRedirect, errors.New("Access token invalid")
+				// JSON clients get a 401 (like "Token expired") they can act
+				// on; a 307 with no Location header is unusable for them.
+				return http.StatusUnauthorized, errors.New("Access token invalid")
 			}
 		}
 

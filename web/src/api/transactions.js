@@ -60,9 +60,22 @@ const LOAN_FIELDS = `
   status
 `
 
-export function listLoans(groupId) {
-  return gql(
-    `query($where: WhereLoanInput){ loans(where: $where) { ${LOAN_FIELDS} } }`,
-    { where: { groupId: { equalTo: groupId } } }
-  ).then((data) => data.loans)
+// Newer optional fields (purpose enum + free-text enterprise type). A server
+// that doesn't have them yet answers 'Cannot query field "purpose"'; we then
+// retry without them for the rest of the session (the page shows "—").
+let loanExtraFields = 'purpose enterpriseType'
+
+export async function listLoans(groupId) {
+  const run = (extra) =>
+    gql(
+      `query($where: WhereLoanInput){ loans(where: $where) { ${LOAN_FIELDS} ${extra} } }`,
+      { where: { groupId: { equalTo: groupId } } }
+    ).then((data) => data.loans)
+  try {
+    return await run(loanExtraFields)
+  } catch (e) {
+    if (!loanExtraFields || !/Cannot query field/.test(e.message)) throw e
+    loanExtraFields = ''
+    return run('')
+  }
 }

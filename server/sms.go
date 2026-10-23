@@ -73,6 +73,14 @@ var smsTemplateDefs = []smsTemplateDef{
 		"sw": "{BRAND}: Habari {JINA}, umelipa faini ya {KIASI} kwenye {KIKUNDI} tarehe {TAREHE}. Asante.",
 		"en": "{BRAND}: Hello {JINA}, your fine payment of {KIASI} in {KIKUNDI} on {TAREHE} is confirmed. Thank you.",
 	}},
+	{"social_fund_payout", "Financial", "Malipo ya Mfuko wa Jamii", "Social Fund Payout", []string{"JINA", "KIKUNDI", "KIASI", "TAREHE"}, map[string]string{
+		"sw": "{BRAND}: Habari {JINA}, umepokea {KIASI} kutoka Mfuko wa Jamii wa {KIKUNDI} tarehe {TAREHE}. Pole na karibu.",
+		"en": "{BRAND}: Hello {JINA}, you have received {KIASI} from the {KIKUNDI} social fund on {TAREHE}.",
+	}},
+	{"share_out", "Financial", "Mgao wa Mzunguko", "Cycle Share-out", []string{"JINA", "KIKUNDI", "KIASI", "TAREHE"}, map[string]string{
+		"sw": "{BRAND}: Habari {JINA}, umepokea {KIASI} kama mgao wa mzunguko wa {KIKUNDI} tarehe {TAREHE}. Asante.",
+		"en": "{BRAND}: Hello {JINA}, you have received {KIASI} as your {KIKUNDI} cycle share-out on {TAREHE}. Thank you.",
+	}},
 	{"generic", "Financial", "Muamala Mwingine", "Other Transaction", []string{"JINA", "KIKUNDI", "KIASI", "TAREHE"}, map[string]string{
 		"sw": "{BRAND}: Habari {JINA}, umethibitishwa kuchangia {KIASI} kwenye {KIKUNDI} tarehe {TAREHE}. Asante.",
 		"en": "{BRAND}: Hello {JINA}, your payment of {KIASI} in {KIKUNDI} on {TAREHE} is confirmed. Thank you.",

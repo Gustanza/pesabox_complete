@@ -1,388 +1,317 @@
-# HelaBox — Manual Test Cases
+# HelaBox — Manual Test Cases (A → Z)
 
-## Test logins — one per user level (local database)
+📱 **Part 1 — App (A–L)** first, then 🌐 **Part 2 — Web (M–Z)**. Work top to bottom: later cases reuse data made earlier.
+Tick `[x]` when a case passes. If it fails, leave it unticked and add a row to the **Results log** at the bottom.
 
-Every login uses **OTP code `1234`** (dev mode). Web: `http://localhost:5173` — use a **new incognito window per
-person**. App: log out first (Profile → Log out), then log in with the phone below.
-
-Structure these accounts live in:
-
-```
-GATA (partner)
-├── Arusha North (cluster) ── Mkusanyiko Group   (your group — Mwenyekiti: you, Katibu: Kassim)
-└── Moshi (cluster) ──────── Upendo Vikoba       (Mwenyekiti: Upendo)
-CARE Tanzania (partner)
-└── Dodoma Central (cluster) ─ Tumaini Group      (Mwenyekiti: Tumaini — has a TZS 50,000 loan)
-```
-
-| Level | Who | Phone | Log in on | Should SEE | Should NOT see / do |
-|---|---|---|---|---|---|
-| 1 Super Admin | You | 0625689904 | 🌐 Web + 📱 App | 🌐 all 3 groups, both partners, every menu (Users, Audit Logs, Settings…) · 📱 Mkusanyiko as Mwenyekiti | — (can do everything) |
-| 2 Staff — Operations | Olivia Operations | 0711000013 | 🌐 Web | all 3 groups; can create groups, edit group settings | Users & Roles, Audit Logs, Settings menus |
-| 2 Staff — Support | Samuel Support | 0711000012 | 🌐 Web | all 3 groups; can create groups | Users, Audit, Settings; **no** Edit / Close / Delete on groups |
-| 2 Staff — Viewer | Stella Viewer | 0711000011 | 🌐 Web | **2 groups**: Mkusanyiko + Upendo (GATA only) — read-only | Tumaini Group, CARE Tanzania; no Create Group, no edit buttons |
-| 3 Partner User | Paul Partner | 0711000002 | 🌐 Web | **2 groups** (GATA) — dashboard, reports, downloads | Tumaini / CARE; Users, SMS, Audit, Settings; any edit button |
-| 4 Cluster Manager | Clara Cluster | 0711000004 | 🌐 Web | **1 group**: Mkusanyiko (Arusha North); **Create Group** (only into Arusha North) | Upendo, Tumaini; Users, Audit, Settings; edit/close/delete group |
-| 5 Group Admin (Mwenyekiti) | Upendo Mwenyekiti | 0711000005 | 📱 App | Upendo Vikoba — "Chairperson"; Group officers **with Add**; record money; reversals; close cycle | 🌐 Web shows "You don't have access" (group roles use the app); no other group's data |
-| 5 Group Admin (Mwenyekiti) | Tumaini Mwenyekiti | 0711000007 | 📱 App | Tumaini Group, its loan of TZS 50,000 | Mkusanyiko / Upendo data |
-| 6 Group Officer (Katibu) | Kassim Katibu | 0711000003 | 📱 App | Mkusanyiko — "Secretary"; record money, attendance, reversals | **no** Add officer / remove; **no** "Close cycle"; 🌐 Web → "You don't have access" |
-| 7 Group Member | Mary Member | 0711000006 | 📱 App / 🌐 Web | nothing yet — 📱 "Waiting for your group", 🌐 "You don't have access" | everything (member self-service is phase 3) |
-
-Two more accounts already existed before these were created — leave them as they are: 0624023920 (Super Admin)
-and 0650980535 (Partner User, assigned to "Default Partner", which now has no groups).
+Covers: the client's role spec (`Pesa Box User Levels.pdf`), the concept note (`PesaBox-Concept.pdf`) and **GATA's monitoring
+feedback** (the 11 indicators — see the map below). Indicator definitions: `server/MONITORING_API.md`.
 
 ---
 
-## What the client asked for → what we built → which cases prove it
+## 0. Before you start (local only — don't test on the live server)
 
-From the HelaBox App WhatsApp group (GATA, 18 Sep 2026) and `Pesa Box User Levels.pdf`.
-✅ built · 🟡 partly built · ⏳ not built yet · 👤 needs you / the client (not code)
-Where: 🌐 Web dashboard (`http://localhost:5173`) · 📱 App on the emulator · 🖥️ API console (the window running `pesabox-server.exe`)
+1. **MongoDB:** `C:\Users\Administrator\mongodb\mongodb-win32-x86_64-windows-8.0.4\bin\mongod.exe --dbpath C:\Users\Administrator\mongodb\data\db --bind_ip 127.0.0.1 --port 27017`
+2. **API (port 8090):** `cd server && go build -o pesabox-server.exe . && ./pesabox-server.exe` — keep this console visible (SMS texts print here).
+3. **Web:** `cd web && npm install && npm run dev` → `http://localhost:5173`
+4. **App on the LOCAL server — important:** `pesa_box_app/lib/services/api_base.dart` currently has
+   `kUseLiveServer = true`, so a normal debug run talks to the **live** server (157.245.46.244). For these tests run:
+   `cd pesa_box_app && flutter run -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:8090`
+   (or set `kUseLiveServer = false` while testing — put it back before you build a release).
+   Switching servers asks you to log in again ("Domain mismatch") — that's expected.
+- **Dev mode:** with no Beem keys in `server/.env`, every OTP is **`1234`** and SMS are printed in the API console, not sent.
+- **One browser window per person** on the web (a login belongs to the browser it was made in) — use incognito windows.
 
-| # | Client request | What we built | Status | Where to test | Test cases |
-|---|---|---|---|---|---|
-| 1 | **Rename PesaBox → HelaBox**, "update this everywhere" | Name on web, app, reports, PDF/Excel headers, SMS prefix (`HELABOX:`), phone app name, H logo | ✅ — launcher icon image and domain 👤 | 🌐 Web (sidebar, tab title, report files) · 📱 App (welcome, login, phone app list) · 🖥️ API console (SMS text) | A1, A3, A4, A6, H6, F4 |
-| 2 | **User levels** (7): Super Admin → Staff → Partner User → Cluster Manager → Group Admin → Group Officer → Group Member | Roles 1–6 with the permissions from the PDF; staff presets Viewer/Support/Operations; every screen and API call limited to what the role may see | ✅ levels 1–6 · ⏳ level 7 (members log in) = phase 3 | 🌐 Web → Users & Roles, then log in as each person in its own incognito window | C1–C8, D1–D7 |
-| 3 | **Clusters and Partners** — "a collection of VSLAs", staff assigned to them "same as groups" | Partner → Cluster → Group structure, assign people to partners / clusters / groups, move groups between clusters | ✅ | 🌐 Web → Partners & Clusters, Users & Roles, group page | B1–B6, C4–C5, D4–D5 |
-| 4 | Group Admin (Mwenyekiti) manages **Group Officers** (Katibu, Mweka Hazina…) | Officers screen in the app; officers run day-to-day work but can't change settings or officers | ✅ | 📱 App → Group tab → Group officers (as Mwenyekiti, then as Katibu) | F1–F3, G1–G6 |
-| 5 | **Reports** at organisation, partner, cluster and group level, to confirm every tracking point is captured | Every report filters by partner / cluster / group; roll-ups per level; summaries, PAR 30, meetings, attendance, savings… (19 report types) | ✅ — final report list from GATA 👤 | 🌐 Web → Reports, Dashboard | H1–H5, H7 |
-| 6 | **Download reports as PDF and Excel**; some reports viewed live on the dashboard | PDF + Excel + CSV export; live dashboard with KPIs and roll-up table | ✅ | 🌐 Web → Dashboard, Reports → Export | H1–H3, H6 |
-| 7 | Focus on **group meetings and collections** | Meetings, attendance, savings/contributions reports; attendance rate and inactive groups (no meeting in 30 days) on the dashboard | ✅ | 🌐 Web → Dashboard, Reports | H1, H4 |
-| 8 | **Groups that get government loans** | Government loans to the group (lender, programme, repayments, balance, overdue), kept separate from members' savings; in reports and dashboard | ✅ — not yet on the app's Group Statement PDF | 📱 App → Group → Government loans · 🌐 Web → group page, Dashboard, Reports | F9–F12, H1, H5 |
-| 9 | **Data that must NOT be deleted** (all levels) | Money is never deleted — mistakes are reversed with a reason; people/groups are deactivated; closed meetings locked; delete only when nothing financial is attached | ✅ (our proposal — GATA to confirm 👤) | 🌐 Web → Groups, Users & Roles · 📱 App → Transactions, Meetings | E2–E3, C7, F5–F8, L1 |
-| 10 | **Language switch**, Swahili default | Web + app fully in Swahili/English, including Raymond's new app design | ✅ — wording review by GATA 👤 | 🌐 Web → SW/EN in the top bar · 📱 App → Profile → Settings → Language | A2, A8 |
-| 11 | **SMS automation** on transactions + other notifications; sender keyword | SMS on every member money action, templates editable, on/off switches; reminders ready (off by default) | ✅ — sender `TUKIIO` until `HelaBox` is registered 👤, reminders switch-on 👤 | 📱 App (record money) · 🖥️ API console (SMS text) · 🌐 Web → Settings, SMS | F4, J1–J3 |
-| 12 | Super Admin can **see audit logs** (from the PDF) | Every change is logged (who, what, when); Audit Logs page | ✅ | 🌐 Web → Audit Logs | I1–I3 |
+### Test logins (local database, OTP 1234)
 
----
+| Level | Who | Phone | Use on | Home group / scope |
+|---|---|---|---|---|
+| 1 Super Admin | You | 0625689904 | 🌐 + 📱 | everything (in the app your home group is the one you hold a position in — check the Group tab) |
+| 2 Staff — Operations | Olivia | 0711000013 | 🌐 | all groups; create/edit groups |
+| 2 Staff — Support | Samuel | 0711000012 | 🌐 | all groups; create only |
+| 2 Staff — Viewer | Stella | 0711000011 | 🌐 | GATA groups, read-only |
+| 3 Partner User | Paul | 0711000002 | 🌐 | GATA only |
+| 4 Cluster Manager | Clara | 0711000004 | 🌐 | Arusha North (Mkusanyiko) only |
+| 5 Group Admin (Mwenyekiti) | Upendo | 0711000005 | 📱 | Upendo Vikoba |
+| 5 Group Admin (Mwenyekiti) | Tumaini | 0711000007 | 📱 | Tumaini Group |
+| 6 Group Officer (Katibu) | Kassim | 0711000003 | 📱 | Mkusanyiko |
+| 7 Group Member | Mary | 0711000006 | 📱 | nothing yet (member self-service = phase 3) |
+| new — QA group admin | QA Mwenyekiti | 0711000021 | 📱 | QA Monitoring Group (created in M7) |
 
-Work top to bottom — later sections reuse the data created earlier.
-Tick `[x]` when a case passes. If it fails, leave it unticked and add a row to
-the **Results log** at the bottom (case ID + what happened).
+### GATA's indicators → where to test them
 
-## 0. Before you start
-
-- Running: MongoDB, API (`server/`, port 8090), web (`http://localhost:5173`), app on the emulator
-  (`flutter run -d emulator-5554` or VS Code Run — debug runs use your local server automatically). See `CLAUDE.md` → "Run it locally".
-- **Dev mode:** with no Beem keys in `server/.env`, every OTP is **`1234`** and SMS texts are printed in the API console
-  instead of sent. Keep the API console visible — several cases check it.
-- **One browser window per person.** A login belongs to the browser it was made in. For each new person, use a new
-  **incognito/private window** (or another browser), and log out of incognito windows when you're done.
-
-Test people used below (all created during the tests):
-
-| Who | Phone | Role |
-|---|---|---|
-| You | 0625689904 | Super Admin (+ Mwenyekiti of Mkusanyiko Group) |
-| Vera | 0711000001 | HelaBox Staff — Viewer |
-| Paul | 0711000002 | Partner User |
-| Katibu Test | 0711000003 | Group Officer (Katibu) |
-| Clara | 0711000004 | Cluster Manager |
-
-- [ ] **A9 Unknown number is refused** — Log in with a number nobody added, e.g. 0799 123 456.
-  **Where:** 🌐 Web → `http://localhost:5173` login page · then 📱 App → Get started → phone
-  *Expect:* "Namba hii ya simu haijasajiliwa…" / "This phone number is not registered…"; **no code is sent** (nothing in the API console) and the number does **not** appear in Users & Roles.
-- [ ] **A10 Deactivated account is refused** — Deactivate a test person in Users & Roles, then try to log in as them.
-  **Where:** 🌐 Web → Users & Roles → Status badge · then the login page
-  *Expect:* "Akaunti hii imezimwa…" / "This account has been deactivated…". Reactivate them afterwards.
-- [ ] **A11 New group admin can still log in** — Create a group with admin phone 0711 000 021 (a number with no account), then log in with it.
-  **Where:** 🌐 Web → Groups → Create Group · then 📱 App → Get started
-  *Expect:* the code is sent and the app opens that group as Mwenyekiti.
+| # | GATA indicator | Built as | Test cases |
+|---|---|---|---|
+| 1 | Savings — total, per member, growth | Monitoring → Savings; reports *Member Savings*, *Monthly Growth* | D2–D4, T2, U3 |
+| 2 | Loans — disbursed, # borrowers, outstanding | Monitoring → Loans; *Loans* report | E1–E4, T3 |
+| 3 | Repayments — rate, overdue, defaults | Monitoring → Loan Repayments (default = 90+ days overdue); *PAR 30* | E5–E7, T4 |
+| 4 | Social fund — contributions, disbursements, balance | Social fund payout (new); Monitoring → Social Fund | G1–G4, T5 |
+| 5 | Membership — active, new, retention, attendance by **gender & age** | Date of birth on members (new); Monitoring → Membership | C1–C5, D1, T6 |
+| 6 | Digital adoption — groups using the app, % recorded digitally | Monitoring → Digital Adoption (👤 GATA to confirm the definition) | T7 |
+| 7 | Financial performance — interest, expenses, shared out, returns | Share-out (new, real); Monitoring → Financial Performance | E5, F3, J1–J6, T8 |
+| 8 | Accountability — accuracy, reconciliation, transparency | Reversals, audit log, totals drift, expected cash; Monitoring → Accountability | H1–H5, T9, X1–X3 |
+| 9 | Growth over time | Monthly series + chart; *Monthly Growth* report | T10, U3 |
+| 10 | Access — % saving regularly, % borrowing, avg per member | Monitoring → Access (regular = saved at ≥75% of meetings) | T11 |
+| 11 | Economic benefits — IGA loans, enterprise types, returns | Loan purpose + enterprise type (new); Monitoring → Economic Benefits | E1–E2, T12, U4 |
 
 ---
 
-## A. Login, branding, language — 🌐 Web + 📱 App
+# PART 1 — 📱 APP
 
-- [ ] **A1 Web login** — Open `http://localhost:5173` → enter 0625689904 → code 1234.
-  **Where:** 🌐 Web → `http://localhost:5173` → login page
-  *Expect:* the dashboard opens and the sidebar says **HelaBox Admin** with your role under it.
-- [ ] **A2 Language switch (web)** — Click **SW** / **EN** in the top bar.
-  **Where:** 🌐 Web → top bar → **SW / EN** buttons (any page)
-  *Expect:* every menu item, heading and button changes language; no text looks like `kpi.members` or `struct.title`. A first visit (or a private window) opens in **English**; after you pick SW it stays Swahili on that browser.
-- [ ] **A3 Browser tab title** — *Expect:* **HelaBox — Admin**.
-  **Where:** 🌐 Web → the browser tab at the top of the window
-- [ ] **A4 App welcome screen** — Log out in the app (Profile → Log out) or start it fresh.
-  **Where:** 📱 App → Profile tab → **Log out** → welcome screen → **Get started**
-  *Expect:* the **H** logo, the name **HelaBox**, and "Karibu HelaBox" / "Welcome to HelaBox" on the login screen.
-- [ ] **A5 App login** — Log in with 0625689904 / 1234.
-  **Where:** 📱 App → welcome screen → Get started → phone → code → Home tab
-  *Expect:* the Home tab shows **Mkusanyiko Group** and its balances (not "Waiting for your group").
-- [ ] **A6 App name on the phone** — Leave the app and open the phone's app list.
-  **Where:** 📱 App → leave the app (Home button) → phone app list
-  *Expect:* the app is called **HelaBox**.
-- [ ] **A7 Offline fonts** — Turn off the emulator's Wi-Fi/data and restart the app.
-  **Where:** 📱 App → emulator Settings (turn off Wi-Fi/data) → reopen the app
-  *Expect:* it opens normally with proper fonts and doesn't freeze.
+## A. Login, language, session
 
-- [ ] **A8 App language** — In the app: Profile → Settings → **Kiswahili**.
-  **Where:** 📱 App → Profile tab → **Settings** → Language → **Kiswahili**
-  *Expect:* every screen switches — bottom bar (Mwanzo, Kikundi, Mikutano…), cards (Akiba, Hisa), pills ("Unakuja"),
-  the Group menu ("Mikopo ya serikali", "Viongozi wa kikundi") and your position ("Mwenyekiti"). Switch back afterwards.
+- [ ] **A1 Unknown number refused** — Get started → phone 0799 123 456.
+  *Expect:* "Namba hii ya simu haijasajiliwa…"; no code in the API console.
+- [ ] **A2 Login** — Log in as Upendo (0711000005 / 1234).
+  *Expect:* Home shows **Upendo Vikoba**, "Habari, …", balances (Salio la kikundi, Akiba, Hisa, Mfuko wa Jamii, Mikopo).
+- [ ] **A3 Branding** — Welcome screen and phone app list. *Expect:* **H** logo and the name **HelaBox**.
+- [ ] **A4 Language** — Profile → Settings → Language → English, then back to Kiswahili.
+  *Expect:* every screen switches, including meeting titles ("Mkutano #1"), month names (Okt, Mac…), fine reasons and "N shares/hisa".
+- [ ] **A5 Deactivated account refused** — (after P5 on the web) try to log in as a deactivated person. *Expect:* "Akaunti hii imezimwa…".
+- [ ] **A6 Dead session → login** — Leave the app idle 15+ minutes and reopen it (or restart the API with the app open and pull to refresh).
+  *Expect:* it continues silently or returns to the welcome/login screen — **never** "Waiting for your group" for a real group admin.
+- [ ] **A7 Switching users clears data** — Log out, log in as Kassim (0711000003).
+  *Expect:* only **Mkusanyiko** data — no Upendo transactions, loans or meetings left over from the previous user.
 
-## B. Partners & Clusters — 🌐 Web (as Super Admin)
+## B. Home & meetings (log in as Upendo)
 
-- [ ] **B1 Create partner** — Partners & Clusters → **Add partner** → name "GATA", type NGO, contact person "Winnie" → Save.
-  **Where:** 🌐 Web → sidebar **Partners & Clusters** → Partners tab → **Add partner**
-  *Expect:* GATA appears in the list with 0 clusters and 0 groups.
-- [ ] **B2 Partner name is required** — Add partner with an empty name → Save.
-  **Where:** 🌐 Web → Partners & Clusters → **Add partner**
-  *Expect:* an error message; nothing is created.
-- [ ] **B3 Create clusters** — Clusters tab → **Add cluster** "Arusha North" (partner GATA, region Arusha); add a second one, "Moshi".
-  **Where:** 🌐 Web → Partners & Clusters → **Clusters** tab → **Add cluster**
-  *Expect:* both are listed under GATA.
-- [ ] **B4 Move a group** — Groups → Mkusanyiko Group → Overview → Cluster dropdown → "Arusha North — GATA".
-  **Where:** 🌐 Web → sidebar **Groups** → Mkusanyiko Group → Overview tab → **Cluster** dropdown
-  *Expect:* the header reads **GATA › Arusha North**, and on Partners & Clusters, Arusha North shows 1 group.
-- [ ] **B5 Deactivate / reactivate** — Deactivate the "Moshi" cluster → confirm.
-  **Where:** 🌐 Web → Partners & Clusters → Clusters tab → Moshi row → **Deactivate / Reactivate**
-  *Expect:* its badge changes to Inactive and nothing is deleted. Then reactivate it.
-- [ ] **B6 Cluster link** — Click the cluster name "Arusha North".
-  **Where:** 🌐 Web → Partners & Clusters → Clusters tab → click the cluster name
-  *Expect:* the Groups page opens, filtered to that cluster.
+- [ ] **B1 Overdue meeting** — Meetings → schedule a meeting dated **yesterday**.
+  *Expect:* red **Imechelewa / Overdue** pill on Home, in the meetings list and in the meeting details (not "Unakuja").
+- [ ] **B2 Start screen explains itself** — Home → **Anza mkutano**.
+  *Expect:* it opens the **earliest scheduled** meeting and says "Unaanza Mkutano #N uliopangwa kufanyika …" with its date, a warning that it's overdue, and a link to schedule a different meeting instead.
+- [ ] **B3 Quick action order** — Start that meeting, go back Home.
+  *Expect:* the quick action now says **Endelea na mkutano** (continue). After closing it, it goes to the next scheduled meeting, or to **Unda mkutano** if none — never to a closed meeting.
+- [ ] **B4 Status pills** — *Expect:* Unakuja (future) · Imechelewa (past, not started) · Inaendelea (in progress) · Imefungwa (closed). In-progress meetings are **not** listed under History.
+- [ ] **B5 Closed meeting is locked** — Close a meeting (Review & Close), then try attendance or money on it.
+  *Expect:* "this meeting is closed and can no longer be changed" (translated in Swahili).
 
-## C. Users & Roles — 🌐 Web (as Super Admin)
+## C. Members & date of birth
 
-- [ ] **C1 Add staff** — Users & Roles → **Add person** → phone 0711000001, name Vera, role *HelaBox Staff*, preset *Viewer* → Save.
-  **Where:** 🌐 Web → sidebar **Users** (Users & Roles) → **Add person**
-  *Expect:* Vera appears with role Staff and preset Viewer.
-- [ ] **C2 Add partner user** — Add 0711000002, Paul, role *Partner User*.
-  **Where:** 🌐 Web → Users & Roles → **Add person**
-- [ ] **C3 Add cluster manager** — Add 0711000004, Clara, role *Cluster Manager*.
-  **Where:** 🌐 Web → Users & Roles → **Add person**
-- [ ] **C4 Assign** — Vera: **+ Assign** → Cluster → **Moshi**. Paul: **+ Assign** → Partner → **GATA**. Clara: **+ Assign** → Cluster → **Arusha North**.
-  **Where:** 🌐 Web → Users & Roles → People tab → the person's row → **+ Assign**
-  *Expect:* each person shows a badge like "Cluster: Moshi".
-- [ ] **C5 Remove an assignment** — Click the **×** on a badge → confirm, then add it back.
-  **Where:** 🌐 Web → Users & Roles → People tab → **×** on an access badge
-  *Expect:* the badge disappears, then returns.
-- [ ] **C6 You can't demote yourself** — Try to change your own role.
-  **Where:** 🌐 Web → Users & Roles → your own row ("you") → Role dropdown
-  *Expect:* the dropdown is disabled for your row.
-- [ ] **C7 Deactivate instead of delete** — Click Vera's **Active** badge → confirm.
-  **Where:** 🌐 Web → Users & Roles → Vera's row → **Active** badge in the Status column
-  *Expect:* the row fades and shows Inactive. Reactivate her afterwards (needed in section D).
-- [ ] **C8 Pending admins tab** — Open the "Group admins without a group" tab.
-  **Where:** 🌐 Web → Users & Roles → **Group admins without a group** tab
-  *Expect:* it lists only Group Admins who don't run a group yet (you are **not** listed, because you run Mkusanyiko).
+- [ ] **C1 Add member with DOB** — Members → Add → "QA Neema", female, DOB 10 May 2000.
+  *Expect:* saved; member details show "Born 10 May 2000 · 26 years" (Swahili: "Alizaliwa …").
+- [ ] **C2 DOB optional** — Add "QA Peter", male, no DOB. *Expect:* saved; details show no age.
+- [ ] **C3 Bad DOB refused** — Edit a member, pick a future date (if the picker allows) or an age under 10.
+  *Expect:* refused with a clear message.
+- [ ] **C4 Clear DOB** — Edit QA Neema → clear DOB → save → set it back. *Expect:* both saves work.
+- [ ] **C5 Deactivate** — Deactivate a QA member. *Expect:* status shows **Inactive** (not Active); they can't borrow.
 
-## D. What each role sees — 🌐 Web (one incognito window per person)
+## D. Attendance & contributions (inside an open meeting)
 
-- [ ] **D1 Partner user** — Log in as Paul (0711000002 / 1234).
-  **Where:** 🌐 Web (new incognito window) → `http://localhost:5173` → log in as Paul → Dashboard + sidebar
-  *Expect:* the sidebar has Dashboard, Groups, Partners & Clusters and Reports — **no** Users, SMS, Audit Logs or Settings. The dashboard counts only GATA's groups (Mkusanyiko), and the partner filter only lists GATA.
-- [ ] **D2 Partner user can't change groups** — As Paul, open Mkusanyiko Group.
-  **Where:** 🌐 Web (Paul's incognito window) → Groups → Mkusanyiko Group
-  *Expect:* no Edit, Close or Delete buttons.
-- [ ] **D3 Partner user blocked by URL** — As Paul, type `http://localhost:5173/users` in the address bar.
-  **Where:** 🌐 Web (Paul's incognito window) → address bar → `http://localhost:5173/users`
-  *Expect:* you're sent back to the dashboard.
-- [ ] **D4 Staff viewer sees only their cluster** — Log in as Vera (assigned to Moshi, which has no groups).
-  **Where:** 🌐 Web (new incognito window) → log in as Vera → Dashboard, then Groups
-  *Expect:* the dashboard shows **0 groups**, Groups is empty, and Mkusanyiko is **not** listed.
-- [ ] **D5 Cluster manager** — Log in as Clara.
-  **Where:** 🌐 Web (new incognito window) → log in as Clara → Groups → **Create Group**
-  *Expect:* she sees Mkusanyiko (it's in Arusha North) and a **Create Group** button. When creating a group, she must pick a cluster (only Arusha North is offered).
-- [ ] **D6 No dashboard role** — Do this after F2 and before G6 (while Katibu is still an officer): log in on the web as 0711000003.
-  **Where:** 🌐 Web (new incognito window) → log in as 0711000003
-  *Expect:* a "You don't have access to this dashboard" page that tells them to use the mobile app for their group.
-- [ ] **D7 Deactivated person is locked out** — Deactivate Vera (C7), then refresh her window.
-  **Where:** 🌐 Web → your window: Users & Roles → deactivate Vera · then Vera's incognito window → refresh
-  *Expect:* she's sent to the login page and can't get back in. Reactivate her afterwards.
+- [ ] **D1 Attendance** — Mark present / late / absent / excused (Ameomba udhuru).
+  *Expect:* all four cards the same height; counts correct.
+- [ ] **D2 Mandatory savings** — Record the configured mandatory amount for a member. *Expect:* Home Akiba goes up; API console prints an SMS starting **HELABOX:**.
+- [ ] **D3 Shares** — Record 3 shares. *Expect:* "3 hisa", value = 3 × share value; a number above max shares is refused.
+- [ ] **D4 Social fund** — Record the configured social fund amount. *Expect:* Mfuko wa Jamii goes up.
+- [ ] **D5 Funds screen** — Group → Funds. *Expect:* Savings / Shares / Social fund rows show "in · out" in Swahili, reversed rows not counted.
 
-## E. Groups — 🌐 Web (as Super Admin)
+## E. Loans (purpose, interest, limit, repayment)
 
-- [ ] **E1 Create with cluster** — Groups → Create Group → pick cluster "Moshi", name "Test Delete Group" → Create.
-  **Where:** 🌐 Web → Groups → **Create Group**
-  *Expect:* the group opens and its header shows GATA › Moshi.
-- [ ] **E2 Safe delete (no money)** — On "Test Delete Group" → **Delete Group** → confirm.
-  **Where:** 🌐 Web → Groups → Test Delete Group → **Delete Group** (top right)
-  *Expect:* it's deleted.
-- [ ] **E3 Delete blocked when there's money** — On Mkusanyiko Group → Delete Group → confirm.
-  **Where:** 🌐 Web → Groups → Mkusanyiko Group → **Delete Group** (top right)
-  *Expect:* an error saying it has financial records and should be closed instead. The group is still there.
-- [ ] **E4 Close / reopen** — Mkusanyiko → **Close group**, then **Activate**.
-  **Where:** 🌐 Web → Groups → Mkusanyiko Group → **Close group** / **Activate** (top right)
-  *Expect:* the badge changes to Closed, then back to Active.
-- [ ] **E5 Pagination** — With more than 8 groups, the page buttons really change which groups are listed.
-  **Where:** 🌐 Web → Groups → page buttons under the list
+- [ ] **E1 Loan with purpose** — Loans → Record loan → member, 10,000 → **Madhumuni: Biashara**, **Aina ya biashara: "Mama lishe"**.
+  *Expect:* preview shows interest + total due; loan details show "Biashara · Mama lishe".
+- [ ] **E2 Enterprise field only for IGA** — Pick purpose Elimu (education). *Expect:* the enterprise-type field disappears.
+- [ ] **E3 No purpose** — Record a loan without purpose. *Expect:* details show **Haijabainishwa**.
+- [ ] **E4 Loan limit** — With max loan multiplier set (Rules), ask for more than the member's limit; try a loan for an inactive member.
+  *Expect:* refused with the reason.
+- [ ] **E5 Partial repayment** — Repay half the total due. *Expect:* balance = total due − repaid; loan stays Active.
+- [ ] **E6 Over-repayment blocked** — Repay more than the remaining balance. *Expect:* refused.
+- [ ] **E7 Full repayment** — Repay the rest. *Expect:* loan becomes Repaid; loan duration shows the loan's own term ("miezi N").
 
-## F. Mwenyekiti (you) — 📱 App (+ 🌐 Web for F7)
+## F. Fines & expenses
 
-- [ ] **F1 Position shown** — Group tab. *Expect:* "**Chairperson** · …" under the group name. The Profile tab shows the same.
-  **Where:** 📱 App → **Group** tab (under the group name) · then **Profile** tab
-- [ ] **F2 Add an officer** — Group → **Group officers** → Add officer → phone 711000003, name "Katibu Test", position **Secretary** → save.
-  **Where:** 📱 App → Group tab → **Group officers** → **Add officer**
-  *Expect:* they appear in the list as "Secretary · 255711000003".
-- [ ] **F3 Officer can't be added twice** — Add the same phone again.
-  **Where:** 📱 App → Group tab → Group officers → **Add officer**
-  *Expect:* "already an officer of a group".
-- [ ] **F4 Record a contribution** — Record a mandatory savings contribution of the exact configured amount for a member.
-  **Where:** 📱 App → **Meetings** tab → Meeting #1 → **Start meeting** → Meeting activity → **Record contribution** · then 🖥️ API console for the SMS
-  *Expect:* the Home balance and Savings go up. The API console prints an SMS starting with **HELABOX:**.
-- [ ] **F5 Reverse — reason required** — Transactions → open that contribution → **Correct / reverse transaction** → leave Reason empty → Reverse.
-  **Where:** 📱 App → **Activity** tab (transactions) → tap the contribution → **Correct / reverse transaction**
-  *Expect:* "Explain why…" error; nothing changes.
-- [ ] **F6 Reverse** — Enter a reason → **Reverse transaction** → confirm.
-  **Where:** 📱 App → Activity tab → the contribution → Correct / reverse transaction → **Reverse transaction**
-  *Expect:* "Transaction reversed"; Savings drops back by that amount; the transaction shows as reversed and the reverse button is gone.
-- [ ] **F7 Reversed shows on the web** — Web → Mkusanyiko → Transactions tab.
-  **Where:** 🌐 Web → Groups → Mkusanyiko Group → **Transactions** tab
-  *Expect:* the row is struck through, with a "reversed" badge and the reason.
-- [ ] **F8 Closed meeting is locked** — Close a meeting (Review & Close), then try to record attendance or money against it.
-  **Where:** 📱 App → **Meetings** tab → a meeting → Review & Close · then try Attendance / record money on it
-  *Expect:* "this meeting is closed and can no longer be changed".
-- [ ] **F9 Record a government loan** — Group → **Government loans** → Record → lender "Halmashauri ya Arusha", programme "10% women loan", amount 1,000,000, interest 0, term 12 → Save.
-  **Where:** 📱 App → Group tab → **Government loans** → **Record government loan**
-  *Expect:* Received TZS 1,000,000 and Still owed TZS 1,000,000; the card shows Active with a due date 12 months away.
-- [ ] **F10 Repay part** — Record repayment 250,000.
-  **Where:** 📱 App → Group tab → Government loans → the loan card → **Record repayment**
-  *Expect:* Balance 750,000.
-- [ ] **F11 Over-repayment blocked** — Record repayment 900,000.
-  **Where:** 📱 App → Group tab → Government loans → the loan card → **Record repayment**
-  *Expect:* "exceeds the remaining balance".
-- [ ] **F12 Group savings unchanged** — After F9–F10, Home → Savings is **not** increased by the government loan.
-  **Where:** 📱 App → **Home** tab → Savings card
-- [ ] **F13 Settings sender ID** — Profile → Settings.
-  **Where:** 📱 App → Profile tab → **Settings** → About → SMS sender ID
-  *Expect:* SMS sender ID shows **TUKIIO** (not PESABOX).
+- [ ] **F1 Fine** — Record a fine (reason from the group's list). *Expect:* reason shown in Swahili in the fines list.
+- [ ] **F2 Pay fine** — Pay it. *Expect:* status Paid; Home updates.
+- [ ] **F3 Expense** — Record an expense 1,500. *Expect:* it appears in activity and in Funds "out".
 
-## G. Group Officer (Katibu) — 📱 App
+## G. Social fund payout (new)
 
-Log out in the app, then log in with 0711000003 / 1234.
+- [ ] **G1 Who sees it** — As Upendo (Mwenyekiti) and as Kassim (Katibu): Funds → **Social fund payout** is visible (both have finance.write).
+- [ ] **G2 Payout** — Pay 1,500 to a member, reason "Hospitali".
+  *Expect:* recorded; social fund balance drops by 1,500; SMS printed in the API console; activity shows "Malipo ya mfuko wa jamii".
+- [ ] **G3 Can't overdraw** — Pay more than the fund holds. *Expect:* refused before sending ("the social fund only holds …").
+- [ ] **G4 Reverse** — Reverse the payout with a reason. *Expect:* the fund goes back up by exactly 1,500.
 
-- [ ] **G1 Home group** — *Expect:* Mkusanyiko Group opens and the Group tab shows "**Secretary** · …".
-  **Where:** 📱 App → Profile → Log out → log in as 0711000003 → **Group** tab
-- [ ] **G2 Officer can record money** — Record a contribution. *Expect:* it succeeds.
-  **Where:** 📱 App (as Katibu) → Meetings tab → an open meeting → Meeting activity → **Record contribution**
-- [ ] **G3 Officer can't manage officers** — Group → Group officers.
-  **Where:** 📱 App (as Katibu) → Group tab → **Group officers**
-  *Expect:* the list shows, but there's no Add officer button or remove icons, and the note says only the Mwenyekiti can change officers.
-- [ ] **G4 No close cycle** — Meetings tab. *Expect:* no "Close cycle →" link.
-  **Where:** 📱 App (as Katibu) → **Meetings** tab → cycle card at the top
-- [ ] **G5 Officer can reverse** — Reverse the contribution from G2 (with a reason). *Expect:* it succeeds.
-  **Where:** 📱 App (as Katibu) → Activity tab → the G2 contribution → Correct / reverse transaction
-- [ ] **G6 Remove the officer** — Log back in as yourself → Group officers → remove Katibu Test.
-  **Where:** 📱 App → Log out → log in as yourself → Group tab → Group officers → remove icon
-  *Expect:* removed. When Katibu logs in again, they get "Waiting for your group".
+## H. Reversals (money is never deleted or edited)
 
-## H. Dashboard & reports — 🌐 Web
+- [ ] **H1 Reason required** — Activity → a contribution → Correct / reverse → empty reason. *Expect:* "Explain why…"; nothing changes.
+- [ ] **H2 Reverse** — Enter a reason → reverse. *Expect:* balance drops back; row shows reversed; reverse button gone.
+- [ ] **H3 Reverse a repayment** — Reverse the E5 repayment. *Expect:* the loan balance goes back up.
+- [ ] **H4 No delete anywhere** — There is no delete/edit for any money record in the app.
+- [ ] **H5 Shows on the web** — Web → that group → Transactions. *Expect:* struck through, "reversed" badge and the reason.
 
-- [ ] **H1 KPI cards** — Dashboard. *Expect:* Active groups, Members (women / men), PAR 30, Attendance, Shares and Government loans (**TZS 750,000** after F10) all show numbers.
-  **Where:** 🌐 Web → sidebar **Dashboard** → KPI cards (second row)
-- [ ] **H2 Filters** — Pick partner GATA, then cluster Moshi.
-  **Where:** 🌐 Web → Dashboard → **All partners / All clusters** dropdowns (top right)
-  *Expect:* the numbers change (Moshi → 0 groups).
-- [ ] **H3 Roll-up** — Click By partner / By cluster / By group.
-  **Where:** 🌐 Web → Dashboard → "Performance by level" table → **By partner / By cluster / By group**
-  *Expect:* one row per partner / cluster / group. Clicking a group row opens that group.
-- [ ] **H4 Report preview** — Reports → **Summary by Cluster** → Preview.
-  **Where:** 🌐 Web → sidebar **Reports** → Programme → Summary by Cluster → **Preview →**
-  *Expect:* rows per cluster with Swahili or English column headings, following the language switch.
-- [ ] **H5 New datasets** — Preview **Government Loans** (shows the Halmashauri loan) and **Portfolio at Risk (PAR 30)** (only loans more than 30 days overdue).
-  **Where:** 🌐 Web → Reports → Financial → Government Loans / Portfolio at Risk → **Preview →**
-- [ ] **H6 Export** — Select 3 datasets, format Excel → Export; repeat as PDF.
-  **Where:** 🌐 Web → Reports → tick datasets → Export card (right) → **Excel** / **PDF** → Export
-  *Expect:* files named `helabox-report-….xlsx` / `.pdf`; the PDF header says **HelaBox Report** / **Ripoti ya HelaBox**.
-- [ ] **H7 Report scope** — As Paul (partner), open Reports.
-  **Where:** 🌐 Web (Paul's incognito window) → Reports
-  *Expect:* only GATA / its clusters in the filters, and his exports contain only GATA's groups.
+## I. Government loans (loan to the group)
 
-- [ ] **H8 Date range** — Reports → Meetings → set From/To to a day with no meeting → Preview.
-  **Where:** 🌐 Web → Reports → date inputs + **Preview →**
-  *Expect:* 0 rows. Summary datasets show "(period)" columns for the range and note "balances as at today". A From date after To shows an error.
-- [ ] **H9 Formatting** — Preview **Transactions** in Swahili.
-  **Where:** 🌐 Web → Reports → Financial → Transactions → Preview
-  *Expect:* dates like 25/09/2026 (East Africa time), money with commas, values in Swahili (e.g. Taslimu), empty cells as "—". Summaries end with a **JUMLA/TOTAL** row.
-- [ ] **H10 New datasets** — Preview **Meeting collections**, **Fines charged & outstanding**, **Expenses**, **Government loan repayments**.
-  **Where:** 🌐 Web → Reports → dataset list
-  *Expect:* one row per meeting with present/absent and money in/out; fines show Charged / Paid / Outstanding.
-- [ ] **H11 Excel & PDF quality** — Export Summary by Group + Loans as Excel, then as PDF.
-  **Where:** 🌐 Web → Reports → Export card
-  *Expect:* file name like `helabox-…-multi-….xlsx`; Excel dates sort as dates, money has commas, header row frozen, TOTAL row bold; PDF names not cut off.
-- [ ] **H12 SMS reports are protected** — As Paul (0711000002), open Reports.
-  **Where:** 🌐 Web (Paul's incognito window) → Reports
-  *Expect:* no SMS datasets in the list (Super Admin still sees them).
-- [ ] **H13 Dashboard drill-down** — Performance by level → By partner → click GATA.
-  **Where:** 🌐 Web → Dashboard → "Performance by level"
-  *Expect:* switches to GATA's clusters with a breadcrumb chip to go back; the "Not assigned" row isn't clickable; recent activity shows date + time.
-- [ ] **H14 Real balances** — Group Mkusanyiko → Overview "Loans outstanding" vs Reports → Summary by Group.
-  **Where:** 🌐 Web → Groups → Mkusanyiko Group · then Reports
-  *Expect:* the same number in both (computed from loans, not a stored total).
+- [ ] **I1 Record** — Group → Mikopo ya serikali → lender "QA Halmashauri", 1,000,000, interest 0, 12 months.
+  *Expect:* Received 1,000,000; Still owed 1,000,000; Active.
+- [ ] **I2 Repay part** — 250,000. *Expect:* balance 750,000.
+- [ ] **I3 Over-repayment** — 900,000. *Expect:* translated error, refused.
+- [ ] **I4 Savings unchanged** — Home Akiba is **not** increased by the government loan.
 
-## I. Audit log — 🌐 Web (as Super Admin)
+## J. Share-out & close cycle (new — was a mock before)
 
-- [ ] **I1 Entries exist** — Audit Logs. *Expect:* entries for what you did above: partner/cluster created, user added, assignment, officer added, contribution recorded, **reversal (with the reason)**, government loan, deactivate/reactivate.
-  **Where:** 🌐 Web → sidebar **Audit Logs**
-- [ ] **I2 Filters** — Filter by action "Reversed" and by a date range. *Expect:* the list narrows correctly.
-  **Where:** 🌐 Web → Audit Logs → filter dropdowns + dates at the top
-- [ ] **I3 Hidden from others** — As Paul, open `/audit`. *Expect:* sent away (no access).
-  **Where:** 🌐 Web (Paul's incognito window) → address bar → `http://localhost:5173/audit`
+Use the **QA Monitoring Group** after section T has been checked (its numbers are worked out there), or any test group.
 
-## J. Settings & SMS — 🌐 Web (as Super Admin)
+- [ ] **J1 Who sees it** — Mwenyekiti: Meetings → cycle card → **Mgao →** with a "Also close cycle" tick box. Katibu: **Mgao →** but **no** close-cycle tick box.
+- [ ] **J2 Suggested amounts** — Open Mgao. *Expect:* each member = their savings + shares + a pro-rata share of the profit; a warning if loans are still outstanding; the total checked against cash available (cash − social fund).
+- [ ] **J3 Over-entitlement warning** — Edit one member above their suggestion.
+  *Expect:* red line "Zaidi ya stahili ya mwanachama huyu (TZS X)"; if you submit, the server refuses and its message is shown above the button.
+- [ ] **J4 Pay out** — Pay the suggested amounts **without** closing the cycle.
+  *Expect:* one `Mgawanyo wa akiba` transaction per member; SMS per member in the API console; Funds shows a **Share-out** row "… paid · … of it profit"; Savings/Shares "out" grow by the savings/shares returned.
+- [ ] **J5 Reverse a share-out** — Reverse one member's payout. *Expect:* their savings/shares come back exactly.
+- [ ] **J6 Close cycle** — Pay out again with **Also close cycle** ticked. *Expect:* cycle number +1. Reverse all those payouts → the cycle number goes back.
 
-- [ ] **J1 Real SMS info** — Settings. *Expect:* provider **Beem Africa**, sender **TUKIIO**, delivery "Dev mode (no Beem keys)", and the admin list shows real people (you, Vera).
-  **Where:** 🌐 Web → sidebar **Settings** → SMS card, System Administrators, System Health
-- [ ] **J2 Switches save immediately** — Toggle "Transactional SMS" off, refresh the page. *Expect:* it's still off. Turn it back on.
-  **Where:** 🌐 Web → Settings → SMS card → **Transactional SMS** switch → refresh the page
-- [ ] **J3 Template brand** — SMS → Templates. *Expect:* templates start with `{BRAND}:`, and `BRAND` is listed as a variable.
-  **Where:** 🌐 Web → sidebar **SMS** → **Templates** tab
+## K. Roles in the app
 
-## K. Sessions — 📱 App + 🌐 Web
+- [ ] **K1 Katibu** (0711000003) — Group tab shows "Katibu/Secretary"; can record money, attendance and reversals; **no** Add/remove officer, **no** Edit rules.
+- [ ] **K2 Mwenyekiti adds an officer** — Group → Viongozi wa kikundi → add phone 0711000099 as Committee. *Expect:* listed; adding the same phone again → "already an officer". Remove it afterwards.
+- [ ] **K3 Member** (0711000006) — *Expect:* "Waiting for your group" screen (member self-service is phase 3).
+- [ ] **K4 Other group's data hidden** — As Tumaini (0711000007): only Tumaini Group and its TZS 50,000 loan.
 
-- [ ] **K1 Expired app session** — Leave the app idle longer than 15 minutes (or clear its session), then reopen it.
-  **Where:** 📱 App → leave it idle 15+ minutes → reopen
-  *Expect:* it either continues silently, or lands on the welcome/login screen — **never** "Waiting for your group" for your own account.
-- [ ] **K2 Web logout** — Click Logout (Toka), then press the browser's Back button.
-  **Where:** 🌐 Web → sidebar **Logout** (Toka) → browser Back button
-  *Expect:* you stay on the login page.
+## L. Rules, announcements, statements, profile
 
-- [ ] **K3 App reads the local server** — Run the app from VS Code with the default "HelaBox - LOCAL server" config.
-  **Where:** VS Code → Run and Debug → **HelaBox - LOCAL server** → 📱 App → log in → compare with 🌐 Web Dashboard
-  *Expect:* after login it shows the same group and balances as the web dashboard (not "Waiting for your group").
-
-## M. Group rules (constitution) — 🌐 Web + 📱 App
-
-- [ ] **M1 See rules (read-only)** — As Paul (partner) open a group's Financial tab.
-  **Where:** 🌐 Web (Paul's window) → Groups → Mkusanyiko Group → **Financial** tab
-  *Expect:* rules shown, **no Edit rules** button.
-- [ ] **M2 Edit on the web** — As Super Admin set Mkusanyiko loan interest to **12%**, add a fine reason "Phone ringing" 500, Save.
-  **Where:** 🌐 Web → Groups → Mkusanyiko Group → Financial → **Edit rules**
-  *Expect:* saved with a note "changes apply to new records only"; Audit Logs shows a GroupRules entry with before → after.
-- [ ] **M3 Bad values refused** — In the same form try interest 150, min shares 5 > max shares 2, or delete every fine reason.
-  *Expect:* a clear error for each, nothing saved.
-- [ ] **M4 Edit in the app** — As Mwenyekiti (you) open the rules and change the social fund amount.
-  **Where:** 📱 App → Group tab → **Rules & Constitution** → **Edit rules**
-  *Expect:* saved; the social fund screen then shows the new amount, read-only.
-- [ ] **M5 Katibu can't edit** — Log in as 0711000003.
-  **Where:** 📱 App → Group tab → Rules & Constitution
-  *Expect:* rules visible, **no Edit** button.
-- [ ] **M6 Interest on a new loan** — Record a loan of 10,000 after M2.
-  **Where:** 📱 App → Loans → **Record loan**
-  *Expect:* preview shows interest **1,200**, total to repay **11,200** and "Available to borrow"; the loan details show the same; an older loan still owes principal only.
-- [ ] **M7 Repay the interest** — Repay 11,200 on that loan, then try 1 more.
-  **Where:** 📱 App → Loans → the loan → Record repayment
-  *Expect:* the loan becomes Repaid; the extra 1 is refused.
-- [ ] **M8 Loan limit** — Edit rules → Max loan = 2× savings; try a loan bigger than the member's available amount; try a loan for a suspended member.
-  *Expect:* refused with the reason (limit less what they still owe / only active members can borrow).
-- [ ] **M9 Switch a service off** — Edit rules → turn **Shares** off → Save.
-  **Where:** 🌐 Web or 📱 App → Edit rules → service switches
-  *Expect:* the app hides "Record shares"; existing loans can still be repaid. Turn it back on afterwards.
-- [ ] **M10 Voluntary savings** — Turn on Voluntary Savings, then record a contribution of 3,000 marked **Voluntary**.
-  **Where:** 📱 App → Meetings → an open meeting → Record contribution → Mandatory / Voluntary
-  *Expect:* accepted; a Mandatory one at a different amount is refused.
+- [ ] **L1 Rules** — As Mwenyekiti: Group → Rules & Constitution → Edit → change social fund amount → save. *Expect:* saved; the "Huduma" row doesn't overflow; Katibu sees no Edit button.
+- [ ] **L2 Announcement** — Add "QA Notice". *Expect:* listed.
+- [ ] **L3 Group statement PDF** — Reports → Group statement. *Expect:* opens; totals skip reversed rows; share-out and payouts labelled.
+- [ ] **L4 Member statement PDF** — A member → Statement. *Expect:* opens with that member's records only.
+- [ ] **L5 Settings** — Profile → Settings. *Expect:* SMS sender ID **TUKIIO**.
+- [ ] **L6 Offline** — Turn off emulator data, reopen the app. *Expect:* opens with proper fonts, no freeze.
+- [ ] **L7 Logout** — Profile → Log out. *Expect:* welcome screen; Back doesn't return into the app.
 
 ---
 
-## L. Technical checks — 💻 Git Bash (optional, for developers)
+# PART 2 — 🌐 WEB (`http://localhost:5173`)
 
-Run in Git Bash with the API on 8090.
+## M. Login, language, layout, groups
 
-- [ ] **L1 Logged-out GraphQL sees nothing** — run:
-  **Where:** 💻 Git Bash (API running on 8090)
-  `curl -s -H 'Content-Type: application/json' localhost:8090/graphql -d '{"query":"{ groups { id } }"}'`
-  *Expect:* `{"data":{"groups":[]}}`.
-- [ ] **L2 Unit tests** — `go test ./server/` → ok, and `cd pesa_box_app && flutter test` → all pass.
-  **Where:** 💻 Git Bash → repo folder, then `pesa_box_app` folder
+- [ ] **M1 Login** — 0625689904 / 1234. *Expect:* dashboard; sidebar "HelaBox Admin" + your role. Tab title **HelaBox — Admin**.
+- [ ] **M2 Language** — SW / EN in the top bar. *Expect:* no raw keys like `mon.title`; first visit opens in **English**.
+- [ ] **M3 Phone width** — Narrow the window to ~390px (or DevTools phone view).
+  *Expect:* a **menu button** in the top bar opens the sidebar as a drawer (it closes on navigation / tapping outside); no sideways scrolling on any page.
+- [ ] **M4 Unknown number** — Log in with 0799 123 456. *Expect:* "not registered"; no code sent.
+- [ ] **M5 Old finance page gone** — Open `http://localhost:5173/finance`. *Expect:* you land on Reports (it used to show made-up figures).
+- [ ] **M6 Groups list** — Groups. *Expect:* real groups, working pagination.
+- [ ] **M7 Create QA Monitoring Group** — Create Group → name **QA Monitoring Group**, cluster Arusha North, admin phone **0711000021**; then Financial → Edit rules:
+  share value 1,000 · min 1 · max 5 shares · mandatory savings 5,000 · social fund 2,000 · interest 10% · max loan 3× · Save.
+  *Expect:* created; rules saved; Audit has GroupRules.
+- [ ] **M8 Members & loans columns** — Upendo Vikoba → Members tab: **Date of birth** + **Age** columns (QA Neema: 10 May 2000, 26). Financial tab → loans: **Loan purpose** column with enterprise type underneath ("Biashara · Mama lishe"; old loans "Haijabainishwa").
+- [ ] **M9 Safe delete** — Create "QA Delete Me" → Delete Group → deleted. Delete Mkusanyiko → refused ("has financial records").
+- [ ] **M10 Close / reopen group** — Close group → Activate. *Expect:* badge changes; nothing deleted.
+
+## N. Partners & clusters (Super Admin)
+
+- [ ] **N1 Add partner** — "QA Partner", type NGO. *Expect:* listed with 0 clusters. Empty name → error.
+- [ ] **N2 Add cluster** — "QA Cluster" under QA Partner. *Expect:* listed.
+- [ ] **N3 Move a group** — QA Delete Me (or a QA group) → Cluster dropdown → QA Cluster. *Expect:* header shows QA Partner › QA Cluster.
+- [ ] **N4 Deactivate / reactivate** — QA Cluster. *Expect:* Inactive badge; nothing deleted.
+- [ ] **N5 Cluster link** — Click a cluster name. *Expect:* Groups filtered to it.
+
+## O. Users & assignments (Super Admin)
+
+- [ ] **O1 Add staff** — Add 0711000031 "QA Viewer", Staff / Viewer. *Expect:* listed.
+- [ ] **O2 Assign** — + Assign → Partner → GATA. *Expect:* badge "Partner: GATA". × removes it, then add it back.
+- [ ] **O3 Own role locked** — Your own row's role dropdown is disabled.
+- [ ] **O4 Deactivate** — Click QA Viewer's Active badge. *Expect:* Inactive; their open browser is sent to login; logging in → "deactivated". Reactivate.
+- [ ] **O5 Pending group admins** — tab "Group admins without a group" lists only admins with no group.
+
+## P. What each role sees (one incognito window each)
+
+- [ ] **P1 Staff Operations** (0711000013) — menu: Dashboard, Monitoring, Groups, Partners & Clusters, Reports, SMS. `/users`, `/audit`, `/settings` send you back. Can Create Group and Edit rules.
+- [ ] **P2 Staff Support** (0711000012) — all groups; Create Group; **no** Edit / Close / Delete / Edit rules.
+- [ ] **P3 Staff Viewer** (0711000011) — only GATA's groups; no create or edit buttons.
+- [ ] **P4 Partner User** (0711000002) — only GATA; no SMS / Users / Audit / Settings; partner filter lists only GATA; no SMS datasets in Reports.
+- [ ] **P5 Cluster Manager** (0711000004) — only Arusha North groups (Mkusanyiko, QA Monitoring Group); Create Group offers only Arusha North.
+- [ ] **P6 Group roles on the web** (0711000005, 0711000003, 0711000006) — every page → "You don't have access… use the mobile app".
+
+## Q. Dashboard
+
+- [ ] **Q1 KPI cards** — Active groups, members (women/men), savings, shares, social fund, loans outstanding, PAR 30, attendance, government loans — all numbers, no "NaN".
+- [ ] **Q2 Matches the API** — Loans outstanding on Mkusanyiko's group page = Reports → Summary by Group.
+- [ ] **Q3 Filters & roll-up** — Partner / cluster filters change the numbers; "Performance by level" by partner → click GATA → its clusters, breadcrumb back.
+- [ ] **Q4 Activity feed** — After G2 and J4: entries read "Malipo ya mfuko wa jamii" / "Mgawanyo wa akiba" (not raw codes).
+
+## R. Record the QA Monitoring Group scenario (📱 App, as 0711000021) — feeds section T
+
+Log in to the app as **0711000021** (the QA group's admin — the first login opens the group as Mwenyekiti), then:
+
+- [ ] **R1 Members** — QA Neema (F, DOB 2000-05-10) · QA Asha (F, DOB 1980-01-15) · QA John (M, DOB 2005-03-01) · QA Peter (M, no DOB).
+- [ ] **R2 Meeting #1** — create for today, start; attendance: Neema present · Asha late · John absent · Peter excused.
+- [ ] **R3 Money** — Neema: savings 5,000, 3 shares (3,000), social fund 2,000 · Asha: savings 5,000, social fund 2,000.
+- [ ] **R4 Loan** — Asha 10,000, purpose **Biashara**, enterprise "Mama lishe" (interest 10% → total due **11,000**).
+- [ ] **R5 Repayment** — Asha repays **5,500**.
+- [ ] **R6 Payout** — Social fund payout 1,000 to John, reason "Hospitali".
+- [ ] **R7 Close** — Review & close the meeting.
+
+## T. Monitoring page — GATA's 11 indicators (🌐 Web → **Monitoring / Ufuatiliaji**)
+
+Filter **Group = QA Monitoring Group**, leave dates empty (the page then says it shows the **last 12 months**).
+Each section has a "how it's calculated" line and buttons that open the matching report. Expected numbers for the R-scenario:
+
+- [ ] **T1 Page basics** — period line + "balances as at" date + scope "1 group"; 11 sections in order; works in SW and at phone width; a cluster with no groups shows the empty state.
+- [ ] **T2 Savings** — savings recorded **13,000** (savings 10,000 + shares 3,000); contributions **10,000**; shares **3,000**; savers **2**; average per saver **6,500** (Neema 8,000 / Asha 5,000).
+- [ ] **T3 Loans** — disbursed **10,000**; borrowers **1**; outstanding **5,500**.
+- [ ] **T4 Loan repayments** — overdue **0**, defaults **0** (the loan isn't due yet); repayment rate counts only loans that fell due in the period (see the hint) — so it is 0 / "—" here. Re-check after a loan passes its due date.
+- [ ] **T5 Social fund** — contributions **4,000**; payouts **1,000**; balance **3,000**.
+- [ ] **T6 Membership** — active **4** (F 2 / M 2); new **4**; age bands 15-24: **1** (John) · 25-35: **1** (Neema) · 36-59: **1** (Asha) · unknown: **1** (Peter); youth (15–35) **2**; date-of-birth coverage **75%**; attendance: present 1, late 1, absent 1, excused 1 → rate **50%** (present + late).
+- [ ] **T7 Digital adoption** — groups using the app **1 of 1**; meetings fully recorded (attendance + money) **1 of 1 = 100%**. 👤 GATA to confirm this definition.
+- [ ] **T8 Financial performance** — interest earned **500** (5,500 × 1,000 / 11,000, pro-rata); expenses **0**; shared out **0**.
+- [ ] **T9 Accountability** — reversals **0**; expected cash on hand **11,500** (in 10,000 + 3,000 + 4,000 + 5,500 − out 10,000 − 1,000); audit entries > 0 (Super Admin only).
+- [ ] **T10 Growth** — this month's bar shows savings + shares 13,000 and loan portfolio 5,500; the *Monthly Growth* report has 12 rows.
+- [ ] **T11 Access** — saving regularly **2 of 4 = 50%** (Neema, Asha saved at 100% of meetings); borrowing **1 of 4 = 25%**.
+- [ ] **T12 Economic benefits** — loans by purpose: Biashara **1**; IGA borrowers **1** (Female, 36-59); enterprise types: "Mama lishe" **1**.
+- [ ] **T13 Reversal moves the numbers** — In the app reverse R5 (Asha's 5,500). *Expect:* outstanding **11,000**, interest earned **0**, reversals **1**, expected cash **6,000**. Record the 5,500 again afterwards.
+- [ ] **T14 Share-out numbers** — In the app Asha repays the remaining **5,500** (loan Repaid). Mgao suggests Neema **8,615** (8,000 + 615 profit) and Asha **5,384–5,385** (5,000 + her 384.6 share) — profit 1,000 = the interest. First try Asha **6,000** → refused: "TZS 6,000 is more than this member can receive (TZS 5,385 …)". Then pay out the suggestions (J4).
+  *Expect:* Monitoring → Financial performance: shared out **13,999**, returns to members **999**, interest earned **1,000**; Accountability: expected cash **≈ 3,001** (the social fund 3,000 stays in the box).
+- [ ] **T15 Scope** — As Clara (cluster manager): Monitoring shows only Arusha North groups. As Paul (partner): only GATA. Group roles: no Monitoring at all. SMS/audit counts are hidden from roles without SMS/audit access.
+- [ ] **T16 Bad dates** — From after To → error (400), no numbers.
+
+## U. Reports & exports
+
+- [ ] **U1 Every dataset loads** — Reports → preview each dataset with no filter, a date range, a partner, a cluster, a group.
+- [ ] **U2 New datasets** — *Monitoring Summary*, *Members by Age*, *Member Savings*, *Loans by Purpose*, *Loans by Enterprise*, *Monthly Growth*, *Social Fund Payouts*, *Share-outs*. *Expect:* rows match section T for QA Monitoring Group.
+- [ ] **U3 Member savings & growth** — *Member Savings* lists each member's savings/shares; *Monthly Growth* 12 months.
+- [ ] **U4 Loans report** — has **Purpose** and **Enterprise Type** columns; *Members* report has **Date of Birth** and **Age Band**.
+- [ ] **U5 Export** — Tick several datasets → PDF, Excel, CSV. *Expect:* files `helabox-…`, non-empty, Swahili/English headers per language, TOTAL row bold.
+- [ ] **U6 Link from Monitoring** — On Monitoring click a section's report button. *Expect:* Reports opens with the same filters and previews that dataset.
+- [ ] **U7 Scope** — As Paul: only GATA in filters and exports; no SMS datasets.
+- [ ] **U8 Dates** — From after To → error; a day with no data → 0 rows; dates shown in East Africa time.
+
+## V. Audit log (Super Admin)
+
+- [ ] **V1 Entries** — Audit Logs shows: partner/cluster/user/assignment changes, group rules, money recorded, **reversals with reason**, social fund payout, share-out, government loan.
+- [ ] **V2 Filters** — by action and date range.
+- [ ] **V3 Hidden** — As Paul, `/audit` → sent away.
+
+## W. Settings, SMS, Mobile App page
+
+- [ ] **W1 Settings** — provider Beem Africa, sender TUKIIO, "Dev mode (no Beem keys)", real admin list.
+- [ ] **W2 SMS switch** — Toggle Transactional SMS off → refresh → still off → turn back on.
+- [ ] **W3 SMS page** — KPI cards fit at phone width; templates start with `{BRAND}:`; payout/share-out SMS types have proper names.
+- [ ] **W4 Mobile App page** — `/admin/app`: upload an APK → `GET /api/public/app` shows it available; landing page shows the download.
+
+## X. Data rules & security (web + API)
+
+- [ ] **X1 No money delete** — No delete/edit for transactions anywhere on the web.
+- [ ] **X2 GraphQL can't delete or write money** — logged-out: `curl -s -H 'Content-Type: application/json' localhost:8090/graphql -d '{"query":"{ groups { id } }"}'` → `{"data":{"groups":[]}}`.
+- [ ] **X3 Totals drift** — `/api/admin/totals-drift` (as Super Admin, in the browser) lists any group whose stored totals differ from the computed ones — expect none for QA Monitoring Group.
+
+## Y. Sessions
+
+- [ ] **Y1 Web logout** — Logout → browser Back → stays on login.
+- [ ] **Y2 Deactivated person kicked out** — O4.
+
+## Z. Technical checks (💻 Git Bash, optional)
+
+- [ ] **Z1** `go build ./server/ && go vet ./server/ && go test ./server/` → ok
+- [ ] **Z2** `cd web && npx vite build` → ok
+- [ ] **Z3** `cd pesa_box_app && flutter analyze && flutter test` → only the 10 old info hints; all tests pass
+- [ ] **Z4** Before a release build of the app: `kUseLiveServer` / API URL points where you intend.
+
+---
+
+## 👤 Open questions for GATA
+
+1. **Digital adoption** — all HelaBox records are digital, so "% recorded digitally" is measured as % of meetings fully recorded (attendance + money). OK?
+2. **Cash reconciliation** — the app has no physical cash count; we show *expected* cash on hand. Do they want a "cash counted" field at meeting close?
+3. **Default** = more than 90 days overdue; **regular saver** = saved at ≥ 75% of meetings; **youth** = 15–35. Confirm.
+4. **Share-out** doesn't require all loans repaid first (the app warns). Confirm the policy.
 
 ---
 

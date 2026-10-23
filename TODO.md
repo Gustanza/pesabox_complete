@@ -222,6 +222,16 @@ Tick when GATA confirms (or note their change in the log).
 - [x] **P9** Reports hardening (review 2026-09-25, R1–R27 + V1–V8) — _date range on every dataset, EAT time zone, balances computed from non-reversed transactions (not stored totals), cancelled loans = 0, SMS reports need SMS permission, 400 on bad dates, 403 for out-of-scope filters, TOTAL rows, real Excel dates/number formats, PDF columns no longer cut, new datasets meeting-collections / fines-outstanding / expenses / gov-loan-repayments, dashboard drill-down, app statement + reports aligned with server. `GET /api/admin/totals-drift` (super admin) shows stored-vs-real total differences_
 - [ ] **P10** DB indexes on `groupId` + `createdAt` (Transactions, SmsLogs, MeetingAttendance) — before large data
 
+## 5b. GATA monitoring indicators (feedback 2026-10-23) — `✅ DONE` (definitions 👤 GATA to confirm)
+
+- [x] **GM1** All 11 indicators in one computation — `GET /api/admin/monitoring` (`server/monitoring.go`, contract + definitions in `server/MONITORING_API.md`), web page **Monitoring** (`web/src/views/MonitoringView.vue`), 8 new report datasets
+- [x] **GM2** Age disaggregation — `Members.dateOfBirth` (app add/edit member, web Members tab, Members report)
+- [x] **GM3** Loan purpose + enterprise type — `Loans.purpose` / `enterpriseType` (app Record loan, web loans table, Loans report)
+- [x] **GM4** Social fund disbursements — `POST /api/main/social-fund/payout` + app screen
+- [x] **GM5** Share-out / returns to members — `POST /api/main/share-out` (entitlement-capped, per-group lock, closes cycle; reversal reopens it) + real app screen (was a mock)
+- [ ] **GM6** GATA confirms definitions: digital adoption, cash reconciliation (no physical cash count yet), default = 90 days, regular saver = 75 %, youth = 15–35, share-out with loans outstanding (TESTING.md "Open questions")
+- [ ] **GM7** First login on a fresh install has no role until the server restarts (`migrateAccess`) — decide whether `resolveActor` should promote on first request
+
 ---
 
 ## 6. Data that must not be deleted — `✅ DONE`
@@ -299,4 +309,5 @@ Tick when GATA confirms (or note their change in the log).
 | 2026-09-25 | settings, H1, H5 | Claude | Web Settings showed fake data (NextSMS, PESABOX, fake admins, dead 2FA toggles) — now real provider/sender/health/admins. Untracked node_modules + exe + log, added server/.env.example |
 | 2026-09-25 | P9, G3 (reports review) | Claude (reviewer + coder agents) | Reviewer found 27 report issues (3 high: date range ignored by 11 datasets, UTC dates, app counted cancelled loans) — all fixed; re-review found 8 small ones — fixed. go test 28/28, isolated e2e 131/131, web build + i18n parity 633/633, flutter test 35/35. D10 (interest) + D11 (meeting rule) added for GATA |
 | 2026-09-26 | K1–K4, D10, D11 | Claude (coder + reviewer agents) | Group rules editable (web + app) and enforced; flat interest; loan limit; voluntary savings; 2 old bugs + 1 security hole fixed. Review round W1–W10 fixed. go test 44/44, e2e 204/204, web build + i18n 666/666, flutter test 43/43. TESTING.md: H8–H14, M1–M10 |
+| 2026-10-23 | GM1–GM5, full QA | Claude (server, web, app, reviewer agents) | GATA's 11 monitoring indicators (API + web Monitoring page + reports), DOB, loan purpose, social-fund payout, real share-out. Reviewer: 11 findings (1 high — share-out not capped per member) all fixed. Invalid token on JSON → 401 (yekonga/middleware.go). Web: no menu on phones, SMS page overflow, fake /finance page fixed; app: 19 bugs (cached data leaked between users, dead session, overdue meetings, i18n…). go test 56/56, e2e 295/295, web walkthrough 10 roles × 2 langs × 2 widths 0 issues, flutter test pass. TESTING.md rewritten A–Z with a hand-checked QA Monitoring Group scenario |
 | 2026-09-26 | login gate | Claude | Login is invite-only: an unknown number gets no OTP (no SMS, no account) — only existing active accounts, a group's admin phone, SUPER_ADMIN_PHONES, or first setup. Deactivated accounts refused. Framework Google sign-in refused when no client ID is set (it accepted any Google token). Web + app show the reason in sw/en. go test + flutter test 43/43 + web build OK; checked live on the isolated :8091 server. TESTING.md A9–A11 |

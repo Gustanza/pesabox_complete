@@ -51,6 +51,10 @@ export const saveGroupRules = (groupId, rules) => call('PUT', `/api/admin/groups
 // ---- monitoring -----------------------------------------------------------
 export const getDashboard = (filters) => call('GET', '/api/admin/dashboard' + qs(filters))
 export const getRollup = (level, filters) => call('GET', '/api/admin/rollup' + qs({ level, ...filters }))
+// GATA monitoring indicators (server/monitoring.go, contract in
+// server/MONITORING_API.md). Filters: partnerId, clusterId, groupId, from, to.
+// With no `from` the server uses the last 12 months and says so in `period`.
+export const getMonitoring = (filters) => call('GET', '/api/admin/monitoring' + qs(filters))
 export const listGovLoans = (groupId) => call('GET', '/api/admin/gov-loans' + qs({ groupId }))
 export const listAudit = (filters) => call('GET', '/api/admin/audit' + qs(filters))
 

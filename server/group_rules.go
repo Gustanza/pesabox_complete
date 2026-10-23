@@ -435,7 +435,7 @@ func loanInterest(l datatype.DataMap) float64 {
 }
 
 // memberSavingsShares is a member's non-reversed savings (contributions less
-// withdrawals) plus shares — the base of the maxLoanMultiplier limit.
+// withdrawals and less what a share-out returned) plus shares — the base of the maxLoanMultiplier limit.
 func memberSavingsShares(txs []datatype.DataMap, memberId string) float64 {
 	var total float64
 	for _, t := range txs {
@@ -447,6 +447,8 @@ func memberSavingsShares(txs []datatype.DataMap, memberId string) float64 {
 			total += helper.GetValueOfFloat(t, "amount")
 		case "withdrawal":
 			total -= helper.GetValueOfFloat(t, "amount")
+		case "share_out": // what came back at a share-out is no longer saved
+			total -= helper.GetValueOfFloat(t, "savingsReturned") + helper.GetValueOfFloat(t, "sharesReturned")
 		}
 	}
 	return math.Max(0, total)
@@ -504,6 +506,10 @@ func txTypeError(typ string) string {
 		return "record fine payments on the fine (POST /api/main/fines/:id/pay), not as a plain transaction"
 	case "expense":
 		return "record expenses with POST /api/main/expenses, not as a plain transaction"
+	case "social_fund_payout":
+		return "record social fund payouts with POST /api/main/social-fund/payout, not as a plain transaction"
+	case "share_out":
+		return "record a share-out with POST /api/main/share-out, not as a plain transaction"
 	case "":
 		return "type and a positive amount are required"
 	}
